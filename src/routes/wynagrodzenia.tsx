@@ -93,29 +93,33 @@ function SalariesPage() {
       </header>
 
       <div className="grid xl:grid-cols-2 gap-6">
-        {spouses.length === 2 ? (
-          <>
-            <SpousePanel key={spouses[0].id} spouse={spouses[0]} canDelete={true} />
-            <div className="xl:col-span-2 order-last xl:order-none bg-muted/50 rounded-2xl p-4 border border-border flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Łączne netto gospodarstwa</p>
-                <p className="font-display text-3xl tabular-nums">{formatPLN(totalHouseholdNet)}</p>
-              </div>
-              {jointFiling && joint && joint.savings > 0 && (
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Oszczędność przy wspólnym rozliczeniu</p>
-                  <p className="text-lg font-semibold text-success">+{formatPLN(joint.savings)} / rok</p>
-                </div>
-              )}
-            </div>
-            <SpousePanel key={spouses[1].id} spouse={spouses[1]} canDelete={true} />
-          </>
-        ) : (
-          spouses.map((s) => (
-            <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
-          ))
-        )}
+        {spouses.map((s) => (
+          <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
+        ))}
       </div>
+
+      {spouses.length === 2 && (
+        <div className="bg-muted/40 rounded-2xl p-6 border border-border flex flex-wrap items-center justify-between gap-6 shadow-sm mt-8">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
+              Łączne netto gospodarstwa (średnia roczna)
+            </p>
+            <p className="font-display text-4xl tabular-nums text-accent">
+              {formatPLN(totalHouseholdNet)}
+            </p>
+          </div>
+          {jointFiling && joint && joint.savings > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground font-semibold mb-1">
+                Zysk z rozliczenia wspólnego
+              </p>
+              <p className="text-2xl font-bold text-success tabular-nums">
+                +{formatPLN(joint.savings)} <span className="text-sm font-normal">/ rok</span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
