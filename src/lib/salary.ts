@@ -18,6 +18,8 @@ export interface SalaryInputs {
   benefitsTaxable: number;
   lunchAllowance: number;
   remoteAllowance: number;
+  whfDays: number;
+  whfDailyRate: number;
   ppkEmployeeRate: number;
   ppkEmployerRate: number;
   kupType: "standard" | "outOfTown" | "none";
@@ -78,6 +80,8 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   benefitsTaxable: 0,
   lunchAllowance: 0,
   remoteAllowance: 0,
+  whfDays: 0,
+  whfDailyRate: 0,
   ppkEmployeeRate: 2,
   ppkEmployerRate: 1.5,
   kupType: "standard",
@@ -126,7 +130,8 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
 
   const kupTotal = round2(kupStandard + kupAutorski);
 
-  const incomeForPit = gross + benefitsTaxable + lunchAllowance + ppkEmployer;
+  const taxableLunch = lunchAllowanceZusable;
+  const incomeForPit = gross + benefitsTaxable + taxableLunch;
   const taxBaseRaw = Math.max(0, incomeForPit - zusTotal - kupTotal);
   const taxBase = Math.round(taxBaseRaw);
 

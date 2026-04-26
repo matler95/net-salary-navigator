@@ -122,11 +122,15 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
     <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/40">
-        <Input
-          value={spouse.name}
-          onChange={(e) => actions.updateSpouse(spouse.id, { name: e.target.value })}
-          className="font-display text-lg h-9 max-w-xs bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            value={spouse.name}
+            onChange={(e) => actions.updateSpouse(spouse.id, { name: e.target.value })}
+            placeholder="Wpisz imię lub nazwę"
+            className="font-display text-lg h-9 px-3 py-2 bg-white/50 dark:bg-black/20 border border-transparent rounded-md hover:border-border focus:border-accent focus:bg-background transition-all focus-visible:ring-1 focus-visible:ring-accent shadow-none max-w-xs"
+          />
+          <span className="text-xs text-muted-foreground">— edytuj</span>
+        </div>
         {canDelete && (
           <Button
             variant="ghost"
@@ -171,8 +175,57 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
               onChange={(n) => set("lunchAllowance", n)}
               hint="ZUS-free do 450 zł"
             />
+          </div>
+
+          {/* WHF Calculator */}
+          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+            <Label className="text-xs uppercase tracking-wider text-blue-700 dark:text-blue-400 font-semibold block mb-4">
+              Praca zdalna (dni × stawka)
+            </Label>
+            <div className="grid grid-cols-1 gap-3 mb-3">
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Dni WHF</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={spouse.inputs.whfDays ?? 0}
+                  onChange={(e) => set("whfDays", parseFloat(e.target.value) || 0)}
+                  min={0}
+                  step={1}
+                  className="font-mono text-base h-11 w-full"
+                />
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Stawka/dzień</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={spouse.inputs.whfDailyRate ?? 0}
+                    onChange={(e) => set("whfDailyRate", parseFloat(e.target.value) || 0)}
+                    min={0}
+                    step={1}
+                    className="font-mono text-base h-11 w-full pr-12"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">zł</span>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Razem</Label>
+                <div className="bg-white dark:bg-black/20 border border-border rounded-md px-3 font-mono text-base font-medium flex items-center justify-end h-11 w-full">
+                  {formatPLN2((spouse.inputs.whfDays ?? 0) * (spouse.inputs.whfDailyRate ?? 0))}
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Lub wprowadź kwotę ręcznie poniżej (PIT/ZUS-free)
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Praca zdalna"
+              label="Praca zdalna (razem)"
               value={spouse.inputs.remoteAllowance}
               onChange={(n) => set("remoteAllowance", n)}
               hint="PIT/ZUS-free"
