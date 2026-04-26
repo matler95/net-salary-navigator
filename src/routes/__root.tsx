@@ -29,11 +29,17 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Płaca.netto — Kalkulator UoP 2025" },
+      {
+        name: "description",
+        content:
+          "Polski kalkulator wynagrodzeń: netto z brutto z PPK, benefitami, KUP i ekwiwalentem za pracę zdalną.",
+      },
+      { property: "og:title", content: "Płaca.netto — Kalkulator UoP 2025" },
+      {
+        property: "og:description",
+        content: "Netto z brutto z uwzględnieniem PPK, benefitów i ekwiwalentu zdalnego.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
@@ -54,6 +60,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        />
         <HeadContent />
       </head>
       <body>
