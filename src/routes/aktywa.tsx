@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState } from "@/lib/store";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
-import { monthlyPayment, loanTotalInterest, rentalCashflow } from "@/lib/finance";
+import {
+  monthlyPayment,
+  loanTotalInterest,
+  rentalCashflow,
+  amortizationSchedule,
+} from "@/lib/finance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
