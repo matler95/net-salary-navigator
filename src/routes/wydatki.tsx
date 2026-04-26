@@ -37,7 +37,7 @@ const SUGGESTED_CATEGORIES = [
   "Dzieci",
   "Rozrywka",
   "Subskrypcje",
-  "Oszczędności",
+  "Osobiste",
   "Inne",
 ];
 

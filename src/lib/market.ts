@@ -3,10 +3,11 @@ import type { Investment } from "./store";
 
 export type DailyTickerPrices = {
   asOf: string;
-  byTicker: Record<string, number>;
+  byTicker: Record<string, number>;         // price in ticker's native currency
+  currencyByTicker: Record<string, string>; // e.g. "USD", "EUR", "GBP"
 };
 
-const TICKER_CACHE_KEY = "placa-netto-tickers-v4";
+const TICKER_CACHE_KEY = "placa-netto-tickers-v5";
 
 let memoryPrices: DailyTickerPrices | null = null;
 let inFlight: Promise<DailyTickerPrices> | null = null;
@@ -22,7 +23,7 @@ export function useDailyTickerPrices(tickers: string[]) {
   );
 
   const [prices, setPrices] = useState<DailyTickerPrices>(
-    memoryPrices ?? { asOf: "", byTicker: {} },
+    memoryPrices ?? { asOf: "", byTicker: {}, currencyByTicker: {} },
   );
   const [loading, setLoading] = useState(memoryPrices == null);
 
@@ -75,6 +76,10 @@ export async function searchTickers(query: string): Promise<TickerSearchResult[]
   }
 }
 
+export function getTickerCurrency(ticker: string, prices: DailyTickerPrices): string | undefined {
+  return ticker ? prices.currencyByTicker?.[ticker.trim().toLowerCase()] : undefined;
+}
+
 export function getInvestmentCurrentValue(
   investment: Investment,
   tickerPrices: DailyTickerPrices,
@@ -94,10 +99,12 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
   const today = todayIsoDate();
   const validTickers = tickers.filter(Boolean);
 
+  const EMPTY: DailyTickerPrices = { asOf: today, byTicker: {}, currencyByTicker: {} };
+
   // Fast path: all tickers already in memory with valid prices
   if (memoryPrices && memoryPrices.asOf === today) {
     const missing = validTickers.filter((t) => !(t in memoryPrices!.byTicker));
-    if (missing.length === 0) return { ...memoryPrices, byTicker: { ...memoryPrices.byTicker } };
+    if (missing.length === 0) return { ...memoryPrices, byTicker: { ...memoryPrices.byTicker }, currencyByTicker: { ...memoryPrices.currencyByTicker } };
     // Some new tickers need fetching — fall through using memoryPrices as base
   }
 
@@ -106,29 +113,36 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
   const base: DailyTickerPrices =
     (memoryPrices && memoryPrices.asOf === today)
       ? memoryPrices
-      : (fromCache && fromCache.asOf === today ? fromCache : { asOf: today, byTicker: {} });
+      : (fromCache && fromCache.asOf === today ? fromCache : EMPTY);
 
   // Only fetch tickers not already in the base
   const toFetch = validTickers.filter((t) => !(t in base.byTicker));
 
   if (toFetch.length === 0) {
     memoryPrices = base;
-    return { ...base, byTicker: { ...base.byTicker } };
+    return { ...base, byTicker: { ...base.byTicker }, currencyByTicker: { ...base.currencyByTicker } };
   }
 
   // If an existing fetch is running for a different set, wait then retry
   if (inFlight) {
     const shared = await inFlight;
     const stillMissing = validTickers.filter((t) => !(t in shared.byTicker));
-    if (stillMissing.length === 0) return { ...shared, byTicker: { ...shared.byTicker } };
+    if (stillMissing.length === 0) return { ...shared, byTicker: { ...shared.byTicker }, currencyByTicker: { ...shared.currencyByTicker } };
   }
 
   inFlight = (async () => {
-    const next: DailyTickerPrices = { asOf: today, byTicker: { ...base.byTicker } };
+    const next: DailyTickerPrices = {
+      asOf: today,
+      byTicker: { ...base.byTicker },
+      currencyByTicker: { ...(base.currencyByTicker ?? {}) },
+    };
     await Promise.all(
       toFetch.map(async (ticker) => {
-        const price = await fetchPrice(ticker);
-        if (price && price > 0) next.byTicker[ticker] = price;
+        const result = await fetchPrice(ticker);
+        if (result) {
+          next.byTicker[ticker] = result.price;
+          next.currencyByTicker[ticker] = result.currency;
+        }
       }),
     );
     memoryPrices = next;
@@ -138,7 +152,7 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
 
   try {
     const result = await inFlight;
-    return { ...result, byTicker: { ...result.byTicker } };
+    return { ...result, byTicker: { ...result.byTicker }, currencyByTicker: { ...result.currencyByTicker } };
   } finally {
     inFlight = null;
   }
@@ -158,22 +172,23 @@ function toYahooSymbol(ticker: string): string {
   return t; // .DE, .FR, BTC-USD, etc. work as-is
 }
 
-async function fetchPrice(ticker: string): Promise<number | null> {
+async function fetchPrice(ticker: string): Promise<{ price: number; currency: string } | null> {
   // Try Yahoo Finance first (proper CORS support)
-  const yahoo = await fetchYahooPrice(toYahooSymbol(ticker));
-  if (yahoo !== null) return yahoo;
-  // If the ticker is already in Yahoo format, also try it raw
-  const yahooRaw = await fetchYahooPrice(ticker.toUpperCase());
-  if (yahooRaw !== null) return yahooRaw;
+  const normalized = toYahooSymbol(ticker);
+  const yahooResult = await fetchYahooDetails(normalized);
+  if (yahooResult) return yahooResult;
+  // Try raw ticker as-is (already Yahoo format)
+  const yahooRaw = await fetchYahooDetails(ticker.toUpperCase());
+  if (yahooRaw) return yahooRaw;
   // Fallback: Stooq via Vite dev proxy
-  return fetchStooqPrice(ticker);
+  const stooqPrice = await fetchStooqPrice(ticker);
+  return stooqPrice ? { price: stooqPrice, currency: "PLN" } : null;
 }
 
-async function fetchYahooPrice(symbol: string): Promise<number | null> {
+/** Fetch price + currency from Yahoo Finance via proxy → direct fallback. */
+async function fetchYahooDetails(symbol: string): Promise<{ price: number; currency: string } | null> {
   if (!symbol) return null;
-  // Try via local Vite proxy first (avoids CORS in dev)
   const proxyUrl = `/api/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-  // Also prepare direct URL as fallback (works in prod if Yahoo allows CORS)
   const directUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 
   for (const url of [proxyUrl, directUrl]) {
@@ -181,8 +196,16 @@ async function fetchYahooPrice(symbol: string): Promise<number | null> {
       const res = await fetch(url);
       if (!res.ok) continue;
       const json = await res.json();
-      const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;
+      const meta = json?.chart?.result?.[0]?.meta;
+      let price: number = meta?.regularMarketPrice;
+      let currency: string = meta?.currency ?? "";
+      if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) continue;
+      // Normalize GBp (pence) → GBP: divide price by 100
+      if (currency === "GBp") {
+        price = price / 100;
+        currency = "GBP";
+      }
+      return { price, currency };
     } catch {
       // try next
     }
@@ -210,6 +233,7 @@ function mergePrices(source: DailyTickerPrices, tickers: string[]): DailyTickerP
   const merged: DailyTickerPrices = {
     asOf: source.asOf,
     byTicker: { ...source.byTicker },
+    currencyByTicker: { ...(source.currencyByTicker ?? {}) },
   };
   tickers.forEach((ticker) => {
     if (!(ticker in merged.byTicker)) merged.byTicker[ticker] = 0;
@@ -234,7 +258,11 @@ function readCachedPrices(): DailyTickerPrices | null {
     Object.entries(parsed.byTicker).forEach(([k, v]) => {
       if (typeof v === "number" && Number.isFinite(v)) byTicker[k] = v;
     });
-    return { asOf: parsed.asOf, byTicker };
+    return {
+      asOf: parsed.asOf,
+      byTicker,
+      currencyByTicker: (parsed.currencyByTicker as Record<string, string>) ?? {},
+    };
   } catch {
     return null;
   }

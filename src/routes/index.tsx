@@ -70,6 +70,7 @@ function Dashboard() {
   const investments = useAppState((s) => s.investments);
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
+  const savings = useAppState((s) => s.savings);
   const { rates } = useDailyFxRates();
   const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
@@ -95,9 +96,10 @@ function Dashboard() {
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
+  const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
 
   const cashflow = totalNet + rentalNet - totalExpenses - monthlyLoanPmt;
-  const netWorth = totalInvestments + rentalAssets - totalLoans;
+  const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
 
   // Joint filing comparison
   const joint = spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
@@ -157,12 +159,12 @@ function Dashboard() {
         <Stat
           label="Majątek netto"
           value={formatPLN(netWorth)}
-          sub={`aktywa ${formatPLN(totalInvestments + rentalAssets)} · długi ${formatPLN(totalLoans)}`}
+          sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)} · długi ${formatPLN(totalLoans)}`}
         />
       </section>
 
       {/* Joint vs individual filing */}
-      {joint && (
+      {/* {joint && (
         <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
           <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
             <div>
@@ -197,7 +199,7 @@ function Dashboard() {
             </div>
           </div>
         </section>
-      )}
+      )} */}
 
       {/* Charts */}
       <section className="grid lg:grid-cols-2 gap-6">
@@ -289,7 +291,7 @@ function Dashboard() {
         <QuickCard
           to="/aktywa"
           title="Aktywa & długi"
-          desc={`${investments.length + rentals.length} aktywów · ${loans.length} kredytów`}
+          desc={`${investments.length + rentals.length + savings.length} aktywów · ${loans.length} kredytów`}
         />
       </section>
     </main>

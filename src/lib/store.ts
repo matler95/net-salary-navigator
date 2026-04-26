@@ -64,6 +64,20 @@ export type Rental = {
   marketValue: number;
 };
 
+export type SavingsAccountType = "zwykłe" | "oszczędnościowe" | "lokata";
+
+export type SavingsAccount = {
+  id: string;
+  bank: string;
+  type: SavingsAccountType;
+  balance: number;          // current balance / lokata principal
+  ratePct: number;          // annual interest rate %, 0 if not applicable
+  // Lokata-specific
+  lokataStartDate?: string; // ISO date
+  lokataDurationMonths?: number;
+  lokataCapitalization?: "miesięczna" | "kwartalna" | "roczna" | "na końcu";
+};
+
 export type AppState = {
   spouses: Spouse[];
   jointFiling: boolean;
@@ -71,6 +85,7 @@ export type AppState = {
   investments: Investment[];
   loans: Loan[];
   rentals: Rental[];
+  savings: SavingsAccount[];
 };
 
 const STORAGE_KEY = "placa-netto-state-v1";
@@ -152,6 +167,7 @@ const DEFAULT_STATE: AppState = {
     },
   ],
   rentals: [],
+  savings: [],
 };
 
 let state: AppState = loadInitial();
@@ -192,6 +208,9 @@ function loadInitial(): AppState {
       loans: parsed.loans
         ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
         : DEFAULT_STATE.loans,
+      savings: parsed.savings
+        ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
+        : DEFAULT_STATE.savings,
     };
   } catch {
     return DEFAULT_STATE;
@@ -251,6 +270,7 @@ export async function initCloudSync(session: Session | null) {
       investments: cloudState.investments ?? state.investments,
       loans: cloudState.loans ?? state.loans,
       rentals: cloudState.rentals ?? state.rentals,
+      savings: (cloudState as any).savings ?? state.savings,
     };
     persist();
     listeners.forEach((l) => l());
@@ -375,6 +395,20 @@ export const actions = {
   },
   removeRental(id: string) {
     setState((s) => ({ ...s, rentals: s.rentals.filter((x) => x.id !== id) }));
+  },
+
+  // Savings
+  addSavings(e: Omit<SavingsAccount, "id">) {
+    setState((s) => ({ ...s, savings: [...s.savings, { ...e, id: uid() }] }));
+  },
+  updateSavings(id: string, patch: Partial<SavingsAccount>) {
+    setState((s) => ({
+      ...s,
+      savings: s.savings.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+  },
+  removeSavings(id: string) {
+    setState((s) => ({ ...s, savings: s.savings.filter((x) => x.id !== id) }));
   },
 
   reset() {

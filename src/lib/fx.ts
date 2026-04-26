@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 
-export type InvestmentCurrency = "PLN" | "EUR" | "USD";
+export type InvestmentCurrency = "PLN" | "EUR" | "USD" | "GBP";
 
 export type FxRates = {
   PLN: number;
   EUR: number;
   USD: number;
+  GBP: number;
   asOf: string;
 };
 
@@ -14,6 +15,7 @@ const FALLBACK_RATES: FxRates = {
   PLN: 1,
   EUR: 1,
   USD: 1,
+  GBP: 1,
   asOf: "",
 };
 
@@ -69,11 +71,16 @@ async function loadDailyFxRates(): Promise<FxRates> {
     }
 
     try {
-      const [eur, usd] = await Promise.all([fetchNbpRate("eur"), fetchNbpRate("usd")]);
+      const [eur, usd, gbp] = await Promise.all([
+        fetchNbpRate("eur"),
+        fetchNbpRate("usd"),
+        fetchNbpRate("gbp"),
+      ]);
       const fresh: FxRates = {
         PLN: 1,
         EUR: eur.mid,
         USD: usd.mid,
+        GBP: gbp.mid,
         asOf: todayIsoDate(),
       };
       memoryRates = fresh;
@@ -94,7 +101,7 @@ async function loadDailyFxRates(): Promise<FxRates> {
   return inFlight;
 }
 
-async function fetchNbpRate(code: "eur" | "usd"): Promise<{ mid: number }> {
+async function fetchNbpRate(code: "eur" | "usd" | "gbp"): Promise<{ mid: number }> {
   const response = await fetch(`https://api.nbp.pl/api/exchangerates/rates/a/${code}/?format=json`);
   if (!response.ok) throw new Error("FX fetch failed");
   const data = (await response.json()) as { rates?: Array<{ mid?: number }> };
@@ -121,6 +128,7 @@ function readCachedRates(): FxRates | null {
       PLN: parsed.PLN,
       EUR: parsed.EUR,
       USD: parsed.USD,
+      GBP: parsed.GBP ?? 5.1, // fallback if old cache missing GBP
       asOf: parsed.asOf,
     };
   } catch {
