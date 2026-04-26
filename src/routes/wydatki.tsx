@@ -11,6 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Trash2, Plus, RotateCcw } from "lucide-react";
 import { useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
@@ -103,9 +111,10 @@ function ExpensesPage() {
             )}
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <AddExpenseDialog />
+        </div>
       </header>
-
-      <AddExpenseForm />
 
       {grouped.length === 0 ? (
         <div className="bg-card rounded-2xl p-12 text-center text-muted-foreground border border-dashed border-border">
@@ -145,7 +154,8 @@ function ExpensesPage() {
   );
 }
 
-function AddExpenseForm() {
+function AddExpenseDialog() {
+  const [open, setOpen] = useState(false);
   const [category, setCategory] = useState("Mieszkanie");
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [label, setLabel] = useState("");
@@ -153,126 +163,160 @@ function AddExpenseForm() {
   const [amountInput, setAmountInput] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("monthly");
 
+  const handleReset = () => {
+    setCategory("Mieszkanie");
+    setIsCustomCategory(false);
+    setLabel("");
+    setAmount(0);
+    setAmountInput("");
+    setFrequency("monthly");
+  };
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const parsedAmount = parseLocaleAmount(amountInput);
-        if (!label.trim() || parsedAmount <= 0) return;
-        actions.addExpense({
-          category: isCustomCategory ? category.trim() || "Inne" : category,
-          label: label.trim(),
-          amount: parsedAmount,
-          frequency,
-        });
-        setLabel("");
-        setAmount(0);
-        setAmountInput("");
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) handleReset();
       }}
-      className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] flex flex-wrap gap-2 items-end"
     >
-      <div className="flex-1 min-w-[140px]">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-          Kategoria
-        </label>
-        {isCustomCategory ? (
-          <div className="relative mt-1">
-            <Input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 pr-8"
-              autoFocus
-              placeholder="Wpisz własną..."
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setIsCustomCategory(false);
-                setCategory("Mieszkanie");
-              }}
-              aria-label="Anuluj własną kategorię"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          </div>
-        ) : (
-          <Select
-            value={category}
-            onValueChange={(v) => {
-              if (v === "__custom__") {
-                setIsCustomCategory(true);
-                setCategory("");
-              } else {
-                setCategory(v);
-              }
-            }}
-          >
-            <SelectTrigger className="mt-1 h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SUGGESTED_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-              <SelectItem value="__custom__" className="font-medium text-accent">
-                + Własna...
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-      <div className="flex-[2] min-w-[180px]">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-          Nazwa
-        </label>
-        <Input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="np. OC samochodu, Netflix, czynsz"
-          className="mt-1 h-10"
-        />
-      </div>
-      <div className="w-32">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-          Kwota
-        </label>
-        <Input
-          type="text"
-          inputMode="decimal"
-          value={amountInput}
-          onChange={(e) => {
-            setAmountInput(e.target.value);
-            setAmount(parseLocaleAmount(e.target.value));
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 shadow-sm">
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          Dodaj wydatek
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Dodaj wydatek</DialogTitle>
+        </DialogHeader>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const parsedAmount = parseLocaleAmount(amountInput);
+            if (!label.trim() || parsedAmount <= 0) return;
+            actions.addExpense({
+              category: isCustomCategory ? category.trim() || "Inne" : category,
+              label: label.trim(),
+              amount: parsedAmount,
+              frequency,
+            });
+            handleReset();
+            setOpen(false);
           }}
-          onBlur={() => setAmountInput(formatAmountInput(amount))}
-          min={0}
-          className="mt-1 h-10 font-mono tabular-nums"
-        />
-      </div>
-      <div className="w-40">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-          Okres
-        </label>
-        <Select value={frequency} onValueChange={(v) => setFrequency(v as Frequency)}>
-          <SelectTrigger className="mt-1 h-10">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FREQUENCIES.map((f) => (
-              <SelectItem key={f} value={f}>
-                {FREQUENCY_LABELS[f]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <Button type="submit" className="h-10">
-        <Plus className="w-4 h-4 mr-1" /> Dodaj
-      </Button>
-    </form>
+          className="grid gap-4 py-4"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Kategoria
+              </label>
+              {isCustomCategory ? (
+                <div className="relative mt-1">
+                  <Input
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="h-10 pr-8"
+                    autoFocus
+                    placeholder="Wpisz własną..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomCategory(false);
+                      setCategory("Mieszkanie");
+                    }}
+                    aria-label="Anuluj własną kategorię"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <Select
+                  value={category}
+                  onValueChange={(v) => {
+                    if (v === "__custom__") {
+                      setIsCustomCategory(true);
+                      setCategory("");
+                    } else {
+                      setCategory(v);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-1 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUGGESTED_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__custom__" className="font-medium text-accent">
+                      + Własna...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            
+            <div>
+              <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Nazwa
+              </label>
+              <Input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="np. OC samochodu, Netflix, czynsz"
+                className="mt-1 h-10"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Kwota
+                </label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={amountInput}
+                  onChange={(e) => {
+                    setAmountInput(e.target.value);
+                    setAmount(parseLocaleAmount(e.target.value));
+                  }}
+                  onBlur={() => setAmountInput(formatAmountInput(amount))}
+                  min={0}
+                  className="mt-1 h-10 font-mono tabular-nums"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Okres
+                </label>
+                <Select value={frequency} onValueChange={(v) => setFrequency(v as Frequency)}>
+                  <SelectTrigger className="mt-1 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FREQUENCIES.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {FREQUENCY_LABELS[f]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Zapisz wydatek</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

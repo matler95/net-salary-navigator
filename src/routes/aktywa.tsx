@@ -114,7 +114,7 @@ function AssetsPage() {
         <h1 className="font-display text-4xl sm:text-5xl">
           Co masz <span className="italic text-accent">i co jest twoje</span>
         </h1>
-        <div className="flex flex-wrap gap-2 mt-4 text-sm">
+        <div className="flex flex-wrap gap-2 mt-4 text-sm sticky top-0 z-10 bg-background/80 backdrop-blur-md py-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
           <button onClick={() => scrollTo('oszczednosci')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Oszczędności</button>
           <button onClick={() => scrollTo('inwestycje')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Inwestycje</button>
           <button onClick={() => scrollTo('kredyty')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Kredyty</button>
@@ -1050,7 +1050,11 @@ function LoansSection() {
         </p>
       </div>
 
-      {loans.length > 0 && (
+      {loans.length === 0 ? (
+        <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
+          Brak kredytów.
+        </div>
+      ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {loans.map((l) => (
             <LoanCard key={l.id} loan={l} />

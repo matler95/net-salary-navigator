@@ -324,30 +324,36 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
           <Separator />
 
           {/* Autorskie KUP */}
-          <div className="bg-accent/5 rounded-xl p-4 border border-accent/20">
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs uppercase tracking-wider text-accent font-semibold">
-                Autorskie KUP (50%)
-              </Label>
-              <span className="text-sm font-mono tabular-nums">
-                {spouse.inputs.autorskiSharePct}% honorarium
-              </span>
-            </div>
-            <Slider
-              value={[spouse.inputs.autorskiSharePct]}
-              min={0}
-              max={100}
-              step={5}
-              onValueChange={([v]) => set("autorskiSharePct", v)}
+          <div className="bg-accent/5 rounded-xl p-4 border border-accent/20 space-y-3">
+            <ToggleRow
+              label="Autorskie KUP (50%)"
+              hint="Część wynagrodzenia jako honorarium objęte 50% KUP. Limit roczny 120 000 zł."
+              checked={spouse.inputs.autorskiSharePct > 0}
+              onChange={(v) => set("autorskiSharePct", v ? 80 : 0)}
             />
-            <p className="text-xs text-muted-foreground mt-2">
-              Część wynagrodzenia jako honorarium objęte 50% KUP. Limit roczny 120 000 zł (10 000
-              zł/m-c).
-            </p>
-            {r.kupAutorski > 0 && (
-              <p className="text-xs mt-2 text-success font-medium">
-                Aktywne: {formatPLN2(r.kupAutorski)} odpisu KUP / m-c
-              </p>
+            {spouse.inputs.autorskiSharePct > 0 && (
+              <div className="pt-2 border-t border-accent/10">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                    Udział honorarium
+                  </Label>
+                  <span className="text-sm font-mono tabular-nums text-accent font-medium">
+                    {spouse.inputs.autorskiSharePct}%
+                  </span>
+                </div>
+                <Slider
+                  value={[spouse.inputs.autorskiSharePct]}
+                  min={0}
+                  max={100}
+                  step={5}
+                  onValueChange={([v]) => set("autorskiSharePct", v)}
+                />
+                {r.kupAutorski > 0 && (
+                  <p className="text-xs mt-3 text-success font-medium">
+                    Aktywne: {formatPLN2(r.kupAutorski)} odpisu KUP / m-c
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
