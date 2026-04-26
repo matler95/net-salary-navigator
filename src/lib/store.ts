@@ -110,10 +110,10 @@ function loadInitial(): AppState {
           }))
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses
-        ? parsed.expenses.map((e) => ({ frequency: "monthly" as Frequency, ...e }))
+        ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
         : DEFAULT_STATE.expenses,
       loans: parsed.loans
-        ? parsed.loans.map((l) => ({ monthlyOverpayment: 0, ...l }))
+        ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
         : DEFAULT_STATE.loans,
     };
   } catch {
