@@ -82,7 +82,8 @@ function Dashboard() {
   const totalInvestments = investments.reduce((s, i) => s + i.value, 0);
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
   const monthlyLoanPmt = loans.reduce(
-    (s, l) => s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
+    (s, l) =>
+      s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0),
     0,
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
