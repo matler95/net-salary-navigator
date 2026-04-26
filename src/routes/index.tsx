@@ -19,6 +19,7 @@ import { useAppState } from "@/lib/store";
 import {
   calculateSalary,
   calculateAnnualAverageNet,
+  calculateAnnualBreakdown,
   calculateSalaryForMonth,
   computeJointFiling,
   formatPLN,
@@ -61,7 +62,7 @@ function Dashboard() {
     [spouses],
   );
 
-  const totalNet = breakdowns.reduce((sum, { r }) => sum + r.net, 0);
+  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0);
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
   const totalExpenses = expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
   const totalInvestments = investments.reduce(
@@ -99,11 +100,14 @@ function Dashboard() {
     [spouses, nextMonthIdx]
   );
 
-  const cashflow = totalCurrentMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const annualAvgCashflow = totalAnnualAvgNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const currentMonthCashflow = totalCurrentMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const nextMonthCashflow = totalNextMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
+
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
 
   // Joint filing comparison
-  const joint = spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
+  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs) : null;
 
   // Expense breakdown by category
   const byCategory = useMemo(() => {
@@ -116,15 +120,20 @@ function Dashboard() {
 
   // Threshold projection
   const projection = useMemo(() => {
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs));
+
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const point: Record<string, number | string> = { month: monthLabel(month) };
-      breakdowns.forEach(({ spouse, r }) => {
-        point[spouse.name] = Math.round(r.taxBase * month);
+      spouses.forEach((spouse, sIdx) => {
+        const cumulative = annualBreakdowns[sIdx]
+          .slice(0, month)
+          .reduce((sum: number, m: any) => sum + m.taxBase, 0);
+        point[spouse.name] = Math.round(cumulative);
       });
       return point;
     });
-  }, [breakdowns]);
+  }, [spouses]);
 
   const [showBanner, setShowBanner] = useState(false);
 
@@ -168,22 +177,31 @@ function Dashboard() {
         </h1>
       </header>
 
-      {/* Stats */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats - Current Situation */}
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
-          label="Netto miesięcznie"
-          value={formatPLN(totalAnnualAvgNet)}
+          label="Obecne netto"
+          value={formatPLN(totalCurrentMonthNet)}
           sub={
-            <div className="space-y-0.5">
-              <div>
-                Ten miesiąc: <span className="font-medium text-foreground">{formatPLN(totalCurrentMonthNet)}</span>
-              </div>
-              <div className="text-[10px] opacity-80">
-                {monthLabel(nextMonthIdx, true)}: {formatPLN(totalNextMonthNet)}
-              </div>
+            <div className="flex justify-between gap-2">
+              <span>{monthLabel(nextMonthIdx, true)}:</span>
+              <span>{formatPLN(totalNextMonthNet)}</span>
             </div>
           }
           tone="success"
+        />
+        <StatCard
+          label="Obecny cashflow"
+          value={formatPLN(currentMonthCashflow)}
+          sub={
+            <div className="flex justify-between gap-2">
+              <span>{monthLabel(nextMonthIdx, true)}:</span>
+              <span className={nextMonthCashflow >= 0 ? "text-success" : "text-destructive"}>
+                {formatPLN(nextMonthCashflow)}
+              </span>
+            </div>
+          }
+          tone={currentMonthCashflow >= 0 ? "success" : "destructive"}
         />
         <StatCard
           label="Wydatki"
@@ -191,16 +209,26 @@ function Dashboard() {
           sub={`w tym kredyty ${formatPLN(monthlyLoanPmt)}`}
           tone="destructive"
         />
+      </section>
+
+      {/* Stats - Annual Perspective */}
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
-          label="Cashflow / m-c"
-          value={formatPLN(cashflow)}
-          sub={cashflow >= 0 ? "nadwyżka" : "deficyt"}
-          tone={cashflow >= 0 ? "success" : "destructive"}
+          label="Średnie netto (rok)"
+          value={formatPLN(totalAnnualAvgNet)}
+          sub="Średnia z 12 m-cy"
+          tone="success"
+        />
+        <StatCard
+          label="Średni cashflow (rok)"
+          value={formatPLN(annualAvgCashflow)}
+          sub="Dla planowania budżetu"
+          tone={annualAvgCashflow >= 0 ? "success" : "destructive"}
         />
         <StatCard
           label="Majątek netto"
           value={formatPLN(netWorth)}
-          sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)} · długi ${formatPLN(totalLoans)}`}
+          sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)}`}
         />
       </section>
 

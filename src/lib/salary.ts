@@ -264,10 +264,15 @@ export function calculateAnnualAverageNet(i: SalaryInputs): number {
 
 /** Joint filing: PIT computed on averaged annual base × 2. Returns tax saved vs individual. */
 export function computeJointFiling(
-  a: SalaryBreakdown,
-  b: SalaryBreakdown,
+  aInputs: SalaryInputs,
+  bInputs: SalaryInputs,
 ): { jointAnnualPit: number; individualAnnualPit: number; savings: number } {
   const annualTaxFree = 30000;
+  const aBreakdown = calculateAnnualBreakdown(aInputs);
+  const bBreakdown = calculateAnnualBreakdown(bInputs);
+
+  const aAnnualBase = aBreakdown.reduce((s, m) => s + m.taxBase, 0);
+  const bAnnualBase = bBreakdown.reduce((s, m) => s + m.taxBase, 0);
 
   const annualPit = (base: number) => {
     const taxable = Math.max(0, base);
@@ -279,8 +284,8 @@ export function computeJointFiling(
     return Math.max(0, first + second - annualTaxFree * FIRST_RATE);
   };
 
-  const individualAnnualPit = annualPit(a.annualTaxBase) + annualPit(b.annualTaxBase);
-  const avgBase = (a.annualTaxBase + b.annualTaxBase) / 2;
+  const individualAnnualPit = annualPit(aAnnualBase) + annualPit(bAnnualBase);
+  const avgBase = (aAnnualBase + bAnnualBase) / 2;
   const jointAnnualPit = annualPit(avgBase) * 2;
 
   return {

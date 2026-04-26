@@ -4,7 +4,7 @@ import { SpousePanel } from "@/components/SpousePanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw } from "lucide-react";
-import { calculateSalary, computeJointFiling, formatPLN } from "@/lib/salary";
+import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,9 +34,8 @@ function SalariesPage() {
   const jointFiling = useAppState((s) => s.jointFiling);
 
   // Household summary calculations
-  const breakdowns = spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs) }));
-  const totalHouseholdNet = breakdowns.reduce((sum, { r }) => sum + r.net, 0);
-  const joint = spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
+  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0);
+  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs) : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">

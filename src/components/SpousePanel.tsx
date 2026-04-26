@@ -1,5 +1,11 @@
 import { useMemo } from "react";
-import { calculateSalary, formatPLN2, type SalaryInputs } from "@/lib/salary";
+import {
+  calculateSalary,
+  calculateAnnualBreakdown,
+  formatPLN,
+  formatPLN2,
+  type SalaryInputs,
+} from "@/lib/salary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -116,7 +122,22 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
 
   // Threshold progression
-  const monthsToSecondThreshold = r.taxBase > 0 ? Math.ceil(120000 / r.taxBase) : null;
+  const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs), [spouse.inputs]);
+  const totalAnnualTaxBase = useMemo(
+    () => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0),
+    [annualBreakdown],
+  );
+  const monthsToSecondThreshold = useMemo(() => {
+    let cumulative = 0;
+    for (let m = 1; m <= 12; m++) {
+      const monthBase = annualBreakdown[m - 1].taxBase;
+      if (cumulative < 120000 && cumulative + monthBase > 120000) {
+        return m;
+      }
+      cumulative += monthBase;
+    }
+    return cumulative > 120000 ? 12 : null;
+  }, [annualBreakdown]);
 
   return (
     <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden">
@@ -396,6 +417,93 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
           </div>
 
           <Separator />
+
+          {/* Bonus / Premia */}
+          <div className="bg-success/5 rounded-xl p-4 border border-success/20 space-y-4">
+            <ToggleRow
+              label="Premia roczna / kwartalna"
+              hint="Premia doliczana do wynagrodzenia brutto w wybranym miesiącu."
+              checked={spouse.inputs.bonusMonth > 0}
+              onChange={(v) => set("bonusMonth", v ? 3 : 0)}
+            />
+            
+            {spouse.inputs.bonusMonth > 0 && (
+              <div className="space-y-4 pt-2 border-t border-success/10">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Miesiąc wypłaty</Label>
+                    <Select
+                      value={String(spouse.inputs.bonusMonth)}
+                      onValueChange={(v) => set("bonusMonth", parseInt(v))}
+                    >
+                      <SelectTrigger className="h-11 mt-1.5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                          <SelectItem key={m} value={String(m)}>
+                            {["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"][m-1]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <NumberField
+                    label="Bonus % roczny"
+                    value={spouse.inputs.bonusPct}
+                    onChange={(v) => set("bonusPct", v)}
+                    suffix="%"
+                    step={1}
+                    hint="np. 8% rocznej pensji"
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between gap-4 py-2 px-3 bg-background/50 rounded-lg border border-border/50">
+                   <div className="space-y-0.5">
+                      <Label className="text-xs font-semibold cursor-pointer" onClick={() => set("bonusOverrideGross", spouse.inputs.bonusOverrideGross === null ? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)) : null)}>
+                        Obliczaj automatycznie?
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        {spouse.inputs.bonusOverrideGross === null 
+                          ? `Aktualna kwota: ${formatPLN(spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))}`
+                          : "Używasz kwoty wpisanej ręcznie"}
+                      </p>
+                   </div>
+                   <Switch 
+                      checked={spouse.inputs.bonusOverrideGross === null} 
+                      onCheckedChange={(v) => set("bonusOverrideGross", v ? null : (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)))}
+                   />
+                </div>
+                
+                {spouse.inputs.bonusOverrideGross !== null && (
+                   <NumberField
+                     label="Własna kwota premii (brutto)"
+                     value={spouse.inputs.bonusOverrideGross}
+                     onChange={(v) => set("bonusOverrideGross", v)}
+                     hint="Wpisz dokładną kwotę brutto"
+                   />
+                )}
+                
+                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg border border-success/20">
+                   <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${spouse.inputs.bonusPaid ? 'bg-success shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-muted-foreground'}`} />
+                      <div className="space-y-0.5">
+                        <Label className="text-xs font-medium cursor-pointer" onClick={() => set("bonusPaid", !spouse.inputs.bonusPaid)}>
+                          Uwzględniaj w kalkulacji rocznej
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground">
+                          {spouse.inputs.bonusPaid ? "Premia podnosi podstawę opodatkowania" : "Premia pominięta w wyliczeniach"}
+                        </p>
+                      </div>
+                   </div>
+                   <Switch checked={spouse.inputs.bonusPaid} onCheckedChange={(v) => set("bonusPaid", v)} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
           <ToggleRow
             label="PIT-2 złożone"
             hint="Kwota wolna 300 zł / m-c"
@@ -464,7 +572,7 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
                 </span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Roczna podstawa: {formatPLN2(r.annualTaxBase)} / 120 000 zł
+                Roczna podstawa: {formatPLN2(totalAnnualTaxBase)} / 120 000 zł
               </p>
             </div>
           )}
