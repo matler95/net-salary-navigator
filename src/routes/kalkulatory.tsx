@@ -24,6 +24,7 @@ import {
   ReferenceLine,
   BarChart,
   Bar,
+  Cell,
 } from "recharts";
 
 export const Route = createFileRoute("/kalkulatory")({

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WynagrodzeniaRouteImport } from './routes/wynagrodzenia'
 import { Route as WydatkiRouteImport } from './routes/wydatki'
+import { Route as KalkulatoryRouteImport } from './routes/kalkulatory'
 import { Route as AktywaRouteImport } from './routes/aktywa'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const WynagrodzeniaRoute = WynagrodzeniaRouteImport.update({
 const WydatkiRoute = WydatkiRouteImport.update({
   id: '/wydatki',
   path: '/wydatki',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KalkulatoryRoute = KalkulatoryRouteImport.update({
+  id: '/kalkulatory',
+  path: '/kalkulatory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AktywaRoute = AktywaRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/kalkulatory': typeof KalkulatoryRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/kalkulatory': typeof KalkulatoryRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
@@ -51,20 +59,28 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/kalkulatory': typeof KalkulatoryRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/aktywa' | '/wydatki' | '/wynagrodzenia'
+  fullPaths: '/' | '/aktywa' | '/kalkulatory' | '/wydatki' | '/wynagrodzenia'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/aktywa' | '/wydatki' | '/wynagrodzenia'
-  id: '__root__' | '/' | '/aktywa' | '/wydatki' | '/wynagrodzenia'
+  to: '/' | '/aktywa' | '/kalkulatory' | '/wydatki' | '/wynagrodzenia'
+  id:
+    | '__root__'
+    | '/'
+    | '/aktywa'
+    | '/kalkulatory'
+    | '/wydatki'
+    | '/wynagrodzenia'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AktywaRoute: typeof AktywaRoute
+  KalkulatoryRoute: typeof KalkulatoryRoute
   WydatkiRoute: typeof WydatkiRoute
   WynagrodzeniaRoute: typeof WynagrodzeniaRoute
 }
@@ -83,6 +99,13 @@ declare module '@tanstack/react-router' {
       path: '/wydatki'
       fullPath: '/wydatki'
       preLoaderRoute: typeof WydatkiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kalkulatory': {
+      id: '/kalkulatory'
+      path: '/kalkulatory'
+      fullPath: '/kalkulatory'
+      preLoaderRoute: typeof KalkulatoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/aktywa': {
@@ -105,6 +128,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AktywaRoute: AktywaRoute,
+  KalkulatoryRoute: KalkulatoryRoute,
   WydatkiRoute: WydatkiRoute,
   WynagrodzeniaRoute: WynagrodzeniaRoute,
 }
