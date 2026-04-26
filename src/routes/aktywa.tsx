@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
-import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
@@ -303,10 +303,10 @@ function InvestmentsSection() {
                     <Input
                       value={i.label}
                       onChange={(e) => actions.updateInvestment(i.id, { label: e.target.value })}
-                      className="h-9 bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                      className="h-10 bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">{i.type}</td>
+                  <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">{i.type}</td>
                   <td className="px-4 py-2 hidden sm:table-cell">
                     <Input
                       value={i.ticker ?? ""}
@@ -316,7 +316,7 @@ function InvestmentsSection() {
                         })
                       }
                       placeholder="np. vwce.de"
-                      className="h-9 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                      className="h-10 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
                   <td className="px-4 py-2 hidden sm:table-cell">
@@ -326,7 +326,7 @@ function InvestmentsSection() {
                         actions.updateInvestment(i.id, { currency: v as InvestmentCurrency })
                       }
                     >
-                      <SelectTrigger className="h-9 w-[88px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+                      <SelectTrigger className="h-10 w-[88px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -345,10 +345,10 @@ function InvestmentsSection() {
                       value={i.volume ?? ""}
                       onChange={(e) =>
                         actions.updateInvestment(i.id, {
-                          volume: parseFloat(e.target.value) || 0,
+                          volume: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                      className="h-10 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
                   <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
@@ -499,7 +499,7 @@ function InvestmentsSummaryView({
     if (active && payload?.length) {
       const { name, value } = payload[0];
       return (
-        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
+        <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-[var(--shadow-card)] text-xs">
           <p className="font-medium mb-0.5">{name}</p>
           <p className="font-mono text-accent">{formatPLN(value)}</p>
           <p className="text-muted-foreground">
@@ -918,7 +918,7 @@ function AddInvestmentDialog() {
               value={draft.currency}
               onValueChange={(v: any) => setDraft({ ...draft, currency: v })}
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -934,12 +934,12 @@ function AddInvestmentDialog() {
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Wolumen</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.volume || ""}
-              onChange={(e) => setDraft({ ...draft, volume: parseFloat(e.target.value) || 0 })}
-              step="0.0001"
+              onChange={(e) => setDraft({ ...draft, volume: parseLocaleAmount(e.target.value) })}
               placeholder="np. 10"
-              className="col-span-3 font-mono tabular-nums"
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
 
@@ -977,16 +977,13 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
           className="grid gap-4 py-4"
           onSubmit={(e) => {
             e.preventDefault();
-            const additionalVol = parseFloat(addedVolume) || 0;
-            const newPrice = parseFloat(buyPrice) || 0;
+            const additionalVol = parseLocaleAmount(addedVolume);
+            const newPrice = parseLocaleAmount(buyPrice);
             if (additionalVol <= 0) return;
-            const oldVol = investment.volume || 0;
-            const oldAvgPrice = investment.tickerPriceAtAdd || newPrice;
-            const newTotalVol = oldVol + additionalVol;
-            let newAvgPrice = newPrice;
-            if (newTotalVol > 0 && oldAvgPrice > 0 && newPrice > 0) {
-              newAvgPrice = (oldVol * oldAvgPrice + additionalVol * newPrice) / newTotalVol;
-            }
+            const currentVol = investment.volume || 0;
+            const currentAvg = investment.tickerPriceAtAdd || 0;
+            const newTotalVol = currentVol + additionalVol;
+            const newAvgPrice = (currentVol * currentAvg + additionalVol * newPrice) / newTotalVol;
             actions.updateInvestment(investment.id, {
               volume: newTotalVol,
               tickerPriceAtAdd: newAvgPrice,
@@ -999,22 +996,22 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm">Sztuki</label>
             <Input
-              type="number"
-              step="0.0001"
+              type="text"
+              inputMode="decimal"
               value={addedVolume}
               onChange={(e) => setAddedVolume(e.target.value)}
-              className="col-span-3 font-mono"
+              className="col-span-3 font-mono h-10"
               autoFocus
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm">Cena / szt.</label>
             <Input
-              type="number"
-              step="0.0001"
+              type="text"
+              inputMode="decimal"
               value={buyPrice}
               onChange={(e) => setBuyPrice(e.target.value)}
-              className="col-span-3 font-mono"
+              className="col-span-3 font-mono h-10"
             />
           </div>
           <DialogFooter>
@@ -1137,7 +1134,7 @@ function LoanCard({
         <Input
           value={loan.label}
           onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
-          className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
+          className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
         />
         <button
           onClick={() => {
@@ -1190,23 +1187,24 @@ function LoanCard({
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Field label="Kapitał">
           <Input
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={loan.principal}
             onChange={(e) =>
-              actions.updateLoan(loan.id, { principal: parseFloat(e.target.value) || 0 })
+              actions.updateLoan(loan.id, { principal: parseLocaleAmount(e.target.value) })
             }
-            className="h-9 font-mono tabular-nums"
+            className="h-10 font-mono tabular-nums"
           />
         </Field>
         <Field label="Oproc. %">
           <Input
-            type="number"
-            step="0.1"
+            type="text"
+            inputMode="decimal"
             value={loan.annualRatePct}
             onChange={(e) =>
-              actions.updateLoan(loan.id, { annualRatePct: parseFloat(e.target.value) || 0 })
+              actions.updateLoan(loan.id, { annualRatePct: parseLocaleAmount(e.target.value) })
             }
-            className="h-9 font-mono tabular-nums"
+            className="h-10 font-mono tabular-nums"
           />
         </Field>
         <Field label="Pozostałe m-ce">
@@ -1216,17 +1214,18 @@ function LoanCard({
             onChange={(e) =>
               actions.updateLoan(loan.id, { monthsRemaining: parseInt(e.target.value) || 0 })
             }
-            className="h-9 font-mono tabular-nums"
+            className="h-10 font-mono tabular-nums"
           />
         </Field>
         <Field label="Nadpłata / m-c">
           <Input
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={overpay || ""}
             onChange={(e) =>
-              actions.updateLoan(loan.id, { monthlyOverpayment: parseFloat(e.target.value) || 0 })
+              actions.updateLoan(loan.id, { monthlyOverpayment: parseLocaleAmount(e.target.value) })
             }
-            className="h-9 font-mono tabular-nums"
+            className="h-10 font-mono tabular-nums"
           />
         </Field>
         <Field label="Dzień płatności">
@@ -1236,7 +1235,7 @@ function LoanCard({
               actions.updateLoan(loan.id, { paymentDayOfMonth: v ? parseInt(v) : undefined })
             }
           >
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-10">
               <SelectValue placeholder="Ustaw dzień" />
             </SelectTrigger>
             <SelectContent>
@@ -1400,7 +1399,7 @@ function RentalsSection() {
                   <Input
                     value={r.label}
                     onChange={(e) => actions.updateRental(r.id, { label: e.target.value })}
-                    className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
+                    className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
                   />
                   <button
                     onClick={() => {
@@ -1427,75 +1426,80 @@ function RentalsSection() {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <Field label="Czynsz / m-c">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={r.monthlyRent}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          monthlyRent: parseFloat(e.target.value) || 0,
+                          monthlyRent: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
                   <Field label="Koszty / m-c">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={r.monthlyCosts}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          monthlyCosts: parseFloat(e.target.value) || 0,
+                          monthlyCosts: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
-                  <Field label="Rata kredytu">
+                  <Field label="Rata / m-c">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={r.monthlyMortgage}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          monthlyMortgage: parseFloat(e.target.value) || 0,
+                          monthlyMortgage: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
-                  <Field label="Wartość rynkowa">
+                  <Field label="Wartość">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={r.marketValue}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          marketValue: parseFloat(e.target.value) || 0,
+                          marketValue: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
-                  <Field label="Pustostany %">
+                  <Field label="Pustostan %">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={r.vacancyRatePct}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          vacancyRatePct: parseFloat(e.target.value) || 0,
+                          vacancyRatePct: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
-                  <Field label="Podatek % (8.5/12.5)">
+                  <Field label="Podatek %">
                     <Input
-                      type="number"
-                      step="0.5"
+                      type="text"
+                      inputMode="decimal"
                       value={r.taxRatePct}
                       onChange={(e) =>
                         actions.updateRental(r.id, {
-                          taxRatePct: parseFloat(e.target.value) || 0,
+                          taxRatePct: parseLocaleAmount(e.target.value),
                         })
                       }
-                      className="h-9 font-mono tabular-nums"
+                      className="h-10 font-mono tabular-nums"
                     />
                   </Field>
                 </div>
@@ -1610,48 +1614,52 @@ function AddLoanDialog() {
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Kapitał do spłaty</label>
+            <label className="text-right text-sm font-medium">Kapitał</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.principal || ""}
-              onChange={(e) => setDraft({ ...draft, principal: parseFloat(e.target.value) || 0 })}
-              className="col-span-3 font-mono tabular-nums"
+              onChange={(e) => setDraft({ ...draft, principal: parseLocaleAmount(e.target.value) })}
+              placeholder="np. 400000"
+              className="col-span-3 font-mono tabular-nums h-10"
+              autoFocus
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Pozostałe m-ce</label>
+            <label className="text-right text-sm font-medium">Oproc. (%)</label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={draft.annualRatePct}
+              onChange={(e) =>
+                setDraft({ ...draft, annualRatePct: parseLocaleAmount(e.target.value) })
+              }
+              className="col-span-3 font-mono tabular-nums h-10"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Pozostało m-cy</label>
             <Input
               type="number"
               value={draft.monthsRemaining || ""}
               onChange={(e) =>
                 setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })
               }
-              className="col-span-3 font-mono tabular-nums"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Oproc. % rocznie</label>
-            <Input
-              type="number"
-              step="0.1"
-              value={draft.annualRatePct || ""}
-              onChange={(e) =>
-                setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })
-              }
-              className="col-span-3 font-mono tabular-nums"
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium text-muted-foreground">
-              Nadpłata / m-c
+              Nadpłata
             </label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.monthlyOverpayment || ""}
               onChange={(e) =>
-                setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })
+                setDraft({ ...draft, monthlyOverpayment: parseLocaleAmount(e.target.value) })
               }
-              className="col-span-3 font-mono tabular-nums"
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -1662,7 +1670,7 @@ function AddLoanDialog() {
                 setDraft({ ...draft, paymentDayOfMonth: v ? parseInt(v) : undefined })
               }
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 h-10">
                 <SelectValue placeholder="Nie śledzę" />
               </SelectTrigger>
               <SelectContent>
@@ -1732,25 +1740,28 @@ function AddRentalDialog() {
               value={draft.label}
               onChange={(e) => setDraft({ ...draft, label: e.target.value })}
               placeholder="np. Kawalerka centrum"
-              className="col-span-3"
+              className="col-span-3 h-10"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium text-success">Czynsz</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.monthlyRent || ""}
-              onChange={(e) => setDraft({ ...draft, monthlyRent: parseFloat(e.target.value) || 0 })}
-              className="col-span-3 font-mono tabular-nums"
+              onChange={(e) => setDraft({ ...draft, monthlyRent: parseLocaleAmount(e.target.value) })}
+              className="col-span-3 font-mono tabular-nums h-10"
+              autoFocus
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Wartość rynkowa</label>
+            <label className="text-right text-sm font-medium">Wartość</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.marketValue || ""}
-              onChange={(e) => setDraft({ ...draft, marketValue: parseFloat(e.target.value) || 0 })}
-              className="col-span-3 font-mono tabular-nums"
+              onChange={(e) => setDraft({ ...draft, marketValue: parseLocaleAmount(e.target.value) })}
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
           <DialogFooter>
@@ -2477,7 +2488,7 @@ function AddSavingsDialog() {
               value={draft.bank}
               onChange={(e) => setDraft({ ...draft, bank: e.target.value })}
               placeholder="np. PKO BP, mBank, Revolut"
-              className="col-span-3"
+              className="col-span-3 h-10"
               autoFocus
             />
           </div>
@@ -2485,7 +2496,7 @@ function AddSavingsDialog() {
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Typ konta</label>
             <Select value={draft.type} onValueChange={(v: any) => setDraft({ ...draft, type: v })}>
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2501,24 +2512,24 @@ function AddSavingsDialog() {
               {isLokata ? "Kwota (PLN)" : "Saldo (PLN)"}
             </label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.balance || ""}
-              onChange={(e) => setDraft({ ...draft, balance: parseFloat(e.target.value) || 0 })}
-              step="0.01"
+              onChange={(e) => setDraft({ ...draft, balance: parseLocaleAmount(e.target.value) })}
               placeholder="np. 10 000"
-              className="col-span-3 font-mono tabular-nums"
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Oprocentowanie %</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={draft.ratePct || ""}
-              onChange={(e) => setDraft({ ...draft, ratePct: parseFloat(e.target.value) || 0 })}
-              step="0.01"
+              onChange={(e) => setDraft({ ...draft, ratePct: parseLocaleAmount(e.target.value) })}
               placeholder="np. 6.50"
-              className="col-span-3 font-mono tabular-nums"
+              className="col-span-3 font-mono tabular-nums h-10"
             />
           </div>
 
@@ -2530,7 +2541,7 @@ function AddSavingsDialog() {
                   type="date"
                   value={draft.lokataStartDate ?? ""}
                   onChange={(e) => setDraft({ ...draft, lokataStartDate: e.target.value })}
-                  className="col-span-3"
+                  className="col-span-3 h-10"
                 />
               </div>
 
@@ -2540,7 +2551,7 @@ function AddSavingsDialog() {
                   value={String(draft.lokataDurationMonths ?? 12)}
                   onValueChange={(v) => setDraft({ ...draft, lokataDurationMonths: parseInt(v) })}
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger className="col-span-3 h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

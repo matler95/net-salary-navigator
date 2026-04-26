@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type Expense } from "@/lib/store";
-import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
 import { toMonthly, toAnnual, FREQUENCY_LABELS, type Frequency } from "@/lib/finance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -327,7 +327,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
       <Input
         value={expense.label}
         onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
-        className="h-9 flex-1 bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+        className="h-10 flex-1 bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
       <Input
         type="text"
@@ -336,13 +336,13 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         onChange={(e) =>
           actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
         }
-        className="h-9 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+        className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
       <Select
         value={expense.frequency}
         onValueChange={(v) => actions.updateExpense(expense.id, { frequency: v as Frequency })}
       >
-        <SelectTrigger className="h-9 w-[130px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+        <SelectTrigger className="h-10 w-[130px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -381,12 +381,6 @@ function ExpenseRow({ expense }: { expense: Expense }) {
       </button>
     </div>
   );
-}
-
-function parseLocaleAmount(raw: string): number {
-  const normalized = raw.replace(/\s/g, "").replace(",", ".").trim();
-  const parsed = parseFloat(normalized);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 function formatAmountInput(value: number): string {

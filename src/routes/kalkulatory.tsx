@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
 import {
   projectPortfolio,
   calculateRealEstate,
@@ -562,10 +562,11 @@ function NumField({
         {label}
       </label>
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         value={value || ""}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="mt-1 h-10 font-mono tabular-nums"
+        onChange={(e) => onChange(parseLocaleAmount(e.target.value))}
+        className="mt-1 h-10 font-mono tabular-nums text-right"
       />
     </div>
   );

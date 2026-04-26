@@ -268,3 +268,8 @@ export function formatPLN2(n: number): string {
     maximumFractionDigits: 2,
   }).format(n);
 }
+
+export function parseLocaleAmount(raw: string): number {
+  const normalized = raw.replace(/\s/g, "").replace(",", ".");
+  return parseFloat(normalized) || 0;
+}
