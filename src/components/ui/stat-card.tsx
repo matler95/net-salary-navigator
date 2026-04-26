@@ -1,3 +1,5 @@
+import React from "react";
+
 export function StatCard({
   label,
   value,
@@ -6,7 +8,7 @@ export function StatCard({
 }: {
   label: string;
   value: string;
-  sub?: string;
+  sub?: React.ReactNode;
   tone?: "default" | "success" | "destructive" | "warning";
 }) {
   const toneClass =
@@ -22,7 +24,7 @@ export function StatCard({
     <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
       <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
       <p className={`font-display text-3xl mt-1.5 tabular-nums ${toneClass}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
     </div>
   );
 }

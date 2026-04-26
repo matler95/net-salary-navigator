@@ -34,6 +34,11 @@ export interface SalaryInputs {
   autorskiSharePct: number;
   /** Monthly cap on 50% KUP deduction (default 10 000 = 120 000 / 12). */
   autorskiKupCapMonthly: number;
+  // Bonus fields
+  bonusMonth: number; // 1-12, 0 means no bonus
+  bonusPct: number; // % of annual base salary (12 * gross)
+  bonusPaid: boolean;
+  bonusOverrideGross: number | null; // manual value if not null
 }
 
 export interface SalaryBreakdown {
@@ -99,6 +104,10 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   age26Exempt: false,
   autorskiSharePct: 0,
   autorskiKupCapMonthly: 10000,
+  bonusMonth: 0,
+  bonusPct: 0,
+  bonusPaid: true,
+  bonusOverrideGross: null,
 };
 
 export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
@@ -193,6 +202,64 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
     totalEmployerCost,
     annualTaxBase: round2(taxBase * 12),
   };
+}
+
+/** 
+ * Returns the full 12-month breakdown, 
+ * accounting for threshold crossing and bonuses.
+ */
+export function calculateAnnualBreakdown(i: SalaryInputs): SalaryBreakdown[] {
+  const months: SalaryBreakdown[] = [];
+  let cumulativeTaxBase = 0;
+  
+  for (let m = 1; m <= 12; m++) {
+    const currentInputs = { ...i, outsideFirstThreshold: false };
+    if (i.bonusMonth === m && i.bonusPaid) {
+       const bonusAmount = i.bonusOverrideGross ?? (i.gross * 12 * (i.bonusPct / 100));
+       currentInputs.gross += bonusAmount;
+    }
+    
+    const baseCalc = calculateSalary(currentInputs);
+    
+    if (i.age26Exempt || (cumulativeTaxBase + baseCalc.taxBase <= FIRST_THRESHOLD_ANNUAL)) {
+      months.push(baseCalc);
+      cumulativeTaxBase += baseCalc.taxBase;
+    } else if (cumulativeTaxBase >= FIRST_THRESHOLD_ANNUAL) {
+      const at32 = calculateSalary({ ...currentInputs, outsideFirstThreshold: true });
+      months.push(at32);
+      cumulativeTaxBase += at32.taxBase;
+    } else {
+      // Crossing month: mixed rates
+      const baseAt12 = FIRST_THRESHOLD_ANNUAL - cumulativeTaxBase;
+      const baseAt32 = baseCalc.taxBase - baseAt12;
+      
+      const taxFreeAllowance = i.pit2 ? FIRST_THRESHOLD_MONTHLY_TAX_FREE : 0;
+      const pitGross = baseAt12 * FIRST_RATE + baseAt32 * SECOND_RATE;
+      const pit = Math.max(0, Math.round(pitGross - taxFreeAllowance));
+      const net = round2(
+        baseCalc.gross - baseCalc.zusTotal - baseCalc.health - baseCalc.ppkEmployee - pit + baseCalc.lunchAllowance + baseCalc.remoteAllowance,
+      );
+      
+      const crossingMonth = { ...baseCalc, pit, net };
+      months.push(crossingMonth);
+      cumulativeTaxBase += crossingMonth.taxBase;
+    }
+  }
+  return months;
+}
+
+/** 
+ * Returns the breakdown for a specific month (1-12).
+ */
+export function calculateSalaryForMonth(i: SalaryInputs, monthIndex: number): SalaryBreakdown {
+  return calculateAnnualBreakdown(i)[monthIndex - 1];
+}
+
+/** Returns the arithmetic average of monthly net salaries over 12 months. */
+export function calculateAnnualAverageNet(i: SalaryInputs): number {
+  const breakdown = calculateAnnualBreakdown(i);
+  const totalNet = breakdown.reduce((sum, m) => sum + m.net, 0);
+  return round2(totalNet / 12);
 }
 
 /** Joint filing: PIT computed on averaged annual base × 2. Returns tax saved vs individual. */

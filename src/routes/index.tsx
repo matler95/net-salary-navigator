@@ -16,7 +16,14 @@ import {
   Legend,
 } from "recharts";
 import { useAppState } from "@/lib/store";
-import { calculateSalary, computeJointFiling, formatPLN, formatPLN2 } from "@/lib/salary";
+import {
+  calculateSalary,
+  calculateAnnualAverageNet,
+  calculateSalaryForMonth,
+  computeJointFiling,
+  formatPLN,
+  formatPLN2,
+} from "@/lib/salary";
 import { rentalCashflow, monthlyPayment, toMonthly } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
@@ -72,8 +79,27 @@ function Dashboard() {
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
+  
+  // Advanced Net Salary calculations
+  const currentMonthIdx = new Date().getMonth() + 1;
+  const nextMonthIdx = currentMonthIdx === 12 ? 1 : currentMonthIdx + 1;
+  
+  const totalAnnualAvgNet = useMemo(() => 
+    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0),
+    [spouses]
+  );
+  
+  const totalCurrentMonthNet = useMemo(() => 
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx).net, 0),
+    [spouses, currentMonthIdx]
+  );
+  
+  const totalNextMonthNet = useMemo(() => 
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx).net, 0),
+    [spouses, nextMonthIdx]
+  );
 
-  const cashflow = totalNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const cashflow = totalCurrentMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
 
   // Joint filing comparison
@@ -146,8 +172,17 @@ function Dashboard() {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Netto miesięcznie"
-          value={formatPLN(totalNet)}
-          sub={`${spouses.length} ${spouses.length === 1 ? "osoba" : "osoby"} · brutto ${formatPLN(totalGross)}`}
+          value={formatPLN(totalAnnualAvgNet)}
+          sub={
+            <div className="space-y-0.5">
+              <div>
+                Ten miesiąc: <span className="font-medium text-foreground">{formatPLN(totalCurrentMonthNet)}</span>
+              </div>
+              <div className="text-[10px] opacity-80">
+                {monthLabel(nextMonthIdx, true)}: {formatPLN(totalNextMonthNet)}
+              </div>
+            </div>
+          }
           tone="success"
         />
         <StatCard
@@ -324,10 +359,23 @@ function QuickCard({
   );
 }
 
-function monthLabel(m: number) {
-  return ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"][
-    m - 1
+function monthLabel(m: number, full = false) {
+  const short = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
+  const long = [
+    "Styczeń",
+    "Luty",
+    "Marzec",
+    "Kwiecień",
+    "Maj",
+    "Czerwiec",
+    "Lipiec",
+    "Sierpień",
+    "Wrzesień",
+    "Październik",
+    "Listopad",
+    "Grudzień",
   ];
+  return (full ? long : short)[m - 1];
 }
 
 function greeting() {
