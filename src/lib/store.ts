@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SALARY_INPUTS, type SalaryInputs } from "./salary";
 import type { Frequency } from "./finance";
+import type { InvestmentCurrency } from "./fx";
 
 export type Spouse = {
   id: string;
@@ -17,25 +18,26 @@ export type Expense = {
   id: string;
   category: string;
   label: string;
-  amount: number;             // amount per occurrence
-  frequency: Frequency;       // monthly | quarterly | semiannual | annual | oneoff
+  amount: number; // amount per occurrence
+  frequency: Frequency; // monthly | quarterly | semiannual | annual | oneoff
 };
 
 export type Investment = {
   id: string;
   label: string;
   type: "Akcje" | "ETF" | "Obligacje" | "Crypto" | "Lokata" | "Gotówka" | "Inne";
-  value: number;        // current market value
+  currency: InvestmentCurrency;
+  value: number; // current market value in selected currency
   monthlyContribution: number;
 };
 
 export type Loan = {
   id: string;
   label: string;
-  principal: number;            // remaining principal
+  principal: number; // remaining principal
   annualRatePct: number;
   monthsRemaining: number;
-  monthlyOverpayment?: number;  // optional fixed extra payment / month
+  monthlyOverpayment?: number; // optional fixed extra payment / month
 };
 
 export type Rental = {
@@ -45,7 +47,7 @@ export type Rental = {
   monthlyCosts: number;
   monthlyMortgage: number;
   vacancyRatePct: number;
-  taxRatePct: number;       // 8.5 default
+  taxRatePct: number; // 8.5 default
   marketValue: number;
 };
 
@@ -75,18 +77,62 @@ const DEFAULT_STATE: AppState = {
   ],
   jointFiling: false,
   expenses: [
-    { id: uid(), category: "Mieszkanie", label: "Czynsz administracyjny", amount: 800, frequency: "monthly" },
+    {
+      id: uid(),
+      category: "Mieszkanie",
+      label: "Czynsz administracyjny",
+      amount: 800,
+      frequency: "monthly",
+    },
     { id: uid(), category: "Mieszkanie", label: "Media", amount: 600, frequency: "monthly" },
-    { id: uid(), category: "Jedzenie", label: "Zakupy spożywcze", amount: 2000, frequency: "monthly" },
-    { id: uid(), category: "Transport", label: "Paliwo / komunikacja", amount: 600, frequency: "monthly" },
-    { id: uid(), category: "Ubezpieczenia", label: "OC + AC samochodu", amount: 1800, frequency: "annual" },
-    { id: uid(), category: "Ubezpieczenia", label: "Ubezpieczenie mieszkania", amount: 400, frequency: "annual" },
+    {
+      id: uid(),
+      category: "Jedzenie",
+      label: "Zakupy spożywcze",
+      amount: 2000,
+      frequency: "monthly",
+    },
+    {
+      id: uid(),
+      category: "Transport",
+      label: "Paliwo / komunikacja",
+      amount: 600,
+      frequency: "monthly",
+    },
+    {
+      id: uid(),
+      category: "Ubezpieczenia",
+      label: "OC + AC samochodu",
+      amount: 1800,
+      frequency: "annual",
+    },
+    {
+      id: uid(),
+      category: "Ubezpieczenia",
+      label: "Ubezpieczenie mieszkania",
+      amount: 400,
+      frequency: "annual",
+    },
   ],
   investments: [
-    { id: uid(), label: "IKE — ETF S&P500", type: "ETF", value: 45000, monthlyContribution: 1000 },
+    {
+      id: uid(),
+      label: "IKE — ETF S&P500",
+      type: "ETF",
+      currency: "PLN",
+      value: 45000,
+      monthlyContribution: 1000,
+    },
   ],
   loans: [
-    { id: uid(), label: "Kredyt hipoteczny", principal: 380000, annualRatePct: 7.5, monthsRemaining: 280, monthlyOverpayment: 0 },
+    {
+      id: uid(),
+      label: "Kredyt hipoteczny",
+      principal: 380000,
+      annualRatePct: 7.5,
+      monthsRemaining: 280,
+      monthlyOverpayment: 0,
+    },
   ],
   rentals: [],
 };
@@ -112,6 +158,9 @@ function loadInitial(): AppState {
       expenses: parsed.expenses
         ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
         : DEFAULT_STATE.expenses,
+      investments: parsed.investments
+        ? parsed.investments.map((i) => ({ ...i, currency: i.currency ?? "PLN" }))
+        : DEFAULT_STATE.investments,
       loans: parsed.loans
         ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
         : DEFAULT_STATE.loans,

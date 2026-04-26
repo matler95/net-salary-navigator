@@ -2,6 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState } from "@/lib/store";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
 import {
+  convertToPLN,
+  formatCurrencyAmount,
+  type InvestmentCurrency,
+  useDailyFxRates,
+} from "@/lib/fx";
+import {
   monthlyPayment,
   loanTotalInterest,
   rentalCashflow,
@@ -64,12 +70,17 @@ function AssetsPage() {
 /* INVESTMENTS */
 function InvestmentsSection() {
   const investments = useAppState((s) => s.investments);
-  const total = investments.reduce((s, i) => s + i.value, 0);
-  const monthly = investments.reduce((s, i) => s + i.monthlyContribution, 0);
+  const { rates, loading: fxLoading } = useDailyFxRates();
+  const total = investments.reduce((s, i) => s + convertToPLN(i.value, i.currency, rates), 0);
+  const monthly = investments.reduce(
+    (s, i) => s + convertToPLN(i.monthlyContribution, i.currency, rates),
+    0,
+  );
 
   const [draft, setDraft] = useState({
     label: "",
     type: "ETF" as const,
+    currency: "PLN" as InvestmentCurrency,
     value: 0,
     monthlyContribution: 0,
   });
@@ -78,9 +89,17 @@ function InvestmentsSection() {
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
         <h2 className="font-display text-2xl">Inwestycje</h2>
-        <p className="text-sm text-muted-foreground">
-          Łącznie {formatPLN(total)} · {formatPLN(monthly)}/m-c dopłat
-        </p>
+        <div className="text-right">
+          <p className="text-sm text-muted-foreground">
+            Łącznie {formatPLN(total)} · {formatPLN(monthly)}/m-c dopłat
+            {fxLoading ? " · kursy FX aktualizowane..." : ""}
+          </p>
+          {!!rates.asOf && (
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground mt-1">
+              Kursy z: {rates.asOf}
+            </span>
+          )}
+        </div>
       </div>
 
       <form
@@ -88,9 +107,15 @@ function InvestmentsSection() {
           e.preventDefault();
           if (!draft.label.trim() || draft.value <= 0) return;
           actions.addInvestment(draft);
-          setDraft({ label: "", type: "ETF", value: 0, monthlyContribution: 0 });
+          setDraft({
+            label: "",
+            type: "ETF",
+            currency: "PLN",
+            value: 0,
+            monthlyContribution: 0,
+          });
         }}
-        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-5 gap-2 items-end"
+        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-6 gap-2 items-end"
       >
         <Field label="Nazwa" className="col-span-2">
           <Input
@@ -125,6 +150,23 @@ function InvestmentsSection() {
             className="h-10 font-mono tabular-nums"
           />
         </Field>
+        <Field label="Waluta">
+          <Select
+            value={draft.currency}
+            onValueChange={(v) => setDraft({ ...draft, currency: v as InvestmentCurrency })}
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(["PLN", "EUR", "USD"] as InvestmentCurrency[]).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label="Dopłata/m-c">
           <Input
             type="number"
@@ -135,7 +177,7 @@ function InvestmentsSection() {
             className="h-10 font-mono tabular-nums"
           />
         </Field>
-        <Button type="submit" className="h-10 col-span-2 md:col-span-5">
+        <Button type="submit" className="h-10 col-span-2 md:col-span-6">
           <Plus className="w-4 h-4 mr-1" /> Dodaj inwestycję
         </Button>
       </form>
@@ -147,6 +189,7 @@ function InvestmentsSection() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Nazwa</th>
                 <th className="text-left px-4 py-3 font-medium">Typ</th>
+                <th className="text-left px-4 py-3 font-medium">Waluta</th>
                 <th className="text-right px-4 py-3 font-medium">Wartość</th>
                 <th className="text-right px-4 py-3 font-medium">Dopłata</th>
                 <th className="text-right px-4 py-3 font-medium">% portfela</th>
@@ -164,6 +207,25 @@ function InvestmentsSection() {
                     />
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{i.type}</td>
+                  <td className="px-4 py-2">
+                    <Select
+                      value={i.currency}
+                      onValueChange={(v) =>
+                        actions.updateInvestment(i.id, { currency: v as InvestmentCurrency })
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-[88px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["PLN", "EUR", "USD"] as InvestmentCurrency[]).map((c) => (
+                          <SelectItem key={c} value={c} className="text-xs">
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="px-4 py-2">
                     <Input
                       type="number"
@@ -187,7 +249,14 @@ function InvestmentsSection() {
                     />
                   </td>
                   <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
-                    {total > 0 ? ((i.value / total) * 100).toFixed(1) : "0.0"}%
+                    {total > 0
+                      ? ((convertToPLN(i.value, i.currency, rates) / total) * 100).toFixed(1)
+                      : "0.0"}
+                    %
+                    <div className="text-[11px]">
+                      {formatCurrencyAmount(i.value, i.currency)} (
+                      {formatPLN2(convertToPLN(i.value, i.currency, rates))})
+                    </div>
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -203,6 +272,9 @@ function InvestmentsSection() {
           </table>
         </div>
       )}
+      <p className="text-xs text-muted-foreground">
+        Kursy walut: NBP, odświeżane maksymalnie raz dziennie.
+      </p>
     </section>
   );
 }
@@ -213,7 +285,9 @@ function LoansSection() {
   const totalDebt = loans.reduce((s, l) => s + l.principal, 0);
   const totalPmt = loans.reduce(
     (s, l) =>
-      s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0),
+      s +
+      monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
+      (l.monthlyOverpayment ?? 0),
     0,
   );
 
@@ -270,9 +344,7 @@ function LoansSection() {
             type="number"
             step="0.1"
             value={draft.annualRatePct}
-            onChange={(e) =>
-              setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })
-            }
+            onChange={(e) => setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })}
             className="h-10 font-mono tabular-nums"
           />
         </Field>
@@ -280,9 +352,7 @@ function LoansSection() {
           <Input
             type="number"
             value={draft.monthsRemaining}
-            onChange={(e) =>
-              setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })
-            }
+            onChange={(e) => setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })}
             className="h-10 font-mono tabular-nums"
           />
         </Field>
@@ -337,7 +407,11 @@ function LoanCard({
   );
 
   const pmt = monthlyPayment(loan.principal, loan.annualRatePct, loan.monthsRemaining);
-  const interestNoOverpay = loanTotalInterest(loan.principal, loan.annualRatePct, loan.monthsRemaining);
+  const interestNoOverpay = loanTotalInterest(
+    loan.principal,
+    loan.annualRatePct,
+    loan.monthsRemaining,
+  );
   const interestWithOverpay = schedule.reduce((s, r) => s + r.interest, 0);
   const interestSaved = interestNoOverpay - interestWithOverpay;
   const monthsSaved = scheduleNoOverpay.length - schedule.length;

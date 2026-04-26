@@ -21,8 +21,7 @@ export function remainingBalance(
   const pmt = monthlyPayment(principal, annualRatePct, totalMonths);
   if (r === 0) return Math.max(0, principal - pmt * monthsPaid);
   const fv =
-    principal * Math.pow(1 + r, monthsPaid) -
-    pmt * ((Math.pow(1 + r, monthsPaid) - 1) / r);
+    principal * Math.pow(1 + r, monthsPaid) - pmt * ((Math.pow(1 + r, monthsPaid) - 1) / r);
   return Math.max(0, fv);
 }
 
@@ -113,10 +112,11 @@ export function rentalCashflow(r: RentalInput) {
    Expense frequency
 ============================================================ */
 
-export type Frequency = "monthly" | "quarterly" | "semiannual" | "annual" | "oneoff";
+export type Frequency = "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual" | "oneoff";
 
 export const FREQUENCY_LABELS: Record<Frequency, string> = {
   monthly: "Miesięcznie",
+  bimonthly: "Co 2 miesiące",
   quarterly: "Kwartalnie",
   semiannual: "Co pół roku",
   annual: "Rocznie",
@@ -128,6 +128,8 @@ export function toMonthly(amount: number, frequency: Frequency): number {
   switch (frequency) {
     case "monthly":
       return amount;
+    case "bimonthly":
+      return amount / 2;
     case "quarterly":
       return amount / 3;
     case "semiannual":
@@ -143,6 +145,8 @@ export function toAnnual(amount: number, frequency: Frequency): number {
   switch (frequency) {
     case "monthly":
       return amount * 12;
+    case "bimonthly":
+      return amount * 6;
     case "quarterly":
       return amount * 4;
     case "semiannual":
@@ -163,7 +167,7 @@ export interface PortfolioInputs {
   monthlyContribution: number;
   years: number;
   annualReturnPct: number;
-  annualFeePct: number;       // TER (e.g. 0.22 for VWCE)
+  annualFeePct: number; // TER (e.g. 0.22 for VWCE)
   annualInflationPct: number; // for real-value series
 }
 
@@ -214,20 +218,20 @@ export function projectPortfolio(p: PortfolioInputs): PortfolioPoint[] {
 export interface RealEstateScenario {
   // Purchase
   purchasePrice: number;
-  downPaymentPct: number;          // e.g. 20
+  downPaymentPct: number; // e.g. 20
   renovationCost: number;
-  closingCostsPct: number;         // notarial, PCC 2%, agency etc. ≈ 4–6%
+  closingCostsPct: number; // notarial, PCC 2%, agency etc. ≈ 4–6%
   // Mortgage
-  mortgageRatePct: number;         // annual %
+  mortgageRatePct: number; // annual %
   mortgageYears: number;
   // Rent
   monthlyRent: number;
-  monthlyCosts: number;            // czynsz admin., zarządzanie, ubezpieczenie /m-c
+  monthlyCosts: number; // czynsz admin., zarządzanie, ubezpieczenie /m-c
   vacancyRatePct: number;
-  taxRatePct: number;              // 8.5% ryczałt
+  taxRatePct: number; // 8.5% ryczałt
   // Long-term
-  rentGrowthPct: number;           // annual %
-  appreciationPct: number;         // annual property appreciation %
+  rentGrowthPct: number; // annual %
+  appreciationPct: number; // annual property appreciation %
   holdingYears: number;
 }
 
@@ -235,7 +239,7 @@ export interface RealEstateResult {
   // Upfront
   downPayment: number;
   closingCosts: number;
-  totalUpfront: number;            // down + reno + closing
+  totalUpfront: number; // down + reno + closing
   loanAmount: number;
   monthlyPmt: number;
   // First-year cashflow
@@ -244,18 +248,18 @@ export interface RealEstateResult {
   monthlyCashflow: number;
   annualCashflow: number;
   // Returns
-  grossYieldPct: number;           // gross rent / purchase price
-  netYieldPct: number;             // (rent − costs − tax) / price
-  cashOnCashPct: number;           // annual cashflow / cash invested
-  capRate: number;                 // NOI / property value
-  breakEvenMonths: number;         // months for cumulative cashflow + appreciation to equal upfront
+  grossYieldPct: number; // gross rent / purchase price
+  netYieldPct: number; // (rent − costs − tax) / price
+  cashOnCashPct: number; // annual cashflow / cash invested
+  capRate: number; // NOI / property value
+  breakEvenMonths: number; // months for cumulative cashflow + appreciation to equal upfront
   // 10-yr (or holdingYears) projection
   yearly: RealEstateYearPoint[];
   totalCashflow: number;
   finalEquity: number;
-  totalReturn: number;             // cashflow + (final equity − upfront)
-  totalReturnPct: number;          // % of upfront
-  irrAnnualPct: number;            // approximate IRR
+  totalReturn: number; // cashflow + (final equity − upfront)
+  totalReturnPct: number; // % of upfront
+  irrAnnualPct: number; // approximate IRR
 }
 
 export interface RealEstateYearPoint {
@@ -301,7 +305,12 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const cf = effectiveYear - costsYear - pmtYear - taxYear;
     cumulative += cf;
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
-    const loanBalance = remainingBalance(loanAmount, s.mortgageRatePct, months, Math.min(y * 12, months));
+    const loanBalance = remainingBalance(
+      loanAmount,
+      s.mortgageRatePct,
+      months,
+      Math.min(y * 12, months),
+    );
     const equity = propertyValue - loanBalance;
     yearly.push({
       year: y,

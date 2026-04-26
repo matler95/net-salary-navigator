@@ -21,7 +21,7 @@ export const Route = createFileRoute("/wydatki")({
       {
         name: "description",
         content:
-          "Wydatki gospodarstwa po kategoriach z różnymi okresami: miesięcznie, kwartalnie, rocznie, jednorazowo.",
+          "Wydatki gospodarstwa po kategoriach z różnymi okresami: miesięcznie, co 2 miesiące, kwartalnie, rocznie, jednorazowo.",
       },
     ],
   }),
@@ -41,7 +41,14 @@ const SUGGESTED_CATEGORIES = [
   "Inne",
 ];
 
-const FREQUENCIES: Frequency[] = ["monthly", "quarterly", "semiannual", "annual", "oneoff"];
+const FREQUENCIES: Frequency[] = [
+  "monthly",
+  "bimonthly",
+  "quarterly",
+  "semiannual",
+  "annual",
+  "oneoff",
+];
 
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
@@ -55,10 +62,7 @@ function ExpensesPage() {
     [expenses],
   );
   const oneoffTotal = useMemo(
-    () =>
-      expenses
-        .filter((e) => e.frequency === "oneoff")
-        .reduce((s, e) => s + e.amount, 0),
+    () => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0),
     [expenses],
   );
 
@@ -144,21 +148,24 @@ function AddExpenseForm() {
   const [category, setCategory] = useState("Mieszkanie");
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState(0);
+  const [amountInput, setAmountInput] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("monthly");
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!label.trim() || amount <= 0) return;
+        const parsedAmount = parseLocaleAmount(amountInput);
+        if (!label.trim() || parsedAmount <= 0) return;
         actions.addExpense({
           category: category.trim(),
           label: label.trim(),
-          amount,
+          amount: parsedAmount,
           frequency,
         });
         setLabel("");
         setAmount(0);
+        setAmountInput("");
       }}
       className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] flex flex-wrap gap-2 items-end"
     >
@@ -194,9 +201,14 @@ function AddExpenseForm() {
           Kwota
         </label>
         <Input
-          type="number"
-          value={amount || ""}
-          onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+          type="text"
+          inputMode="decimal"
+          value={amountInput}
+          onChange={(e) => {
+            setAmountInput(e.target.value);
+            setAmount(parseLocaleAmount(e.target.value));
+          }}
+          onBlur={() => setAmountInput(formatAmountInput(amount))}
           min={0}
           className="mt-1 h-10 font-mono tabular-nums"
         />
@@ -235,10 +247,11 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         className="h-9 flex-1 bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
       <Input
-        type="number"
-        value={expense.amount}
+        type="text"
+        inputMode="decimal"
+        value={formatAmountInput(expense.amount)}
         onChange={(e) =>
-          actions.updateExpense(expense.id, { amount: parseFloat(e.target.value) || 0 })
+          actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
         }
         className="h-9 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
@@ -272,4 +285,15 @@ function ExpenseRow({ expense }: { expense: Expense }) {
       </button>
     </div>
   );
+}
+
+function parseLocaleAmount(raw: string): number {
+  const normalized = raw.replace(",", ".").trim();
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function formatAmountInput(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return value.toFixed(2).replace(/\.00$/, "").replace(".", ",");
 }

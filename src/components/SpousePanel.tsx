@@ -177,14 +177,79 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
             />
           </div>
 
+          <div className="bg-muted/30 rounded-xl p-4 border border-border space-y-3">
+            <ToggleRow
+              label="Samochód służbowy do celów prywatnych"
+              hint="Przychód opodatkowany i oskładkowany (UoP)"
+              checked={spouse.inputs.companyCarEnabled}
+              onChange={(v) => set("companyCarEnabled", v)}
+            />
+            {spouse.inputs.companyCarEnabled && (
+              <>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    Wycena świadczenia
+                  </Label>
+                  <Select
+                    value={spouse.inputs.companyCarMode}
+                    onValueChange={(v) =>
+                      set("companyCarMode", v as SalaryInputs["companyCarMode"])
+                    }
+                  >
+                    <SelectTrigger className="h-11 mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="statutory">Ryczałt ustawowy</SelectItem>
+                      <SelectItem value="manual">Kwota ręczna</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {spouse.inputs.companyCarMode === "statutory" ? (
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                      Ryczałt miesięczny
+                    </Label>
+                    <Select
+                      value={spouse.inputs.companyCarStatutoryValue}
+                      onValueChange={(v) =>
+                        set(
+                          "companyCarStatutoryValue",
+                          v as SalaryInputs["companyCarStatutoryValue"],
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-11 mt-1.5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="250">250 zł (do 60 kW / EV / wodór)</SelectItem>
+                        <SelectItem value="400">400 zł (pozostałe pojazdy)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <NumberField
+                    label="Kwota przychodu (miesięcznie)"
+                    value={spouse.inputs.companyCarManualAmount}
+                    onChange={(n) => set("companyCarManualAmount", n)}
+                    hint="Ręczna wycena świadczenia"
+                  />
+                )}
+              </>
+            )}
+          </div>
+
           {/* WHF Calculator */}
-          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+          {/* <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
             <Label className="text-xs uppercase tracking-wider text-blue-700 dark:text-blue-400 font-semibold block mb-4">
               Praca zdalna (dni × stawka)
             </Label>
             <div className="grid grid-cols-1 gap-3 mb-3">
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Dni WHF</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
+                  Dni WHF
+                </Label>
                 <Input
                   type="number"
                   inputMode="decimal"
@@ -196,7 +261,9 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
                 />
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Stawka/dzień</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
+                  Stawka/dzień
+                </Label>
                 <div className="relative">
                   <Input
                     type="number"
@@ -208,11 +275,15 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
                     className="font-mono text-base h-11 w-full pr-12"
                     placeholder="0"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">zł</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    zł
+                  </span>
                 </div>
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Razem</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
+                  Razem
+                </Label>
                 <div className="bg-white dark:bg-black/20 border border-border rounded-md px-3 font-mono text-base font-medium flex items-center justify-end h-11 w-full">
                   {formatPLN2((spouse.inputs.whfDays ?? 0) * (spouse.inputs.whfDailyRate ?? 0))}
                 </div>
@@ -221,7 +292,7 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
             <p className="text-xs text-muted-foreground">
               Lub wprowadź kwotę ręcznie poniżej (PIT/ZUS-free)
             </p>
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-2 gap-3">
             <NumberField
@@ -270,8 +341,8 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
               onValueChange={([v]) => set("autorskiSharePct", v)}
             />
             <p className="text-xs text-muted-foreground mt-2">
-              Część wynagrodzenia jako honorarium objęte 50% KUP. Limit roczny 120 000 zł
-              (10 000 zł/m-c).
+              Część wynagrodzenia jako honorarium objęte 50% KUP. Limit roczny 120 000 zł (10 000
+              zł/m-c).
             </p>
             {r.kupAutorski > 0 && (
               <p className="text-xs mt-2 text-success font-medium">
@@ -353,22 +424,21 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
               </div>
               <div>
                 <p className="text-primary-foreground/60">Koszt pracodawcy</p>
-                <p className="font-mono tabular-nums text-sm">
-                  {formatPLN2(r.totalEmployerCost)}
-                </p>
+                <p className="font-mono tabular-nums text-sm">{formatPLN2(r.totalEmployerCost)}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-muted/40 rounded-xl p-4">
             <Row label="Brutto" value={r.gross} muted />
+            {r.companyCarTaxable > 0 && (
+              <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />
+            )}
             <Row label="ZUS (suma)" value={-r.zusTotal} negative />
             <Row label="Zdrowotna 9%" value={-r.health} negative />
             {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
             <Row label="KUP (standardowe)" value={r.kupStandard} muted />
-            {r.kupAutorski > 0 && (
-              <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />
-            )}
+            {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
             <Row label="Zaliczka PIT" value={-r.pit} negative />
             <Separator className="my-1.5" />
             <Row label="Netto" value={r.net} bold />

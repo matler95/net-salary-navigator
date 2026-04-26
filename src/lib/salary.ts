@@ -16,6 +16,10 @@
 export interface SalaryInputs {
   gross: number;
   benefitsTaxable: number;
+  companyCarEnabled: boolean;
+  companyCarMode: "statutory" | "manual";
+  companyCarStatutoryValue: "250" | "400";
+  companyCarManualAmount: number;
   lunchAllowance: number;
   remoteAllowance: number;
   whfDays: number;
@@ -35,6 +39,7 @@ export interface SalaryInputs {
 export interface SalaryBreakdown {
   gross: number;
   benefitsTaxable: number;
+  companyCarTaxable: number;
   lunchAllowance: number;
   remoteAllowance: number;
   zusBase: number;
@@ -78,6 +83,10 @@ const KUP_OUT_OF_TOWN = 300;
 export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   gross: 10000,
   benefitsTaxable: 0,
+  companyCarEnabled: false,
+  companyCarMode: "statutory",
+  companyCarStatutoryValue: "250",
+  companyCarManualAmount: 0,
   lunchAllowance: 0,
   remoteAllowance: 0,
   whfDays: 0,
@@ -95,12 +104,13 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
 export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
   const gross = Math.max(0, i.gross);
   const benefitsTaxable = Math.max(0, i.benefitsTaxable);
+  const companyCarTaxable = getCompanyCarTaxable(i);
   const lunchAllowance = Math.max(0, i.lunchAllowance);
   const remoteAllowance = Math.max(0, i.remoteAllowance);
 
   const lunchAllowanceZusable = Math.max(0, lunchAllowance - LUNCH_ZUS_EXEMPT_LIMIT);
 
-  const zusBase = gross + benefitsTaxable + lunchAllowanceZusable;
+  const zusBase = gross + benefitsTaxable + companyCarTaxable + lunchAllowanceZusable;
   const pension = round2(zusBase * ZUS_PENSION);
   const disability = round2(zusBase * ZUS_DISABILITY);
   const sickness = round2(zusBase * ZUS_SICKNESS);
@@ -131,7 +141,7 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
   const kupTotal = round2(kupStandard + kupAutorski);
 
   const taxableLunch = lunchAllowanceZusable;
-  const incomeForPit = gross + benefitsTaxable + taxableLunch;
+  const incomeForPit = gross + benefitsTaxable + companyCarTaxable + taxableLunch;
   const taxBaseRaw = Math.max(0, incomeForPit - zusTotal - kupTotal);
   const taxBase = Math.round(taxBaseRaw);
 
@@ -149,12 +159,19 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
 
   const employerZus = round2(zusBase * ZUS_EMPLOYER_RATES);
   const totalEmployerCost = round2(
-    gross + benefitsTaxable + lunchAllowance + remoteAllowance + employerZus + ppkEmployer,
+    gross +
+      benefitsTaxable +
+      companyCarTaxable +
+      lunchAllowance +
+      remoteAllowance +
+      employerZus +
+      ppkEmployer,
   );
 
   return {
     gross,
     benefitsTaxable,
+    companyCarTaxable,
     lunchAllowance,
     remoteAllowance,
     zusBase: round2(zusBase),
@@ -226,6 +243,12 @@ function round2(n: number): number {
 }
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
+}
+
+function getCompanyCarTaxable(i: SalaryInputs): number {
+  if (!i.companyCarEnabled) return 0;
+  if (i.companyCarMode === "manual") return Math.max(0, i.companyCarManualAmount);
+  return i.companyCarStatutoryValue === "400" ? 400 : 250;
 }
 
 export function formatPLN(n: number): string {

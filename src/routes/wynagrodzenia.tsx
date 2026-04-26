@@ -12,7 +12,7 @@ export const Route = createFileRoute("/wynagrodzenia")({
       {
         name: "description",
         content:
-          "Kalkulator wynagrodzeń UoP z PPK, autorskimi KUP, benefitami i ekwiwalentem za pracę zdalną.",
+          "Kalkulator wynagrodzeń UoP z PPK, autorskimi KUP, benefitami (w tym samochód służbowy) i ekwiwalentem za pracę zdalną.",
       },
     ],
   }),
@@ -35,16 +35,14 @@ function SalariesPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
             Pełne polskie zasady 2025: ZUS, zdrowotna, PIT (oba progi), KUP standardowe i autorskie
-            (50%), PPK, benefity, bony żywieniowe, ekwiwalent za pracę zdalną.
+            (50%), PPK, benefity (w tym samochód służbowy), bony żywieniowe, ekwiwalent za pracę
+            zdalną.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {spouses.length >= 2 && (
             <label className="flex items-center gap-2 text-sm bg-card border border-border rounded-full px-3 py-1.5">
-              <Switch
-                checked={jointFiling}
-                onCheckedChange={(v) => actions.setJointFiling(v)}
-              />
+              <Switch checked={jointFiling} onCheckedChange={(v) => actions.setJointFiling(v)} />
               Rozliczenie wspólne
             </label>
           )}

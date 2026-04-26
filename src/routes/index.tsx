@@ -17,6 +17,7 @@ import {
 import { useAppState } from "@/lib/store";
 import { calculateSalary, computeJointFiling, formatPLN, formatPLN2 } from "@/lib/salary";
 import { rentalCashflow, monthlyPayment, toMonthly } from "@/lib/finance";
+import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,9 +55,7 @@ function Stat({
           : "";
   return (
     <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
       <p className={`font-display text-3xl mt-1.5 tabular-nums ${toneClass}`}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
@@ -70,6 +69,7 @@ function Dashboard() {
   const investments = useAppState((s) => s.investments);
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
+  const { rates } = useDailyFxRates();
 
   const breakdowns = useMemo(
     () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs) })),
@@ -79,11 +79,16 @@ function Dashboard() {
   const totalNet = breakdowns.reduce((sum, { r }) => sum + r.net, 0);
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
   const totalExpenses = expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
-  const totalInvestments = investments.reduce((s, i) => s + i.value, 0);
+  const totalInvestments = investments.reduce(
+    (s, i) => s + convertToPLN(i.value, i.currency, rates),
+    0,
+  );
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
   const monthlyLoanPmt = loans.reduce(
     (s, l) =>
-      s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0),
+      s +
+      monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
+      (l.monthlyOverpayment ?? 0),
     0,
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
@@ -93,8 +98,7 @@ function Dashboard() {
   const netWorth = totalInvestments + rentalAssets - totalLoans;
 
   // Joint filing comparison
-  const joint =
-    spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
+  const joint = spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
 
   // Expense breakdown by category
   const byCategory = useMemo(() => {
@@ -174,7 +178,9 @@ function Dashboard() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="bg-muted/40 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Indywidualnie</p>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Indywidualnie
+              </p>
               <p className="font-display text-2xl mt-1 tabular-nums">
                 {formatPLN(joint.individualAnnualPit)}
               </p>
@@ -204,10 +210,7 @@ function Dashboard() {
               <BarChart data={projection}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                  tick={{ fontSize: 11 }}
-                />
+                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
