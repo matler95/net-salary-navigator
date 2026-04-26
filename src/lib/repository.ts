@@ -45,12 +45,14 @@ export async function ensureHouseholdForSession(
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
   if (!supabase) return {};
-  const [spouses, expenses, investments, loans, rentals] = await Promise.all([
+  const [spouses, expenses, investments, loans, rentals, savings, household] = await Promise.all([
     supabase.from("spouses").select("*").eq("household_id", householdId),
     supabase.from("expenses").select("*").eq("household_id", householdId),
     supabase.from("investments").select("*").eq("household_id", householdId),
     supabase.from("loans").select("*").eq("household_id", householdId),
     supabase.from("rentals").select("*").eq("household_id", householdId),
+    supabase.from("savings").select("*").eq("household_id", householdId),
+    supabase.from("households").select("joint_filing, global_settings").eq("id", householdId).single(),
   ]);
 
   return {
@@ -59,6 +61,9 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
     investments: (investments.data ?? []).map(mapInvestmentFromRow),
     loans: (loans.data ?? []).map(mapLoanFromRow),
     rentals: (rentals.data ?? []).map(mapRentalFromRow),
+    savings: (savings.data ?? []).map(mapSavingsFromRow),
+    jointFiling: !!household.data?.joint_filing,
+    globalSettings: household.data?.global_settings as any,
   };
 }
 
@@ -90,6 +95,18 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
       householdId,
       state.rentals.map((x) => mapRentalToRow(householdId, x)),
     ),
+    replaceRows(
+      "savings",
+      householdId,
+      state.savings.map((x) => ({ ...x, household_id: householdId })),
+    ),
+    supabase
+      .from("households")
+      .update({
+        joint_filing: state.jointFiling,
+        global_settings: state.globalSettings,
+      })
+      .eq("id", householdId),
   ]);
 }
 
@@ -211,6 +228,16 @@ function mapRentalFromRow(row: unknown): Rental {
     vacancyRatePct: Number(r.vacancyRatePct ?? 0),
     taxRatePct: Number(r.taxRatePct ?? 8.5),
     marketValue: Number(r.marketValue ?? 0),
+  };
+}
+function mapSavingsFromRow(row: unknown): any {
+  const r = asRecord(row);
+  return {
+    id: String(r.id ?? ""),
+    bank: String(r.bank ?? ""),
+    type: String(r.type ?? "zwykłe"),
+    balance: Number(r.balance ?? 0),
+    ratePct: Number(r.ratePct ?? 0),
   };
 }
 

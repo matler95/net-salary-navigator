@@ -8,12 +8,16 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   ReferenceLine,
   CartesianGrid,
   Legend,
+  Area,
+  AreaChart,
 } from "recharts";
 import { useAppState } from "@/lib/store";
 import {
@@ -25,7 +29,7 @@ import {
   formatPLN,
   formatPLN2,
 } from "@/lib/salary";
-import { rentalCashflow, monthlyPayment, toMonthly } from "@/lib/finance";
+import { rentalCashflow, monthlyPayment, toMonthly, toAnnual } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
 
@@ -54,17 +58,21 @@ function Dashboard() {
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
   const savings = useAppState((s) => s.savings);
+  const globalSettings = useAppState((s) => s.globalSettings);
   const { rates } = useDailyFxRates();
   const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
   const breakdowns = useMemo(
-    () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs) })),
-    [spouses],
+    () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs, 0, globalSettings) })),
+    [spouses, globalSettings],
   );
 
-  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0);
+  const totalHouseholdNet = spouses.reduce(
+    (sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings),
+    0,
+  );
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
+  const totalExpenses = expenses.reduce((s, e) => s + toAnnual(e.amount, e.frequency) / 12, 0);
   const totalInvestments = investments.reduce(
     (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
@@ -86,28 +94,37 @@ function Dashboard() {
   const nextMonthIdx = currentMonthIdx === 12 ? 1 : currentMonthIdx + 1;
   
   const totalAnnualAvgNet = useMemo(() => 
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0),
-    [spouses]
+    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    [spouses, globalSettings]
   );
   
   const totalCurrentMonthNet = useMemo(() => 
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx).net, 0),
-    [spouses, currentMonthIdx]
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx, globalSettings).net, 0),
+    [spouses, currentMonthIdx, globalSettings]
   );
   
   const totalNextMonthNet = useMemo(() => 
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx).net, 0),
-    [spouses, nextMonthIdx]
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
+    [spouses, nextMonthIdx, globalSettings]
   );
 
+  const getExpensesForMonth = (mIdx: number) => {
+    return expenses.reduce((sum, e) => {
+      if (e.frequency === "oneoff" || e.frequency === "annual") {
+        return sum + (e.month === mIdx ? e.amount : 0);
+      }
+      return sum + toMonthly(e.amount, e.frequency);
+    }, 0);
+  };
+
   const annualAvgCashflow = totalAnnualAvgNet + rentalNet - totalExpenses - monthlyLoanPmt;
-  const currentMonthCashflow = totalCurrentMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
-  const nextMonthCashflow = totalNextMonthNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const currentMonthCashflow = totalCurrentMonthNet + rentalNet - getExpensesForMonth(currentMonthIdx) - monthlyLoanPmt;
+  const nextMonthCashflow = totalNextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
 
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
 
   // Joint filing comparison
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs) : null;
+  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
 
   // Expense breakdown by category
   const byCategory = useMemo(() => {
@@ -118,9 +135,8 @@ function Dashboard() {
     return Array.from(map, ([name, value]) => ({ name, value }));
   }, [expenses]);
 
-  // Threshold projection
   const projection = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs));
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
 
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
@@ -134,6 +150,33 @@ function Dashboard() {
       return point;
     });
   }, [spouses]);
+
+  // Cumulative Cashflow Chart Data
+  const cumulativeData = useMemo(() => {
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    let cumulative = 0;
+
+    return Array.from({ length: 12 }, (_, idx) => {
+      const month = idx + 1;
+      const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
+      
+      const monthlyExpenses = expenses.reduce((sum, e) => {
+        if (e.frequency === "oneoff" || e.frequency === "annual") {
+          return sum + (e.month === month ? e.amount : 0);
+        }
+        return sum + toMonthly(e.amount, e.frequency);
+      }, 0);
+
+      const monthlyCashflow = monthlyNet + rentalNet - monthlyExpenses - monthlyLoanPmt;
+      cumulative += monthlyCashflow;
+
+      return {
+        month: monthLabel(month),
+        "Stan konta (skumulowany)": Math.round(cumulative),
+        "Cashflow miesięczny": Math.round(monthlyCashflow),
+      };
+    });
+  }, [spouses, expenses, rentalNet, monthlyLoanPmt]);
 
   const [showBanner, setShowBanner] = useState(false);
 
@@ -269,6 +312,42 @@ function Dashboard() {
           </div>
         </section>
       )} */}
+
+      {/* Cumulative Cashflow Chart */}
+      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+        <h2 className="font-display text-xl mb-1">Projekcja skumulowanych oszczędności</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)
+        </p>
+        <div className="h-80">
+          <ResponsiveContainer>
+            <AreaChart data={cumulativeData}>
+              <defs>
+                <linearGradient id="colorCum" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(v: number) => formatPLN(v)}
+                contentStyle={{ fontSize: 12, borderRadius: 12, border: "none", boxShadow: "var(--shadow-card)" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="Stan konta (skumulowany)"
+                stroke="var(--accent)"
+                fillOpacity={1}
+                fill="url(#colorCum)"
+                strokeWidth={3}
+              />
+              <ReferenceLine y={0} stroke="oklch(0.5 0.01 0)" strokeDasharray="3 3" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
 
       {/* Charts */}
       <section className="grid lg:grid-cols-2 gap-6">

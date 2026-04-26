@@ -41,6 +41,22 @@ export interface SalaryInputs {
   bonusOverrideGross: number | null; // manual value if not null
 }
 
+export type GlobalSettings = {
+  avgSalaryForecast: number;
+  pitThresholdAnnual: number;
+  pitFirstRate: number; // in % (e.g. 12)
+  pitSecondRate: number; // in % (e.g. 32)
+  taxFreeAmountAnnual: number;
+};
+
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  avgSalaryForecast: 8673,
+  pitThresholdAnnual: 120000,
+  pitFirstRate: 12,
+  pitSecondRate: 32,
+  taxFreeAmountAnnual: 30000,
+};
+
 export interface SalaryBreakdown {
   gross: number;
   benefitsTaxable: number;
@@ -81,6 +97,7 @@ const FIRST_THRESHOLD_MONTHLY_TAX_FREE = 300;
 const FIRST_RATE = 0.12;
 const SECOND_RATE = 0.32;
 const LUNCH_ZUS_EXEMPT_LIMIT = 450;
+const ZUS_LIMIT_ANNUAL = 253350; // 2025 limit for pension and disability caps
 
 const KUP_STANDARD = 250;
 const KUP_OUT_OF_TOWN = 300;
@@ -110,7 +127,17 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   bonusOverrideGross: null,
 };
 
-export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
+export function calculateSalary(
+  i: SalaryInputs,
+  cumulativeZusBaseBefore: number = 0,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): SalaryBreakdown {
+  const FIRST_RATE = settings.pitFirstRate / 100;
+  const SECOND_RATE = settings.pitSecondRate / 100;
+  const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+  const ZUS_LIMIT_ANNUAL = settings.avgSalaryForecast * 30;
+  const taxFreeAllowanceMonthly = (settings.taxFreeAmountAnnual * FIRST_RATE) / 12;
+
   const gross = Math.max(0, i.gross);
   const benefitsTaxable = Math.max(0, i.benefitsTaxable);
   const companyCarTaxable = getCompanyCarTaxable(i);
@@ -120,9 +147,14 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
   const lunchAllowanceZusable = Math.max(0, lunchAllowance - LUNCH_ZUS_EXEMPT_LIMIT);
 
   const zusBase = gross + benefitsTaxable + companyCarTaxable + lunchAllowanceZusable;
-  const pension = round2(zusBase * ZUS_PENSION);
-  const disability = round2(zusBase * ZUS_DISABILITY);
-  const sickness = round2(zusBase * ZUS_SICKNESS);
+  
+  // ZUS Limit (30-krotność) applies to pension and disability only
+  const remainingLimit = Math.max(0, ZUS_LIMIT_ANNUAL - cumulativeZusBaseBefore);
+  const zusBaseForLimited = Math.min(zusBase, remainingLimit);
+
+  const pension = round2(zusBaseForLimited * ZUS_PENSION);
+  const disability = round2(zusBaseForLimited * ZUS_DISABILITY);
+  const sickness = round2(zusBase * ZUS_SICKNESS); // Sickness is NOT capped
   const zusTotal = round2(pension + disability + sickness);
 
   const healthBase = zusBase - zusTotal;
@@ -166,7 +198,11 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
     gross - zusTotal - health - ppkEmployee - pit + lunchAllowance + remoteAllowance,
   );
 
-  const employerZus = round2(zusBase * ZUS_EMPLOYER_RATES);
+  const employerPension = round2(zusBaseForLimited * 0.0976);
+  const employerDisability = round2(zusBaseForLimited * 0.065);
+  const employerOther = round2(zusBase * (0.0167 + 0.0245 + 0.001));
+  const employerZus = round2(employerPension + employerDisability + employerOther);
+
   const totalEmployerCost = round2(
     gross +
       benefitsTaxable +
@@ -195,12 +231,12 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
     kupStandard,
     kupAutorski,
     kupTotal,
-    taxFreeAllowance,
     taxBase,
     pit,
     net,
     totalEmployerCost,
     annualTaxBase: round2(taxBase * 12),
+    taxFreeAllowance: i.pit2 ? taxFreeAllowanceMonthly : 0,
   };
 }
 
@@ -208,41 +244,63 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
  * Returns the full 12-month breakdown, 
  * accounting for threshold crossing and bonuses.
  */
-export function calculateAnnualBreakdown(i: SalaryInputs): SalaryBreakdown[] {
+export function calculateAnnualBreakdown(
+  i: SalaryInputs,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): SalaryBreakdown[] {
+  const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+  const FIRST_RATE = settings.pitFirstRate / 100;
+  const SECOND_RATE = settings.pitSecondRate / 100;
+  const taxFreeAllowanceMonthly = (settings.taxFreeAmountAnnual * FIRST_RATE) / 12;
+
   const months: SalaryBreakdown[] = [];
   let cumulativeTaxBase = 0;
-  
+  let cumulativeZusBase = 0;
+
   for (let m = 1; m <= 12; m++) {
     const currentInputs = { ...i, outsideFirstThreshold: false };
     if (i.bonusMonth === m && i.bonusPaid) {
-       const bonusAmount = i.bonusOverrideGross ?? (i.gross * 12 * (i.bonusPct / 100));
-       currentInputs.gross += bonusAmount;
+      const bonusAmount = i.bonusOverrideGross ?? i.gross * 12 * (i.bonusPct / 100);
+      currentInputs.gross += bonusAmount;
     }
-    
-    const baseCalc = calculateSalary(currentInputs);
-    
-    if (i.age26Exempt || (cumulativeTaxBase + baseCalc.taxBase <= FIRST_THRESHOLD_ANNUAL)) {
+
+    const baseCalc = calculateSalary(currentInputs, cumulativeZusBase, settings);
+
+    if (i.age26Exempt || cumulativeTaxBase + baseCalc.taxBase <= FIRST_THRESHOLD_ANNUAL) {
       months.push(baseCalc);
       cumulativeTaxBase += baseCalc.taxBase;
+      cumulativeZusBase += baseCalc.zusBase;
     } else if (cumulativeTaxBase >= FIRST_THRESHOLD_ANNUAL) {
-      const at32 = calculateSalary({ ...currentInputs, outsideFirstThreshold: true });
+      const at32 = calculateSalary(
+        { ...currentInputs, outsideFirstThreshold: true },
+        cumulativeZusBase,
+        settings,
+      );
       months.push(at32);
       cumulativeTaxBase += at32.taxBase;
+      cumulativeZusBase += at32.zusBase;
     } else {
       // Crossing month: mixed rates
       const baseAt12 = FIRST_THRESHOLD_ANNUAL - cumulativeTaxBase;
       const baseAt32 = baseCalc.taxBase - baseAt12;
-      
-      const taxFreeAllowance = i.pit2 ? FIRST_THRESHOLD_MONTHLY_TAX_FREE : 0;
+
+      const taxFreeAllowance = i.pit2 ? taxFreeAllowanceMonthly : 0;
       const pitGross = baseAt12 * FIRST_RATE + baseAt32 * SECOND_RATE;
       const pit = Math.max(0, Math.round(pitGross - taxFreeAllowance));
       const net = round2(
-        baseCalc.gross - baseCalc.zusTotal - baseCalc.health - baseCalc.ppkEmployee - pit + baseCalc.lunchAllowance + baseCalc.remoteAllowance,
+        baseCalc.gross -
+          baseCalc.zusTotal -
+          baseCalc.health -
+          baseCalc.ppkEmployee -
+          pit +
+          baseCalc.lunchAllowance +
+          baseCalc.remoteAllowance,
       );
-      
+
       const crossingMonth = { ...baseCalc, pit, net };
       months.push(crossingMonth);
       cumulativeTaxBase += crossingMonth.taxBase;
+      cumulativeZusBase += crossingMonth.zusBase;
     }
   }
   return months;
@@ -251,25 +309,41 @@ export function calculateAnnualBreakdown(i: SalaryInputs): SalaryBreakdown[] {
 /** 
  * Returns the breakdown for a specific month (1-12).
  */
-export function calculateSalaryForMonth(i: SalaryInputs, monthIndex: number): SalaryBreakdown {
-  return calculateAnnualBreakdown(i)[monthIndex - 1];
+/** Returns the arithmetic average of monthly net salaries over 12 months. */
+export function calculateAnnualAverageNet(
+  i: SalaryInputs,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): number {
+  const months = calculateAnnualBreakdown(i, settings);
+  const totalNet = months.reduce((sum, m) => sum + m.net, 0);
+  return round2(totalNet / 12);
 }
 
-/** Returns the arithmetic average of monthly net salaries over 12 months. */
-export function calculateAnnualAverageNet(i: SalaryInputs): number {
-  const breakdown = calculateAnnualBreakdown(i);
-  const totalNet = breakdown.reduce((sum, m) => sum + m.net, 0);
-  return round2(totalNet / 12);
+/** 
+ * Returns the breakdown for a specific month (1-12).
+ */
+export function calculateSalaryForMonth(
+  i: SalaryInputs,
+  monthIdx: number,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): SalaryBreakdown {
+  const months = calculateAnnualBreakdown(i, settings);
+  return months[Math.min(11, Math.max(0, monthIdx - 1))];
 }
 
 /** Joint filing: PIT computed on averaged annual base × 2. Returns tax saved vs individual. */
 export function computeJointFiling(
   aInputs: SalaryInputs,
   bInputs: SalaryInputs,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
 ): { jointAnnualPit: number; individualAnnualPit: number; savings: number } {
-  const annualTaxFree = 30000;
-  const aBreakdown = calculateAnnualBreakdown(aInputs);
-  const bBreakdown = calculateAnnualBreakdown(bInputs);
+  const FIRST_RATE = settings.pitFirstRate / 100;
+  const SECOND_RATE = settings.pitSecondRate / 100;
+  const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+  const annualTaxFreeAmount = settings.taxFreeAmountAnnual * FIRST_RATE;
+
+  const aBreakdown = calculateAnnualBreakdown(aInputs, settings);
+  const bBreakdown = calculateAnnualBreakdown(bInputs, settings);
 
   const aAnnualBase = aBreakdown.reduce((s, m) => s + m.taxBase, 0);
   const bAnnualBase = bBreakdown.reduce((s, m) => s + m.taxBase, 0);
@@ -277,11 +351,11 @@ export function computeJointFiling(
   const annualPit = (base: number) => {
     const taxable = Math.max(0, base);
     if (taxable <= FIRST_THRESHOLD_ANNUAL) {
-      return Math.max(0, taxable * FIRST_RATE - annualTaxFree * FIRST_RATE);
+      return Math.max(0, taxable * FIRST_RATE - annualTaxFreeAmount);
     }
     const first = FIRST_THRESHOLD_ANNUAL * FIRST_RATE;
     const second = (taxable - FIRST_THRESHOLD_ANNUAL) * SECOND_RATE;
-    return Math.max(0, first + second - annualTaxFree * FIRST_RATE);
+    return Math.max(0, first + second - annualTaxFreeAmount);
   };
 
   const individualAnnualPit = annualPit(aAnnualBase) + annualPit(bAnnualBase);

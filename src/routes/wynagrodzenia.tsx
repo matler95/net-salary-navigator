@@ -32,10 +32,11 @@ export const Route = createFileRoute("/wynagrodzenia")({
 function SalariesPage() {
   const spouses = useAppState((s) => s.spouses);
   const jointFiling = useAppState((s) => s.jointFiling);
+  const globalSettings = useAppState((s) => s.globalSettings);
 
   // Household summary calculations
-  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs), 0);
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs) : null;
+  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
+  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">

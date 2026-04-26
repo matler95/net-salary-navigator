@@ -29,6 +29,7 @@ export type Expense = {
   label: string;
   amount: number; // amount per occurrence
   frequency: Frequency; // monthly | quarterly | semiannual | annual | oneoff
+  month?: number; // 1-12, used for oneoff and annual planning
 };
 
 export type Investment = {
@@ -80,6 +81,14 @@ export type SavingsAccount = {
   lokataCapitalization?: "miesięczna" | "kwartalna" | "roczna" | "na końcu";
 };
 
+export type GlobalSettings = {
+  avgSalaryForecast: number;
+  pitThresholdAnnual: number;
+  pitFirstRate: number; // in %
+  pitSecondRate: number; // in %
+  taxFreeAmountAnnual: number;
+};
+
 export type AppState = {
   spouses: Spouse[];
   jointFiling: boolean;
@@ -88,6 +97,7 @@ export type AppState = {
   loans: Loan[];
   rentals: Rental[];
   savings: SavingsAccount[];
+  globalSettings: GlobalSettings;
 };
 
 const STORAGE_KEY = "placa-netto-state-v1";
@@ -170,6 +180,13 @@ const DEFAULT_STATE: AppState = {
   ],
   rentals: [],
   savings: [],
+  globalSettings: {
+    avgSalaryForecast: 8673, // 2025
+    pitThresholdAnnual: 120000,
+    pitFirstRate: 12,
+    pitSecondRate: 32,
+    taxFreeAmountAnnual: 30000,
+  },
 };
 
 let state: AppState = loadInitial();
@@ -213,6 +230,9 @@ function loadInitial(): AppState {
       savings: parsed.savings
         ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
         : DEFAULT_STATE.savings,
+      globalSettings: parsed.globalSettings 
+        ? { ...DEFAULT_STATE.globalSettings, ...parsed.globalSettings }
+        : DEFAULT_STATE.globalSettings,
     };
   } catch {
     return DEFAULT_STATE;
@@ -272,7 +292,9 @@ export async function initCloudSync(session: Session | null) {
       investments: cloudState.investments ?? state.investments,
       loans: cloudState.loans ?? state.loans,
       rentals: cloudState.rentals ?? state.rentals,
-      savings: (cloudState as any).savings ?? state.savings,
+      savings: cloudState.savings ?? state.savings,
+      jointFiling: cloudState.jointFiling ?? state.jointFiling,
+      globalSettings: cloudState.globalSettings ?? state.globalSettings,
     };
     persist();
     listeners.forEach((l) => l());
@@ -413,6 +435,9 @@ export const actions = {
     setState((s) => ({ ...s, savings: s.savings.filter((x) => x.id !== id) }));
   },
 
+  updateGlobalSettings(patch: Partial<GlobalSettings>) {
+    setState((s) => ({ ...s, globalSettings: { ...s.globalSettings, ...patch } }));
+  },
   reset() {
     setState(() => DEFAULT_STATE);
   },

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { actions, type Spouse } from "@/lib/store";
+import { actions, type Spouse, useAppState } from "@/lib/store";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -117,27 +117,29 @@ function ToggleRow({
 }
 
 export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: boolean }) {
-  const r = useMemo(() => calculateSalary(spouse.inputs), [spouse.inputs]);
+  const globalSettings = useAppState((s) => s.globalSettings);
+  const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
 
   // Threshold progression
-  const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs), [spouse.inputs]);
+  const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs, globalSettings), [spouse.inputs, globalSettings]);
   const totalAnnualTaxBase = useMemo(
     () => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0),
     [annualBreakdown],
   );
   const monthsToSecondThreshold = useMemo(() => {
     let cumulative = 0;
+    const threshold = globalSettings.pitThresholdAnnual;
     for (let m = 1; m <= 12; m++) {
       const monthBase = annualBreakdown[m - 1].taxBase;
-      if (cumulative < 120000 && cumulative + monthBase > 120000) {
+      if (cumulative < threshold && cumulative + monthBase > threshold) {
         return m;
       }
       cumulative += monthBase;
     }
-    return cumulative > 120000 ? 12 : null;
-  }, [annualBreakdown]);
+    return cumulative > threshold ? 12 : null;
+  }, [annualBreakdown, globalSettings.pitThresholdAnnual]);
 
   return (
     <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden">

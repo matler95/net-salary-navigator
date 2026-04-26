@@ -162,6 +162,7 @@ function AddExpenseDialog() {
   const [amount, setAmount] = useState(0);
   const [amountInput, setAmountInput] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("monthly");
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
 
   const handleReset = () => {
     setCategory("Mieszkanie");
@@ -170,6 +171,7 @@ function AddExpenseDialog() {
     setAmount(0);
     setAmountInput("");
     setFrequency("monthly");
+    setMonth(new Date().getMonth() + 1);
   };
 
   return (
@@ -200,6 +202,7 @@ function AddExpenseDialog() {
               label: label.trim(),
               amount: parsedAmount,
               frequency,
+              month: (frequency === "oneoff" || frequency === "annual") ? month : undefined,
             });
             handleReset();
             setOpen(false);
@@ -309,11 +312,43 @@ function AddExpenseDialog() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            {(frequency === "oneoff" || frequency === "annual") && (
+              <div>
+                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Miesiąc płatności
+                </label>
+                <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
+                  <SelectTrigger className="mt-1 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Styczeń",
+                      "Luty",
+                      "Marzec",
+                      "Kwiecień",
+                      "Maj",
+                      "Czerwiec",
+                      "Lipiec",
+                      "Sierpień",
+                      "Wrzesień",
+                      "Październik",
+                      "Listopad",
+                      "Grudzień",
+                    ].map((name, idx) => (
+                      <SelectItem key={idx} value={String(idx + 1)}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button type="submit">Zapisz wydatek</Button>
-          </DialogFooter>
+        </div>
+        <DialogFooter>
+          <Button type="submit">Zapisz wydatek</Button>
+        </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -353,6 +388,26 @@ function ExpenseRow({ expense }: { expense: Expense }) {
           ))}
         </SelectContent>
       </Select>
+
+      {(expense.frequency === "oneoff" || expense.frequency === "annual") && (
+        <Select
+          value={String(expense.month ?? 1)}
+          onValueChange={(v) => actions.updateExpense(expense.id, { month: parseInt(v) })}
+        >
+          <SelectTrigger className="h-10 w-[90px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-[10px] uppercase font-semibold text-muted-foreground">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"].map(
+              (name, idx) => (
+                <SelectItem key={idx} value={String(idx + 1)}>
+                  {name}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
+      )}
       {expense.frequency !== "monthly" && expense.frequency !== "oneoff" && (
         <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
           ≈ {formatPLN(monthly)}/m
