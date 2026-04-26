@@ -651,6 +651,3 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-// recharts Cell needs to be imported separately for Bar coloring
-import { Cell } from "recharts";
