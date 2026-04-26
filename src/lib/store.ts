@@ -51,6 +51,8 @@ export type Loan = {
   annualRatePct: number;
   monthsRemaining: number;
   monthlyOverpayment?: number; // optional fixed extra payment / month
+  paymentDayOfMonth?: number; // day of month (1-31) when payment is made
+  lastPaymentDate?: string; // ISO date of last payment
 };
 
 export type Rental = {
@@ -70,8 +72,8 @@ export type SavingsAccount = {
   id: string;
   bank: string;
   type: SavingsAccountType;
-  balance: number;          // current balance / lokata principal
-  ratePct: number;          // annual interest rate %, 0 if not applicable
+  balance: number; // current balance / lokata principal
+  ratePct: number; // annual interest rate %, 0 if not applicable
   // Lokata-specific
   lokataStartDate?: string; // ISO date
   lokataDurationMonths?: number;

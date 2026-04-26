@@ -156,9 +156,7 @@ function PortfolioCalculator() {
             label="Zysk"
             value={formatPLN(totalGain)}
             sub={
-              totalContributed > 0
-                ? `+${((totalGain / totalContributed) * 100).toFixed(0)}%`
-                : ""
+              totalContributed > 0 ? `+${((totalGain / totalContributed) * 100).toFixed(0)}%` : ""
             }
             tone="success"
           />
@@ -189,10 +187,7 @@ function PortfolioCalculator() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} unit="r" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   labelFormatter={(y) => `Rok ${y}`}
@@ -437,10 +432,7 @@ function RealEstateCalculator() {
               <LineChart data={r.yearly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} unit="r" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   labelFormatter={(y) => `Rok ${y}`}
@@ -489,10 +481,7 @@ function RealEstateCalculator() {
               <BarChart data={r.yearly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} unit="r" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   labelFormatter={(y) => `Rok ${y}`}
@@ -537,9 +526,7 @@ function RealEstateCalculator() {
               <p className="font-mono tabular-nums text-xl mt-1">{formatPLN(r.finalEquity)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Łączny zysk
-              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Łączny zysk</p>
               <p
                 className={`font-mono tabular-nums text-xl mt-1 ${r.totalReturn >= 0 ? "text-success" : "text-destructive"}`}
               >
@@ -634,9 +621,7 @@ function Stat({
     tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : "";
   return (
     <div className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)]">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
       <p className={`font-display text-2xl mt-1 tabular-nums ${toneClass}`}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>

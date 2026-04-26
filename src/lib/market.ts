@@ -3,7 +3,7 @@ import type { Investment } from "./store";
 
 export type DailyTickerPrices = {
   asOf: string;
-  byTicker: Record<string, number>;         // price in ticker's native currency
+  byTicker: Record<string, number>; // price in ticker's native currency
   currencyByTicker: Record<string, string>; // e.g. "USD", "EUR", "GBP"
 };
 
@@ -14,12 +14,14 @@ let inFlight: Promise<DailyTickerPrices> | null = null;
 
 export function useDailyTickerPrices(tickers: string[]) {
   const normalizedTickersStr = Array.from(
-    new Set(tickers.map((t) => t.trim().toLowerCase()).filter(Boolean))
-  ).sort().join(',');
+    new Set(tickers.map((t) => t.trim().toLowerCase()).filter(Boolean)),
+  )
+    .sort()
+    .join(",");
 
   const normalizedTickers = useMemo(
-    () => (normalizedTickersStr ? normalizedTickersStr.split(',') : []),
-    [normalizedTickersStr]
+    () => (normalizedTickersStr ? normalizedTickersStr.split(",") : []),
+    [normalizedTickersStr],
   );
 
   const [prices, setPrices] = useState<DailyTickerPrices>(
@@ -47,10 +49,10 @@ export function useDailyTickerPrices(tickers: string[]) {
 }
 
 export type TickerSearchResult = {
-  symbol: string;   // Yahoo Finance ticker (e.g. ISAC.L)
-  name: string;     // Full instrument name
+  symbol: string; // Yahoo Finance ticker (e.g. ISAC.L)
+  name: string; // Full instrument name
   exchange: string; // Exchange display name (e.g. London)
-  type: string;     // ETF, EQUITY, CRYPTOCURRENCY...
+  type: string; // ETF, EQUITY, CRYPTOCURRENCY...
   currency: string; // Instrument currency (e.g. USD, EUR, GBP)
 };
 
@@ -104,30 +106,46 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
   // Fast path: all tickers already in memory with valid prices
   if (memoryPrices && memoryPrices.asOf === today) {
     const missing = validTickers.filter((t) => !(t in memoryPrices!.byTicker));
-    if (missing.length === 0) return { ...memoryPrices, byTicker: { ...memoryPrices.byTicker }, currencyByTicker: { ...memoryPrices.currencyByTicker } };
+    if (missing.length === 0)
+      return {
+        ...memoryPrices,
+        byTicker: { ...memoryPrices.byTicker },
+        currencyByTicker: { ...memoryPrices.currencyByTicker },
+      };
     // Some new tickers need fetching — fall through using memoryPrices as base
   }
 
   // Determine base: either today's memory, today's localStorage, or fresh empty
   const fromCache = readCachedPrices();
   const base: DailyTickerPrices =
-    (memoryPrices && memoryPrices.asOf === today)
+    memoryPrices && memoryPrices.asOf === today
       ? memoryPrices
-      : (fromCache && fromCache.asOf === today ? fromCache : EMPTY);
+      : fromCache && fromCache.asOf === today
+        ? fromCache
+        : EMPTY;
 
   // Only fetch tickers not already in the base
   const toFetch = validTickers.filter((t) => !(t in base.byTicker));
 
   if (toFetch.length === 0) {
     memoryPrices = base;
-    return { ...base, byTicker: { ...base.byTicker }, currencyByTicker: { ...base.currencyByTicker } };
+    return {
+      ...base,
+      byTicker: { ...base.byTicker },
+      currencyByTicker: { ...base.currencyByTicker },
+    };
   }
 
   // If an existing fetch is running for a different set, wait then retry
   if (inFlight) {
     const shared = await inFlight;
     const stillMissing = validTickers.filter((t) => !(t in shared.byTicker));
-    if (stillMissing.length === 0) return { ...shared, byTicker: { ...shared.byTicker }, currencyByTicker: { ...shared.currencyByTicker } };
+    if (stillMissing.length === 0)
+      return {
+        ...shared,
+        byTicker: { ...shared.byTicker },
+        currencyByTicker: { ...shared.currencyByTicker },
+      };
   }
 
   inFlight = (async () => {
@@ -152,7 +170,11 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
 
   try {
     const result = await inFlight;
-    return { ...result, byTicker: { ...result.byTicker }, currencyByTicker: { ...result.currencyByTicker } };
+    return {
+      ...result,
+      byTicker: { ...result.byTicker },
+      currencyByTicker: { ...result.currencyByTicker },
+    };
   } finally {
     inFlight = null;
   }
@@ -166,9 +188,9 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
  */
 function toYahooSymbol(ticker: string): string {
   const t = ticker.trim().toUpperCase();
-  if (t.endsWith(".UK")) return t.slice(0, -3) + ".L";   // London
-  if (t.endsWith(".US")) return t.slice(0, -3);           // US — no suffix on Yahoo
-  if (t.endsWith(".PL")) return t.slice(0, -3) + ".WA";  // Warsaw
+  if (t.endsWith(".UK")) return t.slice(0, -3) + ".L"; // London
+  if (t.endsWith(".US")) return t.slice(0, -3); // US — no suffix on Yahoo
+  if (t.endsWith(".PL")) return t.slice(0, -3) + ".WA"; // Warsaw
   return t; // .DE, .FR, BTC-USD, etc. work as-is
 }
 
@@ -186,7 +208,9 @@ async function fetchPrice(ticker: string): Promise<{ price: number; currency: st
 }
 
 /** Fetch price + currency from Yahoo Finance via proxy → direct fallback. */
-async function fetchYahooDetails(symbol: string): Promise<{ price: number; currency: string } | null> {
+async function fetchYahooDetails(
+  symbol: string,
+): Promise<{ price: number; currency: string } | null> {
   if (!symbol) return null;
   const proxyUrl = `/api/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
   const directUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;

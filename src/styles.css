@@ -78,7 +78,8 @@
 
   --gradient-hero: linear-gradient(135deg, oklch(0.22 0.03 250) 0%, oklch(0.3 0.05 270) 100%);
   --gradient-accent: linear-gradient(135deg, oklch(0.62 0.21 27) 0%, oklch(0.68 0.18 35) 100%);
-  --shadow-elegant: 0 1px 2px oklch(0.18 0.02 250 / 0.04), 0 8px 24px -8px oklch(0.18 0.02 250 / 0.12);
+  --shadow-elegant:
+    0 1px 2px oklch(0.18 0.02 250 / 0.04), 0 8px 24px -8px oklch(0.18 0.02 250 / 0.12);
   --shadow-card: 0 1px 3px oklch(0.18 0.02 250 / 0.06), 0 1px 2px oklch(0.18 0.02 250 / 0.04);
 }
 
@@ -109,13 +110,24 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
   }
-  h1, h2, h3, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
-  .font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  .font-mono,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }

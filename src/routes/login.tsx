@@ -45,7 +45,10 @@ function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase) {
-      setStatus({ msg: "Brak konfiguracji Supabase (VITE_SUPABASE_URL / ANON_KEY).", type: "error" });
+      setStatus({
+        msg: "Brak konfiguracji Supabase (VITE_SUPABASE_URL / ANON_KEY).",
+        type: "error",
+      });
       return;
     }
 

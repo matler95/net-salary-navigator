@@ -44,11 +44,17 @@ function SettingsPage() {
     try {
       const link = await createInvite(email.trim());
       if (!link) {
-        setStatus({ msg: "Nie udało się utworzyć zaproszenia. Upewnij się, że jesteś zalogowany i spróbuj ponownie.", type: "error" });
+        setStatus({
+          msg: "Nie udało się utworzyć zaproszenia. Upewnij się, że jesteś zalogowany i spróbuj ponownie.",
+          type: "error",
+        });
         return;
       }
       setInviteLink(link);
-      setStatus({ msg: "Zaproszenie utworzone. Skopiuj link poniżej i wyślij go zapraszanej osobie.", type: "success" });
+      setStatus({
+        msg: "Zaproszenie utworzone. Skopiuj link poniżej i wyślij go zapraszanej osobie.",
+        type: "success",
+      });
     } finally {
       setLoading(false);
     }

@@ -159,7 +159,7 @@ function AddExpenseForm() {
         const parsedAmount = parseLocaleAmount(amountInput);
         if (!label.trim() || parsedAmount <= 0) return;
         actions.addExpense({
-          category: isCustomCategory ? (category.trim() || "Inne") : category,
+          category: isCustomCategory ? category.trim() || "Inne" : category,
           label: label.trim(),
           amount: parsedAmount,
           frequency,

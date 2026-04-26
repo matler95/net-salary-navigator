@@ -298,7 +298,15 @@ function Dashboard() {
   );
 }
 
-function QuickCard({ to, title, desc }: { to: "/wynagrodzenia" | "/wydatki" | "/aktywa"; title: string; desc: string }) {
+function QuickCard({
+  to,
+  title,
+  desc,
+}: {
+  to: "/wynagrodzenia" | "/wydatki" | "/aktywa";
+  title: string;
+  desc: string;
+}) {
   return (
     <Link
       to={to}

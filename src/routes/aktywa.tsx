@@ -7,7 +7,13 @@ import {
   type InvestmentCurrency,
   useDailyFxRates,
 } from "@/lib/fx";
-import { getInvestmentCurrentValue, useDailyTickerPrices, searchTickers, type TickerSearchResult, getTickerCurrency } from "@/lib/market";
+import {
+  getInvestmentCurrentValue,
+  useDailyTickerPrices,
+  searchTickers,
+  type TickerSearchResult,
+  getTickerCurrency,
+} from "@/lib/market";
 import {
   monthlyPayment,
   loanTotalInterest,
@@ -23,7 +29,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, ChevronDown, PlusCircle, Loader2, Search, Check } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ChevronDown,
+  PlusCircle,
+  Loader2,
+  Search,
+  Check,
+  TrendingUp,
+  Clock,
+  Wallet,
+  BarChart3,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaChart,
@@ -33,6 +51,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import {
   Dialog,
@@ -61,7 +82,7 @@ export const Route = createFileRoute("/aktywa")({
 
 function AssetsPage() {
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
           Aktywa, długi i wynajem
@@ -79,6 +100,74 @@ function AssetsPage() {
   );
 }
 
+/* ─── PALETTE ─────────────────────────────────────────────────────────── */
+const CHART_COLORS = [
+  "oklch(0.62 0.21 27)",
+  "oklch(0.62 0.13 145)",
+  "oklch(0.55 0.1 250)",
+  "oklch(0.72 0.15 70)",
+  "oklch(0.6 0.14 300)",
+  "oklch(0.55 0.14 190)",
+  "oklch(0.65 0.18 350)",
+  "oklch(0.5 0.1 220)",
+];
+
+/* ─── LOAN PAYMENT UTILITIES ────────────────────────────────────────── */
+function getPaymentDueInfo(loan: { paymentDayOfMonth?: number; lastPaymentDate?: string }) {
+  if (!loan.paymentDayOfMonth)
+    return { isDue: false, daysUntil: null, isOverdue: false, nextDate: null };
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const currentDay = today.getDate();
+
+  // Calculate this month's payment date
+  const thisMonthPaymentDate = new Date(currentYear, currentMonth, loan.paymentDayOfMonth);
+
+  // If this month's payment date is in the past, next payment is next month
+  const nextPaymentDate =
+    thisMonthPaymentDate < today
+      ? new Date(currentYear, currentMonth + 1, loan.paymentDayOfMonth)
+      : thisMonthPaymentDate;
+
+  const lastPayment = loan.lastPaymentDate ? new Date(loan.lastPaymentDate) : null;
+
+  // Check if payment is due (next payment date has passed)
+  const isPassed = nextPaymentDate < today;
+
+  // Check if already paid this month
+  const paymentAlreadyMadeThisMonth =
+    lastPayment &&
+    lastPayment.getFullYear() === currentYear &&
+    lastPayment.getMonth() === currentMonth;
+
+  return {
+    isDue: isPassed && !paymentAlreadyMadeThisMonth,
+    isOverdue: isPassed && !paymentAlreadyMadeThisMonth,
+    daysUntil: Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+    nextDate: nextPaymentDate.toISOString().slice(0, 10),
+  };
+}
+
+function calculateLoanAfterPayment(
+  principal: number,
+  annualRatePct: number,
+  monthsRemaining: number,
+  monthlyOverpayment: number = 0,
+): { principal: number; monthsRemaining: number } {
+  const pmt = monthlyPayment(principal, annualRatePct, monthsRemaining);
+  const interest = (principal * annualRatePct) / 100 / 12;
+  const principalPayment = pmt - interest;
+  const overpay = monthlyOverpayment;
+  const totalPayment = principalPayment + overpay;
+
+  const newPrincipal = Math.max(0, principal - totalPayment);
+  const newMonths = newPrincipal > 0 ? Math.max(0, monthsRemaining - 1) : 0;
+
+  return { principal: newPrincipal, monthsRemaining: newMonths };
+}
+
 /* INVESTMENTS */
 function InvestmentsSection() {
   const investments = useAppState((s) => s.investments);
@@ -88,10 +177,10 @@ function InvestmentsSection() {
   );
   const [view, setView] = useState<"list" | "summary">("list");
 
-  const effectiveCurrency = (i: typeof investments[number]) => {
+  const effectiveCurrency = (i: (typeof investments)[number]) => {
     const ticker = (i.ticker ?? "").trim().toLowerCase();
     const yahooCur = getTickerCurrency(ticker, tickerPrices) as InvestmentCurrency | undefined;
-    return (yahooCur && ["PLN", "EUR", "USD", "GBP"].includes(yahooCur) ? yahooCur : i.currency);
+    return yahooCur && ["PLN", "EUR", "USD", "GBP"].includes(yahooCur) ? yahooCur : i.currency;
   };
 
   const investmentValues = investments.map((i) => ({
@@ -114,11 +203,15 @@ function InvestmentsSection() {
               <button
                 onClick={() => setView("list")}
                 className={`px-2.5 py-1 transition-colors ${view === "list" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >Lista</button>
+              >
+                Lista
+              </button>
               <button
                 onClick={() => setView("summary")}
                 className={`px-2.5 py-1 transition-colors ${view === "summary" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >Podsumowanie</button>
+              >
+                Podsumowanie
+              </button>
             </div>
           )}
           <div className="text-right">
@@ -142,88 +235,14 @@ function InvestmentsSection() {
         </div>
       </div>
 
+      {/* ── IMPROVED SUMMARY VIEW ── */}
       {view === "summary" && investments.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5 space-y-4">
-          {/* Top row: total + largest position */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Wartość portfela</p>
-              <p className="text-2xl font-bold tabular-nums">{formatPLN(total)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pozycji</p>
-              <p className="text-2xl font-bold">{investments.length}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Największa pozycja</p>
-              {(() => {
-                const top = [...investmentValues].sort((a, b) => b.valuePLN - a.valuePLN)[0];
-                return top ? (
-                  <p className="text-base font-semibold truncate">{top.label} <span className="text-muted-foreground text-sm">({total > 0 ? ((top.valuePLN / total) * 100).toFixed(1) : 0}%)</span></p>
-                ) : null;
-              })()}
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Bez wyceny</p>
-              <p className="text-base font-semibold">{investmentValues.filter(i => i.valuePLN === 0).length} pozycji</p>
-            </div>
-          </div>
-
-          {/* Allocation bar */}
-          {total > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Alokacja</p>
-              <div className="flex rounded-full overflow-hidden h-3 gap-px">
-                {[...investmentValues]
-                  .filter(i => i.valuePLN > 0)
-                  .sort((a, b) => b.valuePLN - a.valuePLN)
-                  .map((i, idx) => {
-                    const colors = ["bg-accent","bg-emerald-500","bg-amber-500","bg-sky-500","bg-violet-500","bg-rose-500","bg-teal-500","bg-orange-400"];
-                    return (
-                      <div
-                        key={i.id}
-                        style={{ width: `${(i.valuePLN / total) * 100}%` }}
-                        className={`${colors[idx % colors.length]} transition-all`}
-                        title={`${i.label}: ${formatPLN(i.valuePLN)}`}
-                      />
-                    );
-                  })}
-              </div>
-              {/* Legend */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {[...investmentValues]
-                  .filter(i => i.valuePLN > 0)
-                  .sort((a, b) => b.valuePLN - a.valuePLN)
-                  .slice(0, 6)
-                  .map((i, idx) => {
-                    const colors = ["bg-accent","bg-emerald-500","bg-amber-500","bg-sky-500","bg-violet-500","bg-rose-500"];
-                    return (
-                      <span key={i.id} className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <span className={`w-2 h-2 rounded-full ${colors[idx % colors.length]}`} />
-                        {i.label} · {((i.valuePLN / total) * 100).toFixed(1)}%
-                      </span>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {/* Per-position rows */}
-          <div className="divide-y divide-border">
-            {[...investmentValues].sort((a, b) => b.valuePLN - a.valuePLN).map((i) => (
-              <div key={i.id} className="flex items-center justify-between py-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{i.label}</p>
-                  <p className="text-[11px] text-muted-foreground font-mono">{i.ticker?.toUpperCase()} · {effectiveCurrency(i)} · {(i.volume ?? 0).toLocaleString("pl-PL")} szt.</p>
-                </div>
-                <div className="text-right shrink-0 ml-4">
-                  <p className="font-mono font-semibold text-sm">{formatPLN(i.valuePLN)}</p>
-                  <p className="text-[11px] text-muted-foreground">{total > 0 ? ((i.valuePLN / total) * 100).toFixed(1) : 0}%</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <InvestmentsSummaryView
+          investmentValues={investmentValues}
+          total={total}
+          effectiveCurrency={effectiveCurrency}
+          tickerPrices={tickerPrices}
+        />
       )}
 
       {view === "list" && investments.length > 0 && (
@@ -288,7 +307,9 @@ function InvestmentsSection() {
                       step="0.0001"
                       value={i.volume ?? ""}
                       onChange={(e) =>
-                        actions.updateInvestment(i.id, { volume: parseFloat(e.target.value) || 0 })
+                        actions.updateInvestment(i.id, {
+                          volume: parseFloat(e.target.value) || 0,
+                        })
                       }
                       className="h-9 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
@@ -307,10 +328,17 @@ function InvestmentsSection() {
                       : "0.0"}
                     %
                     <div className="text-[11px]">
-                      {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), effectiveCurrency(i))}{" "}
+                      {formatCurrencyAmount(
+                        getInvestmentCurrentValue(i, tickerPrices),
+                        effectiveCurrency(i),
+                      )}{" "}
                       (
                       {formatPLN2(
-                        convertToPLN(getInvestmentCurrentValue(i, tickerPrices), effectiveCurrency(i), rates),
+                        convertToPLN(
+                          getInvestmentCurrentValue(i, tickerPrices),
+                          effectiveCurrency(i),
+                          rates,
+                        ),
                       )}
                       )
                     </div>
@@ -342,11 +370,330 @@ function InvestmentsSection() {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        Kursy walut: NBP (PLN/EUR/USD/GBP), odświeżane raz dziennie. Ticker: kurs bieżący via Yahoo Finance, cache dobowy.
+        Kursy walut: NBP (PLN/EUR/USD/GBP), odświeżane raz dziennie. Ticker: kurs bieżący via Yahoo
+        Finance, cache dobowy.
       </p>
     </section>
   );
 }
+
+/* ── INVESTMENTS SUMMARY VIEW (redesigned) ──────────────────────────── */
+function InvestmentsSummaryView({
+  investmentValues,
+  total,
+  effectiveCurrency,
+  tickerPrices,
+}: {
+  investmentValues: Array<{
+    id: string;
+    label: string;
+    type: string;
+    ticker?: string;
+    volume?: number;
+    tickerPriceAtAdd?: number;
+    tickerPriceDate?: string;
+    currency: InvestmentCurrency;
+    monthlyContribution: number;
+    valuePLN: number;
+  }>;
+  total: number;
+  effectiveCurrency: (i: any) => InvestmentCurrency;
+  tickerPrices: any;
+}) {
+  const sorted = [...investmentValues].sort((a, b) => b.valuePLN - a.valuePLN);
+  const monthlyContribTotal = investmentValues.reduce(
+    (s, i) => s + (i.monthlyContribution ?? 0),
+    0,
+  );
+  const unvalued = investmentValues.filter((i) => i.valuePLN === 0).length;
+
+  // Donut chart data — top 6 + "Inne"
+  const donutData = useMemo(() => {
+    const top6 = sorted.filter((i) => i.valuePLN > 0).slice(0, 6);
+    const rest = sorted.filter((i) => i.valuePLN > 0).slice(6);
+    const restTotal = rest.reduce((s, i) => s + i.valuePLN, 0);
+    const result = top6.map((i) => ({ name: i.label, value: i.valuePLN }));
+    if (restTotal > 0) result.push({ name: "Inne", value: restTotal });
+    return result;
+  }, [sorted]);
+
+  // Type breakdown
+  const byType = useMemo(() => {
+    const map = new Map<string, number>();
+    investmentValues.forEach((i) => {
+      map.set(i.type, (map.get(i.type) || 0) + i.valuePLN);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, value]) => ({ type, value, pct: total > 0 ? (value / total) * 100 : 0 }));
+  }, [investmentValues, total]);
+
+  // Currency exposure
+  const byCurrency = useMemo(() => {
+    const map = new Map<string, number>();
+    investmentValues.forEach((i) => {
+      const cur = effectiveCurrency(i);
+      map.set(cur, (map.get(cur) || 0) + i.valuePLN);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([currency, value]) => ({
+        currency,
+        value,
+        pct: total > 0 ? (value / total) * 100 : 0,
+      }));
+  }, [investmentValues, total, effectiveCurrency]);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+      const { name, value } = payload[0];
+      return (
+        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
+          <p className="font-medium mb-0.5">{name}</p>
+          <p className="font-mono text-accent">{formatPLN(value)}</p>
+          <p className="text-muted-foreground">
+            {total > 0 ? ((value / total) * 100).toFixed(1) : 0}%
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Top KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <BarChart3 className="w-3 h-3" /> Wartość portfela
+          </p>
+          <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(total)}</p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> Wpłaty / m-c
+          </p>
+          <p className="text-2xl font-bold tabular-nums font-display">
+            {monthlyContribTotal > 0 ? formatPLN(monthlyContribTotal) : "—"}
+          </p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+            Pozycji razem
+          </p>
+          <p className="text-2xl font-bold font-display">{investmentValues.length}</p>
+          {unvalued > 0 && (
+            <p className="text-[11px] text-warning-foreground mt-0.5">{unvalued} bez wyceny</p>
+          )}
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+            Największa pozycja
+          </p>
+          {sorted[0] ? (
+            <>
+              <p className="text-sm font-semibold truncate">{sorted[0].label}</p>
+              <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                {formatPLN(sorted[0].valuePLN)} ·{" "}
+                {total > 0 ? ((sorted[0].valuePLN / total) * 100).toFixed(1) : 0}%
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">—</p>
+          )}
+        </div>
+      </div>
+
+      {/* Donut chart + breakdowns */}
+      <div className="grid lg:grid-cols-[1fr,1fr] gap-4">
+        {/* Donut allocation chart */}
+        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+          <p className="text-sm font-semibold mb-4">Alokacja portfela</p>
+          {total > 0 ? (
+            <div className="flex items-center gap-4">
+              <div className="w-48 h-48 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={76}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {donutData.map((_, idx) => (
+                        <Cell
+                          key={idx}
+                          fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                          stroke="transparent"
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                {donutData.map((d, idx) => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
+                    />
+                    <span className="text-xs truncate flex-1">{d.name}</span>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0">
+                      {total > 0 ? ((d.value / total) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Brak wycen</p>
+          )}
+        </div>
+
+        {/* Type + currency breakdown */}
+        <div className="space-y-4">
+          {/* By type */}
+          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+            <p className="text-sm font-semibold mb-3">Klasy aktywów</p>
+            <div className="space-y-2.5">
+              {byType.map(({ type, value, pct }, idx) => (
+                <div key={type}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium">{type}</span>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                      {formatPLN(value)} · {pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        background: CHART_COLORS[idx % CHART_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* By currency */}
+          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+            <p className="text-sm font-semibold mb-3">Ekspozycja walutowa</p>
+            <div className="space-y-2.5">
+              {byCurrency.map(({ currency, value, pct }, idx) => (
+                <div key={currency}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium font-mono">{currency}</span>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                      {formatPLN(value)} · {pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        background: CHART_COLORS[(idx + 2) % CHART_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Per-position table */}
+      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-muted/30">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            Pozycje ({sorted.length})
+          </p>
+        </div>
+        <div className="divide-y divide-border">
+          {sorted.map((i, idx) => {
+            const pct = total > 0 ? (i.valuePLN / total) * 100 : 0;
+            return (
+              <div
+                key={i.id}
+                className="px-5 py-3 flex items-center gap-3 group hover:bg-muted/20 transition-colors"
+              >
+                {/* Rank */}
+                <span className="text-[11px] font-mono text-muted-foreground w-4 shrink-0">
+                  {idx + 1}
+                </span>
+                {/* Color dot */}
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }}
+                />
+                {/* Name + meta */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{i.label}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {i.ticker?.toUpperCase() || "—"}
+                    {i.volume ? ` · ${i.volume.toLocaleString("pl-PL")} szt.` : ""}
+                    {" · "}
+                    {effectiveCurrency(i)}
+                  </p>
+                </div>
+                {/* Allocation bar */}
+                <div className="w-24 hidden sm:block">
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${pct}%`,
+                        background: CHART_COLORS[idx % CHART_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+                {/* Value */}
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-mono font-semibold tabular-nums">
+                    {i.valuePLN > 0 ? (
+                      formatPLN(i.valuePLN)
+                    ) : (
+                      <span className="text-muted-foreground text-xs">bez wyceny</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">{pct.toFixed(1)}%</p>
+                </div>
+                {/* Actions */}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <BuyMoreDialog
+                    investment={i}
+                    currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined}
+                  />
+                  <button
+                    onClick={() => actions.removeInvestment(i.id)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {sorted.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">Brak pozycji</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddInvestmentDialog() {
   const [open, setOpen] = useState(false);
   const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency, volume: 0 };
@@ -362,7 +709,11 @@ function AddInvestmentDialog() {
     setQuery(value);
     setDropOpen(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!value.trim() || value.length < 2) { setResults([]); setSearching(false); return; }
+    if (!value.trim() || value.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
       const found = await searchTickers(value);
@@ -372,7 +723,6 @@ function AddInvestmentDialog() {
   }, []);
 
   const handleSelect = (result: TickerSearchResult) => {
-    // Map Yahoo currency to our supported currencies
     const cur = (result.currency === "GBp" ? "GBP" : result.currency) as InvestmentCurrency;
     const supportedCur = (["PLN", "EUR", "USD"] as InvestmentCurrency[]).includes(cur)
       ? cur
@@ -392,7 +742,13 @@ function AddInvestmentDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) handleReset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) handleReset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 shadow-sm">
           <Plus className="w-3.5 h-3.5 mr-1" />
@@ -427,10 +783,12 @@ function AddInvestmentDialog() {
             setOpen(false);
           }}
         >
-          {/* Ticker search */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Instrument</label>
-            <Popover open={dropOpen && (results.length > 0 || searching)} onOpenChange={setDropOpen}>
+            <Popover
+              open={dropOpen && (results.length > 0 || searching)}
+              onOpenChange={setDropOpen}
+            >
               <PopoverAnchor asChild>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -438,7 +796,9 @@ function AddInvestmentDialog() {
                     ref={inputRef}
                     value={query}
                     onChange={(e) => handleQuery(e.target.value)}
-                    onFocus={() => { if (results.length > 0) setDropOpen(true); }}
+                    onFocus={() => {
+                      if (results.length > 0) setDropOpen(true);
+                    }}
                     placeholder="Szukaj: iShares, VWCE, AAPL, Bitcoin..."
                     className="pl-9 font-mono"
                     autoFocus
@@ -467,8 +827,12 @@ function AddInvestmentDialog() {
                           <p className="text-xs text-muted-foreground truncate">{r.name}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-[10px] bg-muted text-muted-foreground rounded px-1.5 py-0.5">{r.type}</span>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{r.exchange} · {r.currency}</p>
+                          <span className="text-[10px] bg-muted text-muted-foreground rounded px-1.5 py-0.5">
+                            {r.type}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {r.exchange} · {r.currency}
+                          </p>
                         </div>
                       </button>
                     </li>
@@ -483,20 +847,25 @@ function AddInvestmentDialog() {
             )}
           </div>
 
-          {/* Currency */}
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Waluta</label>
-            <Select value={draft.currency} onValueChange={(v: any) => setDraft({ ...draft, currency: v })}>
-              <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+            <Select
+              value={draft.currency}
+              onValueChange={(v: any) => setDraft({ ...draft, currency: v })}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {(["PLN", "EUR", "USD"] as InvestmentCurrency[]).map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Volume */}
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Wolumen</label>
             <Input
@@ -520,9 +889,7 @@ function AddInvestmentDialog() {
   );
 }
 
-
-
-function BuyMoreDialog({ investment, currentPrice }: { investment: any, currentPrice?: number }) {
+function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentPrice?: number }) {
   const [open, setOpen] = useState(false);
   const [addedVolume, setAddedVolume] = useState("");
   const [buyPrice, setBuyPrice] = useState(currentPrice ? String(currentPrice) : "");
@@ -537,7 +904,9 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any, currentP
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Dokup: {investment.label}</DialogTitle>
-          <DialogDescription>Dodaj wolumen do istniejącej pozycji i przelicz średnią cenę.</DialogDescription>
+          <DialogDescription>
+            Dodaj wolumen do istniejącej pozycji i przelicz średnią cenę.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4 py-4"
@@ -545,27 +914,21 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any, currentP
             e.preventDefault();
             const additionalVol = parseFloat(addedVolume) || 0;
             const newPrice = parseFloat(buyPrice) || 0;
-
             if (additionalVol <= 0) return;
-
             const oldVol = investment.volume || 0;
             const oldAvgPrice = investment.tickerPriceAtAdd || newPrice;
             const newTotalVol = oldVol + additionalVol;
-
             let newAvgPrice = newPrice;
             if (newTotalVol > 0 && oldAvgPrice > 0 && newPrice > 0) {
               newAvgPrice = (oldVol * oldAvgPrice + additionalVol * newPrice) / newTotalVol;
             }
-
             actions.updateInvestment(investment.id, {
               volume: newTotalVol,
               tickerPriceAtAdd: newAvgPrice,
               tickerPriceDate: new Date().toISOString().slice(0, 10),
             });
-
             setOpen(false);
             setAddedVolume("");
-            // keep buyPrice as is, or updated
           }}
         >
           <div className="grid grid-cols-4 items-center gap-4">
@@ -610,8 +973,6 @@ function LoansSection() {
     0,
   );
 
-
-
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
@@ -623,8 +984,6 @@ function LoansSection() {
           Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c (z nadpłatą)
         </p>
       </div>
-
-
 
       {loans.length > 0 && (
         <div className="grid lg:grid-cols-2 gap-4">
@@ -647,10 +1006,13 @@ function LoanCard({
     annualRatePct: number;
     monthsRemaining: number;
     monthlyOverpayment?: number;
+    paymentDayOfMonth?: number;
+    lastPaymentDate?: string;
   };
 }) {
   const [showSchedule, setShowSchedule] = useState(false);
   const overpay = loan.monthlyOverpayment ?? 0;
+  const paymentInfo = getPaymentDueInfo(loan);
 
   const scheduleNoOverpay = useMemo(
     () => amortizationSchedule(loan.principal, loan.annualRatePct, loan.monthsRemaining, 0),
@@ -671,13 +1033,29 @@ function LoanCard({
   const interestSaved = interestNoOverpay - interestWithOverpay;
   const monthsSaved = scheduleNoOverpay.length - schedule.length;
 
-  // Sample chart down to ~60 points
   const chartData = useMemo(() => {
     const step = Math.max(1, Math.floor(schedule.length / 60));
     return schedule
       .filter((_, i) => i % step === 0 || i === schedule.length - 1)
       .map((r) => ({ month: r.month, balance: r.balance }));
   }, [schedule]);
+
+  // Auto-register payment when due date passes
+  useEffect(() => {
+    if (paymentInfo.isDue && loan.principal > 0 && loan.monthsRemaining > 0) {
+      const result = calculateLoanAfterPayment(
+        loan.principal,
+        loan.annualRatePct,
+        loan.monthsRemaining,
+        overpay,
+      );
+      actions.updateLoan(loan.id, {
+        principal: result.principal,
+        monthsRemaining: result.monthsRemaining,
+        lastPaymentDate: new Date().toISOString().slice(0, 10),
+      });
+    }
+  }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay]);
 
   return (
     <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
@@ -694,6 +1072,32 @@ function LoanCard({
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Payment Status */}
+      {loan.paymentDayOfMonth && (
+        <div
+          className={`rounded-lg p-3 mb-4 flex items-center justify-between ${
+            !paymentInfo.isDue
+              ? "bg-muted/40 border border-border/50"
+              : "bg-success/10 border border-success/30"
+          }`}
+        >
+          <div>
+            <p
+              className={`text-xs font-semibold uppercase tracking-wider ${
+                !paymentInfo.isDue ? "text-muted-foreground" : "text-success"
+              }`}
+            >
+              {paymentInfo.isDue ? "✓ Rata zarejestrowana" : "Następna rata"}
+            </p>
+            <p
+              className={`text-sm font-mono mt-0.5 ${!paymentInfo.isDue ? "text-foreground" : "text-success font-bold"}`}
+            >
+              {paymentInfo.nextDate}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Field label="Kapitał">
@@ -736,6 +1140,25 @@ function LoanCard({
             }
             className="h-9 font-mono tabular-nums"
           />
+        </Field>
+        <Field label="Dzień płatności">
+          <Select
+            value={loan.paymentDayOfMonth?.toString() ?? ""}
+            onValueChange={(v) =>
+              actions.updateLoan(loan.id, { paymentDayOfMonth: v ? parseInt(v) : undefined })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Ustaw dzień" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                <SelectItem key={day} value={day.toString()}>
+                  Dzień {day}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
       </div>
 
@@ -858,8 +1281,6 @@ function RentalsSection() {
   const totalCashflow = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const totalValue = rentals.reduce((s, r) => s + r.marketValue, 0);
 
-
-
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
@@ -872,8 +1293,6 @@ function RentalsSection() {
           {formatPLN(totalValue)} · cashflow {formatPLN(totalCashflow)}/m-c
         </p>
       </div>
-
-
 
       {rentals.length === 0 ? (
         <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
@@ -1035,10 +1454,6 @@ function Field({
   );
 }
 
-function isTickerFormatValid(value: string): boolean {
-  return /^[a-z0-9._-]+\.[a-z]{2,}$/.test(value.trim().toLowerCase());
-}
-
 function AddLoanDialog() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
@@ -1047,6 +1462,7 @@ function AddLoanDialog() {
     annualRatePct: 7.5,
     monthsRemaining: 240,
     monthlyOverpayment: 0,
+    paymentDayOfMonth: undefined as number | undefined,
   });
 
   return (
@@ -1060,7 +1476,10 @@ function AddLoanDialog() {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Dodaj kredyt / zobowiązanie</DialogTitle>
-          <DialogDescription>Wprowadź dane kredytu, aby wyliczyć ratę i harmonogram.</DialogDescription>
+          <DialogDescription>
+            Wprowadź dane kredytu. Ustaw dzień płatności, a system automatycznie będzie
+            rejestrować spłaty w wyznaczony dzień każdego miesiąca.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4 py-4"
@@ -1074,6 +1493,7 @@ function AddLoanDialog() {
               annualRatePct: 7.5,
               monthsRemaining: 240,
               monthlyOverpayment: 0,
+              paymentDayOfMonth: undefined,
             });
             setOpen(false);
           }}
@@ -1101,7 +1521,9 @@ function AddLoanDialog() {
             <Input
               type="number"
               value={draft.monthsRemaining || ""}
-              onChange={(e) => setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })}
+              onChange={(e) =>
+                setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })
+              }
               className="col-span-3 font-mono tabular-nums"
             />
           </div>
@@ -1111,18 +1533,44 @@ function AddLoanDialog() {
               type="number"
               step="0.1"
               value={draft.annualRatePct || ""}
-              onChange={(e) => setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })}
+              onChange={(e) =>
+                setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })
+              }
               className="col-span-3 font-mono tabular-nums"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium text-muted-foreground">Nadpłata / m-c</label>
+            <label className="text-right text-sm font-medium text-muted-foreground">
+              Nadpłata / m-c
+            </label>
             <Input
               type="number"
               value={draft.monthlyOverpayment || ""}
-              onChange={(e) => setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })}
+              onChange={(e) =>
+                setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })
+              }
               className="col-span-3 font-mono tabular-nums"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Dzień płatności</label>
+            <Select
+              value={draft.paymentDayOfMonth?.toString() ?? ""}
+              onValueChange={(v) =>
+                setDraft({ ...draft, paymentDayOfMonth: v ? parseInt(v) : undefined })
+              }
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Nie śledzę" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <SelectItem key={day} value={day.toString()}>
+                    Dzień {day}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="submit">Dodaj kredyt</Button>
@@ -1213,7 +1661,6 @@ function AddRentalDialog() {
 }
 
 /* ─── SAVINGS HELPERS ─────────────────────────────────────────────────── */
-
 const BELKA_TAX = 0.19;
 
 function lokataGrossInterest(principal: number, ratePct: number, months: number): number {
@@ -1230,8 +1677,22 @@ function lokataMaturityDate(startDate: string, months: number): string {
   return d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/* ─── SAVINGS SECTION ─────────────────────────────────────────────────── */
+function daysUntilMaturity(startDate: string, months: number): number {
+  const d = new Date(startDate);
+  d.setMonth(d.getMonth() + months);
+  return Math.max(0, Math.round((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
 
+function lokataProgressPct(startDate: string, months: number): number {
+  const start = new Date(startDate).getTime();
+  const end = new Date(startDate);
+  end.setMonth(end.getMonth() + months);
+  const total = end.getTime() - start;
+  const elapsed = Date.now() - start;
+  return Math.min(100, Math.max(0, (elapsed / total) * 100));
+}
+
+/* ─── SAVINGS SECTION ─────────────────────────────────────────────────── */
 function SavingsSection() {
   const savings = useAppState((s) => s.savings);
   const [view, setView] = useState<"list" | "summary">("list");
@@ -1243,6 +1704,7 @@ function SavingsSection() {
     }
     return acc + a.balance;
   }, 0);
+  const totalNetGain = totalWithInterest - totalBalance;
 
   return (
     <section className="space-y-3">
@@ -1257,11 +1719,15 @@ function SavingsSection() {
               <button
                 onClick={() => setView("list")}
                 className={`px-2.5 py-1 transition-colors ${view === "list" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >Lista</button>
+              >
+                Lista
+              </button>
               <button
                 onClick={() => setView("summary")}
                 className={`px-2.5 py-1 transition-colors ${view === "summary" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >Podsumowanie</button>
+              >
+                Podsumowanie
+              </button>
             </div>
           )}
           {savings.length > 0 && (
@@ -1271,65 +1737,17 @@ function SavingsSection() {
       </div>
 
       {savings.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Brak kont. Dodaj konto bankowe lub lokatę.
-        </p>
+        <p className="text-sm text-muted-foreground">Brak kont. Dodaj konto bankowe lub lokatę.</p>
       )}
 
-      {/* SUMMARY VIEW */}
+      {/* ── IMPROVED SUMMARY VIEW ── */}
       {view === "summary" && savings.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5 space-y-4">
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Saldo łączne</p>
-              <p className="text-2xl font-bold tabular-nums">{formatPLN(totalBalance)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Po odsetkach</p>
-              <p className="text-2xl font-bold tabular-nums text-emerald-500">{formatPLN(totalWithInterest)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Zysk netto</p>
-              <p className="text-2xl font-bold tabular-nums text-emerald-500">+{formatPLN(totalWithInterest - totalBalance)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Kont</p>
-              <p className="text-2xl font-bold">{savings.length}</p>
-            </div>
-          </div>
-
-          {/* Per-account rows */}
-          <div className="divide-y divide-border">
-            {savings.map((a) => {
-              const isLokata = a.type === "lokata";
-              const net = isLokata && a.ratePct > 0 && (a.lokataDurationMonths ?? 0) > 0
-                ? lokataNetInterest(a.balance, a.ratePct, a.lokataDurationMonths!)
-                : null;
-              const maturity = isLokata && a.lokataStartDate && a.lokataDurationMonths
-                ? lokataMaturityDate(a.lokataStartDate, a.lokataDurationMonths)
-                : null;
-              return (
-                <div key={a.id} className="flex items-center justify-between py-2.5">
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm">{a.bank}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {ACCOUNT_TYPE_LABEL[a.type]}
-                      {a.ratePct > 0 ? ` · ${a.ratePct.toFixed(2)}% p.a.` : ""}
-                      {maturity ? ` · zapadalność: ${maturity}` : ""}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 ml-4">
-                    <p className="font-mono font-semibold text-sm">{formatPLN(a.balance)}</p>
-                    {net !== null && (
-                      <p className="text-[11px] text-emerald-500 font-mono">+{formatPLN(net)} netto</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <SavingsSummaryView
+          savings={savings}
+          totalBalance={totalBalance}
+          totalWithInterest={totalWithInterest}
+          totalNetGain={totalNetGain}
+        />
       )}
 
       {/* LIST VIEW */}
@@ -1344,36 +1762,461 @@ function SavingsSection() {
   );
 }
 
+/* ── SAVINGS SUMMARY VIEW (redesigned) ─────────────────────────────── */
+function SavingsSummaryView({
+  savings,
+  totalBalance,
+  totalWithInterest,
+  totalNetGain,
+}: {
+  savings: SavingsAccount[];
+  totalBalance: number;
+  totalWithInterest: number;
+  totalNetGain: number;
+}) {
+  const lokaty = savings.filter((a) => a.type === "lokata");
+  const accounts = savings.filter((a) => a.type !== "lokata");
+
+  // Sort accounts by rate descending
+  const accountsByRate = [...accounts].sort((a, b) => b.ratePct - a.ratePct);
+  const lokatyByMaturity = [...lokaty].sort((a, b) => {
+    if (!a.lokataStartDate || !a.lokataDurationMonths) return 1;
+    if (!b.lokataStartDate || !b.lokataDurationMonths) return -1;
+    return (
+      daysUntilMaturity(a.lokataStartDate, a.lokataDurationMonths) -
+      daysUntilMaturity(b.lokataStartDate, b.lokataDurationMonths)
+    );
+  });
+
+  const avgRate =
+    accounts.filter((a) => a.ratePct > 0).length > 0
+      ? accounts
+          .filter((a) => a.ratePct > 0)
+          .reduce((s, a) => s + (a.ratePct * a.balance) / totalBalance, 0)
+      : 0;
+
+  const maxRate = Math.max(...savings.map((a) => a.ratePct), 0);
+
+  return (
+    <div className="space-y-4">
+      {/* KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <Wallet className="w-3 h-3" /> Saldo łączne
+          </p>
+          <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(totalBalance)}</p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> Po odsetkach
+          </p>
+          <p className="text-2xl font-bold tabular-nums font-display text-emerald-500">
+            {formatPLN(totalWithInterest)}
+          </p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+            Zysk netto
+          </p>
+          <p
+            className={`text-2xl font-bold tabular-nums font-display ${totalNetGain > 0 ? "text-emerald-500" : "text-muted-foreground"}`}
+          >
+            {totalNetGain > 0 ? "+" : ""}
+            {formatPLN(totalNetGain)}
+          </p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Kont
+          </p>
+          <p className="text-2xl font-bold font-display">{savings.length}</p>
+          {lokaty.length > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {lokaty.length} {lokaty.length === 1 ? "lokata" : "lokat"} · {accounts.length} kont
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Main content: lokaty + accounts side by side */}
+      <div
+        className={`grid gap-4 ${lokaty.length > 0 && accounts.length > 0 ? "lg:grid-cols-2" : ""}`}
+      >
+        {/* Lokaty section */}
+        {lokatyByMaturity.length > 0 && (
+          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="px-5 py-3 border-b border-border bg-amber-500/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  Lokaty terminowe ({lokatyByMaturity.length})
+                </p>
+              </div>
+              <p className="text-xs font-mono font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                {formatPLN(lokatyByMaturity.reduce((s, a) => s + a.balance, 0))}
+              </p>
+            </div>
+            <div className="divide-y divide-border">
+              {lokatyByMaturity.map((a) => {
+                const net =
+                  a.ratePct > 0 && a.lokataDurationMonths
+                    ? lokataNetInterest(a.balance, a.ratePct, a.lokataDurationMonths)
+                    : 0;
+                const gross =
+                  a.ratePct > 0 && a.lokataDurationMonths
+                    ? lokataGrossInterest(a.balance, a.ratePct, a.lokataDurationMonths)
+                    : 0;
+                const days =
+                  a.lokataStartDate && a.lokataDurationMonths
+                    ? daysUntilMaturity(a.lokataStartDate, a.lokataDurationMonths)
+                    : null;
+                const progress =
+                  a.lokataStartDate && a.lokataDurationMonths
+                    ? lokataProgressPct(a.lokataStartDate, a.lokataDurationMonths)
+                    : 0;
+                const isExpired = days !== null && days === 0;
+                const isNearExpiry = days !== null && days > 0 && days <= 14;
+
+                return (
+                  <div key={a.id} className="p-4 space-y-3">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">{a.bank}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold text-xs">
+                            {a.ratePct.toFixed(2)}% p.a.
+                          </span>
+                          {isExpired && (
+                            <span className="bg-destructive/15 text-destructive text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                              WYGASŁA
+                            </span>
+                          )}
+                          {isNearExpiry && (
+                            <span className="bg-warning/20 text-warning-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                              {days}d
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-sm tabular-nums">
+                          {formatPLN(a.balance)}
+                        </p>
+                        {net > 0 && (
+                          <p className="text-[11px] text-emerald-500 font-mono">
+                            +{formatPLN(net)} netto
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    {a.lokataStartDate && a.lokataDurationMonths && (
+                      <div className="space-y-1">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              isExpired
+                                ? "bg-destructive"
+                                : isNearExpiry
+                                  ? "bg-warning"
+                                  : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>
+                            {new Date(a.lokataStartDate).toLocaleDateString("pl-PL", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                          <span className="font-medium">
+                            {isExpired
+                              ? "zapadalność minęła"
+                              : days !== null
+                                ? `${days} dni do zapadalności`
+                                : ""}
+                          </span>
+                          <span>
+                            {lokataMaturityDate(a.lokataStartDate, a.lokataDurationMonths)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interest breakdown */}
+                    {gross > 0 && (
+                      <div className="grid grid-cols-3 gap-2 bg-muted/40 rounded-lg p-2.5 text-center">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Czas</p>
+                          <p className="text-xs font-semibold">{a.lokataDurationMonths} mies.</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Brutto</p>
+                          <p className="text-xs font-mono font-semibold text-amber-600">
+                            +{formatPLN(gross)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Netto (−Belka)</p>
+                          <p className="text-xs font-mono font-semibold text-emerald-600">
+                            +{formatPLN(net)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => actions.removeSavings(a.id)}
+                      className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Usuń lokatę
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Regular accounts section */}
+        {accountsByRate.length > 0 && (
+          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Konta bankowe ({accountsByRate.length})
+                </p>
+              </div>
+              <p className="text-xs font-mono font-semibold tabular-nums text-muted-foreground">
+                {formatPLN(accountsByRate.reduce((s, a) => s + a.balance, 0))}
+              </p>
+            </div>
+            <div className="divide-y divide-border">
+              {accountsByRate.map((a) => {
+                const balancePct = totalBalance > 0 ? (a.balance / totalBalance) * 100 : 0;
+                const ratePct = maxRate > 0 ? (a.ratePct / maxRate) * 100 : 0;
+
+                return (
+                  <div key={a.id} className="px-5 py-4 group">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <p className="font-semibold text-sm">{a.bank}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {ACCOUNT_TYPE_LABEL[a.type]}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-sm tabular-nums">
+                          {formatPLN(a.balance)}
+                        </p>
+                        {a.ratePct > 0 ? (
+                          <p className="text-[11px] text-emerald-600 font-mono font-semibold">
+                            {a.ratePct.toFixed(2)}% p.a.
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground">bez oprocentowania</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Balance bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>udział w oszczędnościach</span>
+                        <span>{balancePct.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-accent/70"
+                          style={{ width: `${balancePct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rate bar (relative to best rate) */}
+                    {a.ratePct > 0 && maxRate > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>oprocentowanie vs najlepsze ({maxRate.toFixed(2)}%)</span>
+                          <span
+                            className={
+                              ratePct >= 90
+                                ? "text-emerald-600 font-medium"
+                                : ratePct < 50
+                                  ? "text-destructive"
+                                  : ""
+                            }
+                          >
+                            {ratePct.toFixed(0)}% max
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              ratePct >= 90
+                                ? "bg-emerald-500"
+                                : ratePct >= 60
+                                  ? "bg-amber-500"
+                                  : "bg-muted-foreground/40"
+                            }`}
+                            style={{ width: `${ratePct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => actions.removeSavings(a.id)}
+                      className="mt-2 text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-3 h-3" /> Usuń konto
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Average rate footer */}
+            {avgRate > 0 && (
+              <div className="px-5 py-3 border-t border-border bg-muted/20">
+                <p className="text-[11px] text-muted-foreground">
+                  Średnie oprocentowanie ważone saldem:{" "}
+                  <span className="font-mono font-semibold text-foreground">
+                    {avgRate.toFixed(2)}% p.a.
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Combined snapshot: all accounts sorted by balance */}
+      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-muted/30">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            Wszystkie konta
+          </p>
+        </div>
+        <div className="divide-y divide-border">
+          {[...savings]
+            .sort((a, b) => b.balance - a.balance)
+            .map((a) => {
+              const pct = totalBalance > 0 ? (a.balance / totalBalance) * 100 : 0;
+              const net =
+                a.type === "lokata" && a.ratePct > 0 && a.lokataDurationMonths
+                  ? lokataNetInterest(a.balance, a.ratePct, a.lokataDurationMonths)
+                  : null;
+              const days =
+                a.type === "lokata" && a.lokataStartDate && a.lokataDurationMonths
+                  ? daysUntilMaturity(a.lokataStartDate, a.lokataDurationMonths)
+                  : null;
+
+              return (
+                <div
+                  key={a.id}
+                  className="px-5 py-3 flex items-center gap-4 hover:bg-muted/20 transition-colors"
+                >
+                  {/* Type badge */}
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${
+                      a.type === "lokata"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : a.type === "oszczędnościowe"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {a.type === "lokata" ? "LOK" : a.type === "oszczędnościowe" ? "OSZ" : "ZWY"}
+                  </span>
+                  {/* Name */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.bank}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {a.ratePct > 0 && (
+                        <span className="text-[11px] font-mono text-emerald-600">
+                          {a.ratePct.toFixed(2)}%
+                        </span>
+                      )}
+                      {days !== null && (
+                        <span
+                          className={`text-[10px] ${days <= 14 ? "text-warning-foreground font-medium" : "text-muted-foreground"}`}
+                        >
+                          {days === 0 ? "wygasła" : `${days}d do zapadalności`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Bar */}
+                  <div className="w-20 hidden sm:block">
+                    <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-accent/60"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  {/* Value */}
+                  <div className="text-right shrink-0">
+                    <p className="font-mono font-semibold text-sm tabular-nums">
+                      {formatPLN(a.balance)}
+                    </p>
+                    {net !== null && net > 0 && (
+                      <p className="text-[11px] text-emerald-500 font-mono">+{formatPLN(net)}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</p>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ACCOUNT_TYPE_LABEL: Record<SavingsAccount["type"], string> = {
-  "zwykłe": "Konto zwykłe",
-  "oszczędnościowe": "Konto oszczędnościowe",
-  "lokata": "Lokata terminowa",
+  zwykłe: "Konto zwykłe",
+  oszczędnościowe: "Konto oszczędnościowe",
+  lokata: "Lokata terminowa",
 };
 
 function SavingsCard({ account }: { account: SavingsAccount }) {
   const isLokata = account.type === "lokata";
   const gross =
-    isLokata && account.ratePct > 0 && account.balance > 0 && (account.lokataDurationMonths ?? 0) > 0
+    isLokata &&
+    account.ratePct > 0 &&
+    account.balance > 0 &&
+    (account.lokataDurationMonths ?? 0) > 0
       ? lokataGrossInterest(account.balance, account.ratePct, account.lokataDurationMonths!)
       : null;
-  const net = gross !== null
-    ? lokataNetInterest(account.balance, account.ratePct, account.lokataDurationMonths!)
-    : null;
+  const net =
+    gross !== null
+      ? lokataNetInterest(account.balance, account.ratePct, account.lokataDurationMonths!)
+      : null;
   const maturity =
     isLokata && account.lokataStartDate && account.lokataDurationMonths
       ? lokataMaturityDate(account.lokataStartDate, account.lokataDurationMonths)
       : null;
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3 relative group">
+    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] p-4 space-y-3 relative group">
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-semibold text-base">{account.bank}</p>
-          <p className="text-xs text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
+          <p className="font-semibold text-sm">{account.bank}</p>
+          <p className="text-[11px] text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
         </div>
         <button
           onClick={() => actions.removeSavings(account.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 p-1"
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
           title="Usuń"
         >
           <Trash2 className="w-4 h-4" />
@@ -1381,18 +2224,19 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-bold tabular-nums">{formatPLN(account.balance)}</span>
+        <span className="text-2xl font-bold tabular-nums font-display">
+          {formatPLN(account.balance)}
+        </span>
         {account.ratePct > 0 && (
-          <span className="text-sm text-emerald-500 font-medium">
+          <span className="text-xs text-emerald-500 font-semibold">
             {account.ratePct.toFixed(2)}% p.a.
           </span>
         )}
       </div>
 
-      {/* Lokata summary */}
       {isLokata && gross !== null && net !== null && (
-        <div className="rounded-lg bg-muted/60 p-3 space-y-1.5 text-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-xs border border-border/50">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             Podsumowanie lokaty
           </p>
           <div className="flex justify-between">
@@ -1411,14 +2255,13 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
             <span className="text-muted-foreground">Podatek Belki (19%)</span>
             <span className="font-mono text-destructive">−{formatPLN(gross - net)}</span>
           </div>
-          <div className="flex justify-between font-semibold border-t pt-2 mt-1">
+          <div className="flex justify-between font-semibold border-t border-border/50 pt-2 mt-2">
             <span>Wypłata netto</span>
             <span className="font-mono text-emerald-500">{formatPLN(account.balance + net)}</span>
           </div>
           {maturity && (
-            <p className="text-[11px] text-muted-foreground pt-1">
-              Zapadalność:{" "}
-              <span className="font-medium text-foreground">{maturity}</span>
+            <p className="text-[11px] text-muted-foreground pt-2">
+              Zapadalność: <span className="font-medium text-foreground">{maturity}</span>
             </p>
           )}
         </div>
@@ -1428,7 +2271,6 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
 }
 
 /* ─── ADD SAVINGS DIALOG ──────────────────────────────────────────────── */
-
 function AddSavingsDialog() {
   const [open, setOpen] = useState(false);
   const EMPTY: Omit<SavingsAccount, "id"> = {
@@ -1447,12 +2289,19 @@ function AddSavingsDialog() {
     isLokata && draft.ratePct > 0 && draft.balance > 0 && (draft.lokataDurationMonths ?? 0) > 0
       ? lokataGrossInterest(draft.balance, draft.ratePct, draft.lokataDurationMonths!)
       : null;
-  const net = gross !== null
-    ? lokataNetInterest(draft.balance, draft.ratePct, draft.lokataDurationMonths!)
-    : null;
+  const net =
+    gross !== null
+      ? lokataNetInterest(draft.balance, draft.ratePct, draft.lokataDurationMonths!)
+      : null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setDraft(EMPTY); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setDraft(EMPTY);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 shadow-sm">
           <Plus className="w-3.5 h-3.5 mr-1" />
@@ -1492,7 +2341,9 @@ function AddSavingsDialog() {
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Typ konta</label>
             <Select value={draft.type} onValueChange={(v: any) => setDraft({ ...draft, type: v })}>
-              <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="zwykłe">Konto zwykłe</SelectItem>
                 <SelectItem value="oszczędnościowe">Konto oszczędnościowe</SelectItem>
@@ -1545,7 +2396,9 @@ function AddSavingsDialog() {
                   value={String(draft.lokataDurationMonths ?? 12)}
                   onValueChange={(v) => setDraft({ ...draft, lokataDurationMonths: parseInt(v) })}
                 >
-                  <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {[1, 2, 3, 6, 9, 12, 18, 24, 36].map((m) => (
                       <SelectItem key={m} value={String(m)}>
@@ -1562,7 +2415,9 @@ function AddSavingsDialog() {
                   value={draft.lokataCapitalization ?? "na końcu"}
                   onValueChange={(v: any) => setDraft({ ...draft, lokataCapitalization: v })}
                 >
-                  <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="miesięczna">Miesięczna</SelectItem>
                     <SelectItem value="kwartalna">Kwartalna</SelectItem>
@@ -1572,7 +2427,6 @@ function AddSavingsDialog() {
                 </Select>
               </div>
 
-              {/* Live ROI preview */}
               {gross !== null && net !== null && (
                 <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 space-y-1.5 text-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-2">
@@ -1588,7 +2442,9 @@ function AddSavingsDialog() {
                   </div>
                   <div className="flex justify-between font-semibold border-t pt-1.5">
                     <span>Wypłata netto</span>
-                    <span className="font-mono text-emerald-500">{formatPLN(draft.balance + net)}</span>
+                    <span className="font-mono text-emerald-500">
+                      {formatPLN(draft.balance + net)}
+                    </span>
                   </div>
                   {draft.lokataStartDate && draft.lokataDurationMonths && (
                     <p className="text-[11px] text-muted-foreground pt-0.5">
