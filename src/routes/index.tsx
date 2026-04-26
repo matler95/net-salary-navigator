@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { X } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -35,33 +36,7 @@ export const Route = createFileRoute("/")({
 
 const COLORS = ["#c84026", "#e08a3c", "#5b8c5a", "#3a5e8c", "#7a4e8c", "#8c7a4e", "#4e8c8c"];
 
-function Stat({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "default" | "success" | "destructive" | "warning";
-}) {
-  const toneClass =
-    tone === "success"
-      ? "text-success"
-      : tone === "destructive"
-        ? "text-destructive"
-        : tone === "warning"
-          ? "text-warning-foreground"
-          : "";
-  return (
-    <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
-      <p className={`font-display text-3xl mt-1.5 tabular-nums ${toneClass}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
-  );
-}
+import { StatCard } from "@/components/ui/stat-card";
 
 function Dashboard() {
   const spouses = useAppState((s) => s.spouses);
@@ -125,8 +100,39 @@ function Dashboard() {
     });
   }, [breakdowns]);
 
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    const isDefault = expenses.length === 6 && spouses.length === 1 && spouses[0].inputs.gross === 12000;
+    const dismissed = localStorage.getItem("onboarding_dismissed");
+    if (isDefault && !dismissed) {
+      setShowBanner(true);
+    }
+  }, [expenses, spouses]);
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      {showBanner && (
+        <div className="bg-accent/10 border border-accent/20 rounded-2xl p-4 flex items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-accent mb-1">Witaj w Płaca.netto!</h3>
+            <p className="text-sm text-muted-foreground">
+              Widzisz teraz przykładowe dane. Przejdź do zakładek <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Wynagrodzenia</Link> oraz <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link>, aby wpisać własne i zacząć budować swój budżet.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setShowBanner(false);
+              localStorage.setItem("onboarding_dismissed", "true");
+            }}
+            className="text-muted-foreground hover:text-foreground shrink-0 p-1"
+            aria-label="Zamknij"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
           Pulpit gospodarstwa
@@ -138,25 +144,25 @@ function Dashboard() {
 
       {/* Stats */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat
+        <StatCard
           label="Netto miesięcznie"
           value={formatPLN(totalNet)}
           sub={`${spouses.length} ${spouses.length === 1 ? "osoba" : "osoby"} · brutto ${formatPLN(totalGross)}`}
           tone="success"
         />
-        <Stat
+        <StatCard
           label="Wydatki"
           value={formatPLN(totalExpenses + monthlyLoanPmt)}
           sub={`w tym kredyty ${formatPLN(monthlyLoanPmt)}`}
           tone="destructive"
         />
-        <Stat
+        <StatCard
           label="Cashflow / m-c"
           value={formatPLN(cashflow)}
           sub={cashflow >= 0 ? "nadwyżka" : "deficyt"}
           tone={cashflow >= 0 ? "success" : "destructive"}
         />
-        <Stat
+        <StatCard
           label="Majątek netto"
           value={formatPLN(netWorth)}
           sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)} · długi ${formatPLN(totalLoans)}`}

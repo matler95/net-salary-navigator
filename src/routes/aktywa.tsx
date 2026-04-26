@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
   formatCurrencyAmount,
@@ -65,6 +66,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
@@ -81,6 +83,28 @@ export const Route = createFileRoute("/aktywa")({
 });
 
 function AssetsPage() {
+  const investments = useAppState((s) => s.investments);
+  const loans = useAppState((s) => s.loans);
+  const rentals = useAppState((s) => s.rentals);
+  const savings = useAppState((s) => s.savings);
+  const { rates } = useDailyFxRates();
+  const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
+
+  const totalInvestments = investments.reduce(
+    (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
+    0,
+  );
+  const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
+  const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
+  const totalAssets = totalInvestments + totalSavings + rentalAssets;
+  const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
+  const netWorth = totalAssets - totalLoans;
+  const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <header>
@@ -90,12 +114,25 @@ function AssetsPage() {
         <h1 className="font-display text-4xl sm:text-5xl">
           Co masz <span className="italic text-accent">i co jest twoje</span>
         </h1>
+        <div className="flex flex-wrap gap-2 mt-4 text-sm">
+          <button onClick={() => scrollTo('oszczednosci')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Oszczędności</button>
+          <button onClick={() => scrollTo('inwestycje')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Inwestycje</button>
+          <button onClick={() => scrollTo('kredyty')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Kredyty</button>
+          <button onClick={() => scrollTo('wynajem')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Nieruchomości</button>
+        </div>
       </header>
 
-      <SavingsSection />
-      <InvestmentsSection />
-      <LoansSection />
-      <RentalsSection />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} />
+        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="destructive" />
+        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} />
+        <StatCard label="Cashflow z wynajmu" value={formatPLN(rentalNet)} tone={rentalNet > 0 ? "success" : "default"} />
+      </div>
+
+      <div id="oszczednosci" className="scroll-mt-6"><SavingsSection /></div>
+      <div id="inwestycje" className="scroll-mt-6"><InvestmentsSection /></div>
+      <div id="kredyty" className="scroll-mt-6"><LoansSection /></div>
+      <div id="wynajem" className="scroll-mt-6"><RentalsSection /></div>
     </main>
   );
 }
@@ -252,10 +289,10 @@ function InvestmentsSection() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Nazwa</th>
                 <th className="text-left px-4 py-3 font-medium">Typ</th>
-                <th className="text-left px-4 py-3 font-medium">Ticker</th>
-                <th className="text-left px-4 py-3 font-medium">Waluta</th>
-                <th className="text-right px-4 py-3 font-medium">Wolumen</th>
-                <th className="text-right px-4 py-3 font-medium">% portfela</th>
+                <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Ticker</th>
+                <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Waluta</th>
+                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Wolumen</th>
+                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">% portfela</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -270,7 +307,7 @@ function InvestmentsSection() {
                     />
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{i.type}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 hidden sm:table-cell">
                     <Input
                       value={i.ticker ?? ""}
                       onChange={(e) =>
@@ -282,7 +319,7 @@ function InvestmentsSection() {
                       className="h-9 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 hidden sm:table-cell">
                     <Select
                       value={i.currency}
                       onValueChange={(v) =>
@@ -301,7 +338,7 @@ function InvestmentsSection() {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 hidden sm:table-cell">
                     <Input
                       type="number"
                       step="0.0001"
@@ -314,7 +351,7 @@ function InvestmentsSection() {
                       className="h-9 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
-                  <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
+                  <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
                     {total > 0
                       ? (
                           (convertToPLN(
@@ -356,8 +393,22 @@ function InvestmentsSection() {
                         currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined}
                       />
                       <button
-                        onClick={() => actions.removeInvestment(i.id)}
+                        onClick={() => {
+                          const copy = { ...i };
+                          actions.removeInvestment(i.id);
+                          toast(`Usunięto inwestycję: ${i.label || i.ticker}`, {
+                            action: {
+                              label: "Cofnij",
+                              onClick: () => {
+                                const { id, ...rest } = copy;
+                                actions.addInvestment(rest as any);
+                              },
+                            },
+                            duration: 5000,
+                          });
+                        }}
                         className="text-muted-foreground hover:text-destructive p-1.5"
+                        aria-label={`Usuń ${i.label || i.ticker}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -676,8 +727,22 @@ function InvestmentsSummaryView({
                     currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined}
                   />
                   <button
-                    onClick={() => actions.removeInvestment(i.id)}
+                    onClick={() => {
+                      const copy = { ...i };
+                      actions.removeInvestment(i.id);
+                      toast(`Usunięto inwestycję: ${i.label || i.ticker}`, {
+                        action: {
+                          label: "Cofnij",
+                          onClick: () => {
+                            const { id, ...rest } = copy;
+                            actions.addInvestment(rest as any);
+                          },
+                        },
+                        duration: 5000,
+                      });
+                    }}
                     className="text-muted-foreground hover:text-destructive p-1"
+                    aria-label={`Usuń ${i.label || i.ticker}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1041,8 +1106,10 @@ function LoanCard({
   }, [schedule]);
 
   // Auto-register payment when due date passes
+  const hasRegisteredRef = useRef(false);
   useEffect(() => {
-    if (paymentInfo.isDue && loan.principal > 0 && loan.monthsRemaining > 0) {
+    if (paymentInfo.isDue && loan.principal > 0 && loan.monthsRemaining > 0 && !hasRegisteredRef.current) {
+      hasRegisteredRef.current = true;
       const result = calculateLoanAfterPayment(
         loan.principal,
         loan.annualRatePct,
@@ -1054,8 +1121,11 @@ function LoanCard({
         monthsRemaining: result.monthsRemaining,
         lastPaymentDate: new Date().toISOString().slice(0, 10),
       });
+      toast.success(`Rata "${loan.label}" zarejestrowana`, {
+        description: `Nowy kapitał: ${formatPLN(result.principal)}`
+      });
     }
-  }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay]);
+  }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.label]);
 
   return (
     <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
@@ -1066,8 +1136,22 @@ function LoanCard({
           className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
         />
         <button
-          onClick={() => actions.removeLoan(loan.id)}
+          onClick={() => {
+            const copy = { ...loan };
+            actions.removeLoan(loan.id);
+            toast(`Usunięto kredyt: ${loan.label}`, {
+              action: {
+                label: "Cofnij",
+                onClick: () => {
+                  const { id, ...rest } = copy;
+                  actions.addLoan(rest as any);
+                },
+              },
+              duration: 5000,
+            });
+          }}
           className="text-muted-foreground hover:text-destructive p-1"
+          aria-label={`Usuń kredyt: ${loan.label}`}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -1315,8 +1399,22 @@ function RentalsSection() {
                     className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
                   />
                   <button
-                    onClick={() => actions.removeRental(r.id)}
+                    onClick={() => {
+                      const copy = { ...r };
+                      actions.removeRental(r.id);
+                      toast(`Usunięto wynajem: ${r.label}`, {
+                        action: {
+                          label: "Cofnij",
+                          onClick: () => {
+                            const { id, ...rest } = copy;
+                            actions.addRental(rest as any);
+                          },
+                        },
+                        duration: 5000,
+                      });
+                    }}
                     className="text-muted-foreground hover:text-destructive p-1"
+                    aria-label={`Usuń wynajem: ${r.label}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1972,8 +2070,22 @@ function SavingsSummaryView({
 
                     {/* Delete */}
                     <button
-                      onClick={() => actions.removeSavings(a.id)}
+                      onClick={() => {
+                        const copy = { ...a };
+                        actions.removeSavings(a.id);
+                        toast(`Usunięto lokatę: ${a.bank}`, {
+                          action: {
+                            label: "Cofnij",
+                            onClick: () => {
+                              const { id, ...rest } = copy;
+                              actions.addSavings(rest as any);
+                            },
+                          },
+                          duration: 5000,
+                        });
+                      }}
                       className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                      aria-label={`Usuń lokatę: ${a.bank}`}
                     >
                       <Trash2 className="w-3 h-3" /> Usuń lokatę
                     </button>
@@ -2074,8 +2186,22 @@ function SavingsSummaryView({
 
                     {/* Delete */}
                     <button
-                      onClick={() => actions.removeSavings(a.id)}
+                      onClick={() => {
+                        const copy = { ...a };
+                        actions.removeSavings(a.id);
+                        toast(`Usunięto konto: ${a.bank}`, {
+                          action: {
+                            label: "Cofnij",
+                            onClick: () => {
+                              const { id, ...rest } = copy;
+                              actions.addSavings(rest as any);
+                            },
+                          },
+                          duration: 5000,
+                        });
+                      }}
                       className="mt-2 text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label={`Usuń konto: ${a.bank}`}
                     >
                       <Trash2 className="w-3 h-3" /> Usuń konto
                     </button>
@@ -2215,8 +2341,22 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
           <p className="text-[11px] text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
         </div>
         <button
-          onClick={() => actions.removeSavings(account.id)}
+          onClick={() => {
+            const copy = { ...account };
+            actions.removeSavings(account.id);
+            toast(`Usunięto lokatę: ${account.bank}`, {
+              action: {
+                label: "Cofnij",
+                onClick: () => {
+                  const { id, ...rest } = copy;
+                  actions.addSavings(rest as any);
+                },
+              },
+              duration: 5000,
+            });
+          }}
           className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
+          aria-label={`Usuń lokatę: ${account.bank}`}
           title="Usuń"
         >
           <Trash2 className="w-4 h-4" />

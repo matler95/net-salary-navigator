@@ -4,7 +4,17 @@ import { SpousePanel } from "@/components/SpousePanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw } from "lucide-react";
-
+import { calculateSalary, computeJointFiling, formatPLN } from "@/lib/salary";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 export const Route = createFileRoute("/wynagrodzenia")({
   head: () => ({
     meta: [
@@ -22,6 +32,11 @@ export const Route = createFileRoute("/wynagrodzenia")({
 function SalariesPage() {
   const spouses = useAppState((s) => s.spouses);
   const jointFiling = useAppState((s) => s.jointFiling);
+
+  // Household summary calculations
+  const breakdowns = spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs) }));
+  const totalHouseholdNet = breakdowns.reduce((sum, { r }) => sum + r.net, 0);
+  const joint = spouses.length === 2 ? computeJointFiling(breakdowns[0].r, breakdowns[1].r) : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -49,23 +64,57 @@ function SalariesPage() {
           <Button variant="outline" size="sm" onClick={() => actions.addSpouse()}>
             <Plus className="w-4 h-4 mr-1" /> Dodaj osobę
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (confirm("Zresetować wszystkie dane?")) actions.reset();
-            }}
-            className="text-muted-foreground"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Zresetuj dane"
+                className="text-muted-foreground"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogTitle>Zresetować dane?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Spowoduje to zastąpienie wszystkich danych przykładowymi wartościami. 
+                Tej operacji nie można cofnąć.
+              </AlertDialogDescription>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                <AlertDialogAction onClick={() => actions.reset()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Zresetuj
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </header>
 
       <div className="grid xl:grid-cols-2 gap-6">
-        {spouses.map((s) => (
-          <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
-        ))}
+        {spouses.length === 2 ? (
+          <>
+            <SpousePanel key={spouses[0].id} spouse={spouses[0]} canDelete={true} />
+            <div className="xl:col-span-2 order-last xl:order-none bg-muted/50 rounded-2xl p-4 border border-border flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Łączne netto gospodarstwa</p>
+                <p className="font-display text-3xl tabular-nums">{formatPLN(totalHouseholdNet)}</p>
+              </div>
+              {jointFiling && joint && joint.savings > 0 && (
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Oszczędność przy wspólnym rozliczeniu</p>
+                  <p className="text-lg font-semibold text-success">+{formatPLN(joint.savings)} / rok</p>
+                </div>
+              )}
+            </div>
+            <SpousePanel key={spouses[1].id} spouse={spouses[1]} canDelete={true} />
+          </>
+        ) : (
+          spouses.map((s) => (
+            <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
+          ))
+        )}
       </div>
     </main>
   );

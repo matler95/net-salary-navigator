@@ -26,6 +26,7 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import { StatCard } from "@/components/ui/stat-card";
 
 export const Route = createFileRoute("/kalkulatory")({
   head: () => ({
@@ -150,9 +151,9 @@ function PortfolioCalculator() {
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat label="Wpłaty łącznie" value={formatPLN(totalContributed)} />
-          <Stat label="Wartość końcowa" value={formatPLN(finalValue)} tone="success" />
-          <Stat
+          <StatCard label="Wpłaty łącznie" value={formatPLN(totalContributed)} />
+          <StatCard label="Wartość końcowa" value={formatPLN(finalValue)} tone="success" />
+          <StatCard
             label="Zysk"
             value={formatPLN(totalGain)}
             sub={
@@ -160,7 +161,7 @@ function PortfolioCalculator() {
             }
             tone="success"
           />
-          <Stat
+          <StatCard
             label="Realna wartość"
             value={formatPLN(realValue)}
             sub={`po inflacji ${inputs.annualInflationPct}%`}
@@ -385,23 +386,23 @@ function RealEstateCalculator() {
       {/* Results */}
       <div className="space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat
+          <StatCard
             label="Wkład gotówkowy"
             value={formatPLN(r.totalUpfront)}
             sub={`Wpłata ${formatPLN(r.downPayment)} + remont + koszty`}
           />
-          <Stat
+          <StatCard
             label="Rata kredytu"
             value={formatPLN2(r.monthlyPmt)}
             sub={`Kwota kredytu ${formatPLN(r.loanAmount)}`}
           />
-          <Stat
+          <StatCard
             label="Cashflow / m-c"
             value={formatPLN2(r.monthlyCashflow)}
             sub={cashflowPositive ? "z plusem ✓" : "dopłacasz każdego miesiąca"}
             tone={cashflowPositive ? "success" : "destructive"}
           />
-          <Stat
+          <StatCard
             label="Cash-on-cash"
             value={`${r.cashOnCashPct.toFixed(1)}%`}
             sub={`Yield brutto ${r.grossYieldPct.toFixed(1)}%`}
@@ -606,27 +607,7 @@ function SliderField({
   );
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "default" | "success" | "destructive";
-}) {
-  const toneClass =
-    tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : "";
-  return (
-    <div className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)]">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
-      <p className={`font-display text-2xl mt-1 tabular-nums ${toneClass}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
-  );
-}
+
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (

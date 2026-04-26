@@ -12,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trash2, Plus, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/wydatki")({
   head: () => ({
@@ -189,6 +190,7 @@ function AddExpenseForm() {
                 setIsCustomCategory(false);
                 setCategory("Mieszkanie");
               }}
+              aria-label="Anuluj własną kategorię"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <RotateCcw className="w-3 h-3" />
@@ -314,9 +316,22 @@ function ExpenseRow({ expense }: { expense: Expense }) {
       )}
       <button
         type="button"
-        onClick={() => actions.removeExpense(expense.id)}
+        onClick={() => {
+          const expenseCopy = { ...expense };
+          actions.removeExpense(expense.id);
+          toast(`"${expense.label}" usunięto`, {
+            action: {
+              label: "Cofnij",
+              onClick: () => {
+                const { id, ...rest } = expenseCopy;
+                actions.addExpense(rest as any);
+              },
+            },
+            duration: 5000,
+          });
+        }}
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 transition-opacity"
-        aria-label="Usuń"
+        aria-label={`Usuń: ${expense.label}`}
       >
         <Trash2 className="w-4 h-4" />
       </button>
@@ -325,7 +340,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
 }
 
 function parseLocaleAmount(raw: string): number {
-  const normalized = raw.replace(",", ".").trim();
+  const normalized = raw.replace(/\s/g, "").replace(",", ".").trim();
   const parsed = parseFloat(normalized);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }

@@ -410,7 +410,7 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
         </div>
 
         {/* Results */}
-        <div className="space-y-4">
+        <div className="order-first lg:order-last space-y-4">
           <div className="bg-[image:var(--gradient-hero)] text-primary-foreground rounded-2xl p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/20 rounded-full blur-3xl" />
             <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/60 font-medium">
