@@ -109,6 +109,12 @@ function loadInitial(): AppState {
             inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
           }))
         : DEFAULT_STATE.spouses,
+      expenses: parsed.expenses
+        ? parsed.expenses.map((e) => ({ frequency: "monthly" as Frequency, ...e }))
+        : DEFAULT_STATE.expenses,
+      loans: parsed.loans
+        ? parsed.loans.map((l) => ({ monthlyOverpayment: 0, ...l }))
+        : DEFAULT_STATE.loans,
     };
   } catch {
     return DEFAULT_STATE;
