@@ -1,70 +1,70 @@
 /**
- * Polish UoP (umowa o pracę) net salary calculator — 2025 rules.
+ * Polish UoP net salary engine — 2025.
  *
- * Includes:
- * - ZUS social contributions (employee side): emerytalna 9.76%, rentowa 1.5%, chorobowa 2.45%
- * - Health insurance 9% (no longer deductible from tax since 2022)
- * - Acquisition costs (KUP): standard 250 zł or out-of-town 300 zł
- * - Tax-free monthly allowance (1/12 of 30 000 → 300 zł) when PIT-2 filed
- * - PIT thresholds: 12% up to 120 000 zł, 32% above
- * - PPK (employee 2% default, employer 1.5% default — employer share is taxable income, not deducted from gross for ZUS but added to PIT base)
- * - Custom benefits (LuxMed, Multisport): employer-funded benefits typically increase PIT base (taxable income) and ZUS base
- * - Lunch allowances: ZUS-exempt up to 450 zł/month (2025), PIT-exempt up to 190 zł/day partly — we use 450 zł ZUS-exempt simplification
- * - Remote work flat allowance ("ekwiwalent za pracę zdalną"): fully exempt from PIT and ZUS
+ * Adds autorskie koszty uzyskania przychodu (50% KUP):
+ *   - User specifies % of gross treated as honorarium (creative work).
+ *   - 50% KUP applies to that portion of income MINUS the ZUS share attributable to it.
+ *     (PIT income for that part = grossPart − zusPart, then 50% deducted as KUP.)
+ *   - Annual cap: 120 000 PLN of 50% KUP per year (we apply 1/12 = 10 000 PLN monthly cap by default,
+ *     toggleable via `autorskiKupCapMonthly`).
+ *   - The remaining (non-creative) part still uses standard / out-of-town KUP (or none).
  *
- * All amounts are monthly PLN.
+ * Joint filing helper (`computeJointFiling`) averages the couple's annual taxable bases,
+ * computes PIT once on the average using both thresholds, then doubles it.
  */
 
 export interface SalaryInputs {
-  gross: number;                     // base monthly gross
-  benefitsTaxable: number;           // sum of taxable benefits (LuxMed, Multisport employer-paid portion)
-  lunchAllowance: number;            // monthly lunch allowance (bony żywieniowe)
-  remoteAllowance: number;           // ekwiwalent za pracę zdalną (PIT/ZUS exempt)
-  ppkEmployeeRate: number;           // % e.g. 2
-  ppkEmployerRate: number;           // % e.g. 1.5
+  gross: number;
+  benefitsTaxable: number;
+  lunchAllowance: number;
+  remoteAllowance: number;
+  ppkEmployeeRate: number;
+  ppkEmployerRate: number;
   kupType: "standard" | "outOfTown" | "none";
-  pit2: boolean;                     // tax-free monthly allowance applied
-  outsideFirstThreshold: boolean;    // already exceeded 120k → all income at 32%
-  age26Exempt: boolean;              // "ulga dla młodych" — PIT exempt up to 85 528 zł/year
+  pit2: boolean;
+  outsideFirstThreshold: boolean;
+  age26Exempt: boolean;
+  /** 0–100 — % of `gross` paid as honorarium with 50% KUP. */
+  autorskiSharePct: number;
+  /** Monthly cap on 50% KUP deduction (default 10 000 = 120 000 / 12). */
+  autorskiKupCapMonthly: number;
 }
 
 export interface SalaryBreakdown {
   gross: number;
   benefitsTaxable: number;
   lunchAllowance: number;
-  lunchAllowanceZusExempt: number;   // portion exempt from ZUS (≤450)
-  lunchAllowanceZusable: number;     // portion above 450 → ZUS base
   remoteAllowance: number;
   zusBase: number;
-  pension: number;                   // 9.76%
-  disability: number;                // 1.5%
-  sickness: number;                  // 2.45%
+  pension: number;
+  disability: number;
+  sickness: number;
   zusTotal: number;
   healthBase: number;
-  health: number;                    // 9%
+  health: number;
   ppkEmployee: number;
-  ppkEmployer: number;               // employer-funded but adds to PIT base
-  kup: number;
-  taxFreeAllowance: number;          // 300 if PIT-2
-  taxBaseRaw: number;                // before rounding
-  taxBase: number;                   // rounded to full PLN
-  pitGross: number;                  // before tax-free allowance
-  pit: number;                       // after tax-free allowance, ≥0
+  ppkEmployer: number;
+  kupStandard: number;
+  kupAutorski: number;
+  kupTotal: number;
+  taxFreeAllowance: number;
+  taxBase: number;
+  pit: number;
   net: number;
   totalEmployerCost: number;
+  /** Annual taxable base (×12) — used for second-threshold projection. */
+  annualTaxBase: number;
 }
 
 const ZUS_PENSION = 0.0976;
 const ZUS_DISABILITY = 0.015;
 const ZUS_SICKNESS = 0.0245;
+const ZUS_EMPLOYEE_TOTAL = ZUS_PENSION + ZUS_DISABILITY + ZUS_SICKNESS; // 0.1371
 const HEALTH_RATE = 0.09;
 
-const ZUS_PENSION_EMPLOYER = 0.0976;
-const ZUS_DISABILITY_EMPLOYER = 0.065;
-const ZUS_ACCIDENT = 0.0167; // approx average
-const FP = 0.0245; // Fundusz Pracy
-const FGSP = 0.001; // Fundusz Gwarantowanych Świadczeń Pracowniczych
+const ZUS_EMPLOYER_RATES = 0.0976 + 0.065 + 0.0167 + 0.0245 + 0.001;
 
+const FIRST_THRESHOLD_ANNUAL = 120000;
 const FIRST_THRESHOLD_MONTHLY_TAX_FREE = 300;
 const FIRST_RATE = 0.12;
 const SECOND_RATE = 0.32;
@@ -73,64 +73,76 @@ const LUNCH_ZUS_EXEMPT_LIMIT = 450;
 const KUP_STANDARD = 250;
 const KUP_OUT_OF_TOWN = 300;
 
+export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
+  gross: 10000,
+  benefitsTaxable: 0,
+  lunchAllowance: 0,
+  remoteAllowance: 0,
+  ppkEmployeeRate: 2,
+  ppkEmployerRate: 1.5,
+  kupType: "standard",
+  pit2: true,
+  outsideFirstThreshold: false,
+  age26Exempt: false,
+  autorskiSharePct: 0,
+  autorskiKupCapMonthly: 10000,
+};
+
 export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
   const gross = Math.max(0, i.gross);
   const benefitsTaxable = Math.max(0, i.benefitsTaxable);
   const lunchAllowance = Math.max(0, i.lunchAllowance);
   const remoteAllowance = Math.max(0, i.remoteAllowance);
 
-  const lunchAllowanceZusExempt = Math.min(lunchAllowance, LUNCH_ZUS_EXEMPT_LIMIT);
   const lunchAllowanceZusable = Math.max(0, lunchAllowance - LUNCH_ZUS_EXEMPT_LIMIT);
 
-  // ZUS base: gross + taxable benefits + lunch portion above limit (remote allowance fully exempt)
   const zusBase = gross + benefitsTaxable + lunchAllowanceZusable;
-
   const pension = round2(zusBase * ZUS_PENSION);
   const disability = round2(zusBase * ZUS_DISABILITY);
   const sickness = round2(zusBase * ZUS_SICKNESS);
   const zusTotal = round2(pension + disability + sickness);
 
-  // Health base = ZUS base − employee ZUS
   const healthBase = zusBase - zusTotal;
   const health = round2(healthBase * HEALTH_RATE);
 
-  // PPK
   const ppkEmployee = round2(gross * (i.ppkEmployeeRate / 100));
   const ppkEmployer = round2(gross * (i.ppkEmployerRate / 100));
 
-  // KUP
-  const kup =
+  const kupStandardBase =
     i.kupType === "standard" ? KUP_STANDARD : i.kupType === "outOfTown" ? KUP_OUT_OF_TOWN : 0;
 
-  // Tax base (employer PPK is taxable income for employee)
-  // PIT base = gross + benefits + lunch (full, since lunch counts as income unless specifically exempt;
-  // we treat lunch as fully taxable income for simplicity — many programs do too) + employer PPK − ZUS − KUP
+  // Autorskie KUP: 50% of (creative-portion gross − ZUS attributable to creative portion)
+  const autorskiSharePct = clamp(i.autorskiSharePct, 0, 100);
+  const creativeShare = autorskiSharePct / 100;
+  // Standard KUP only applies to non-creative part (proportionally)
+  const kupStandard = round2(kupStandardBase * (1 - creativeShare));
+
+  const creativeGross = gross * creativeShare;
+  const creativeZus = zusTotal * creativeShare;
+  const autorskiBase = Math.max(0, creativeGross - creativeZus);
+  const autorskiKupRaw = autorskiBase * 0.5;
+  const autorskiCap = Math.max(0, i.autorskiKupCapMonthly);
+  const kupAutorski = round2(Math.min(autorskiKupRaw, autorskiCap));
+
+  const kupTotal = round2(kupStandard + kupAutorski);
+
   const incomeForPit = gross + benefitsTaxable + lunchAllowance + ppkEmployer;
-  const taxBaseRaw = Math.max(0, incomeForPit - zusTotal - kup);
+  const taxBaseRaw = Math.max(0, incomeForPit - zusTotal - kupTotal);
   const taxBase = Math.round(taxBaseRaw);
 
   const taxFreeAllowance = i.pit2 ? FIRST_THRESHOLD_MONTHLY_TAX_FREE : 0;
 
   let pitGross: number;
-  if (i.age26Exempt) {
-    pitGross = 0;
-  } else if (i.outsideFirstThreshold) {
-    pitGross = taxBase * SECOND_RATE;
-  } else {
-    pitGross = taxBase * FIRST_RATE;
-  }
+  if (i.age26Exempt) pitGross = 0;
+  else if (i.outsideFirstThreshold) pitGross = taxBase * SECOND_RATE;
+  else pitGross = taxBase * FIRST_RATE;
   const pit = Math.max(0, Math.round(pitGross - taxFreeAllowance));
 
-  // Net = gross − ZUS − health − PPK employee − PIT + non-taxable cash items received in hand
-  // Lunch allowance and remote allowance are received by employee. Benefits (LuxMed) are non-cash.
   const net = round2(
     gross - zusTotal - health - ppkEmployee - pit + lunchAllowance + remoteAllowance,
   );
 
-  // Employer cost
-  const employerZus = round2(
-    zusBase * (ZUS_PENSION_EMPLOYER + ZUS_DISABILITY_EMPLOYER + ZUS_ACCIDENT + FP + FGSP),
-  );
+  const employerZus = round2(zusBase * ZUS_EMPLOYER_RATES);
   const totalEmployerCost = round2(
     gross + benefitsTaxable + lunchAllowance + remoteAllowance + employerZus + ppkEmployer,
   );
@@ -139,8 +151,6 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
     gross,
     benefitsTaxable,
     lunchAllowance,
-    lunchAllowanceZusExempt,
-    lunchAllowanceZusable,
     remoteAllowance,
     zusBase: round2(zusBase),
     pension,
@@ -151,22 +161,78 @@ export function calculateSalary(i: SalaryInputs): SalaryBreakdown {
     health,
     ppkEmployee,
     ppkEmployer,
-    kup,
+    kupStandard,
+    kupAutorski,
+    kupTotal,
     taxFreeAllowance,
-    taxBaseRaw: round2(taxBaseRaw),
     taxBase,
-    pitGross: round2(pitGross),
     pit,
     net,
     totalEmployerCost,
+    annualTaxBase: round2(taxBase * 12),
   };
 }
+
+/** Joint filing: PIT computed on averaged annual base × 2. Returns tax saved vs individual. */
+export function computeJointFiling(
+  a: SalaryBreakdown,
+  b: SalaryBreakdown,
+): { jointAnnualPit: number; individualAnnualPit: number; savings: number } {
+  const annualTaxFree = 30000;
+
+  const annualPit = (base: number) => {
+    const taxable = Math.max(0, base);
+    if (taxable <= FIRST_THRESHOLD_ANNUAL) {
+      return Math.max(0, taxable * FIRST_RATE - annualTaxFree * FIRST_RATE);
+    }
+    const first = FIRST_THRESHOLD_ANNUAL * FIRST_RATE;
+    const second = (taxable - FIRST_THRESHOLD_ANNUAL) * SECOND_RATE;
+    return Math.max(0, first + second - annualTaxFree * FIRST_RATE);
+  };
+
+  const individualAnnualPit = annualPit(a.annualTaxBase) + annualPit(b.annualTaxBase);
+  const avgBase = (a.annualTaxBase + b.annualTaxBase) / 2;
+  const jointAnnualPit = annualPit(avgBase) * 2;
+
+  return {
+    jointAnnualPit: round2(jointAnnualPit),
+    individualAnnualPit: round2(individualAnnualPit),
+    savings: round2(individualAnnualPit - jointAnnualPit),
+  };
+}
+
+/** Cumulative annual tax base by month — used for second-threshold progression chart. */
+export function thresholdProjection(monthlyTaxBase: number): {
+  month: number;
+  cumulative: number;
+  threshold: number;
+}[] {
+  return Array.from({ length: 12 }, (_, idx) => ({
+    month: idx + 1,
+    cumulative: round2(monthlyTaxBase * (idx + 1)),
+    threshold: FIRST_THRESHOLD_ANNUAL,
+  }));
+}
+
+export const FIRST_THRESHOLD = FIRST_THRESHOLD_ANNUAL;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
 
 export function formatPLN(n: number): string {
+  return new Intl.NumberFormat("pl-PL", {
+    style: "currency",
+    currency: "PLN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+export function formatPLN2(n: number): string {
   return new Intl.NumberFormat("pl-PL", {
     style: "currency",
     currency: "PLN",
