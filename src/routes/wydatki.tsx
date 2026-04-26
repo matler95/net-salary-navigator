@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type Expense } from "@/lib/store";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { toMonthly, toAnnual, FREQUENCY_LABELS, type Frequency } from "@/lib/finance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -10,7 +18,11 @@ export const Route = createFileRoute("/wydatki")({
   head: () => ({
     meta: [
       { title: "Wydatki — Płaca.netto" },
-      { name: "description", content: "Miesięczne wydatki gospodarstwa po kategoriach." },
+      {
+        name: "description",
+        content:
+          "Wydatki gospodarstwa po kategoriach z różnymi okresami: miesięcznie, kwartalnie, rocznie, jednorazowo.",
+      },
     ],
   }),
   component: ExpensesPage,
@@ -20,6 +32,7 @@ const SUGGESTED_CATEGORIES = [
   "Mieszkanie",
   "Jedzenie",
   "Transport",
+  "Ubezpieczenia",
   "Zdrowie",
   "Dzieci",
   "Rozrywka",
@@ -28,9 +41,26 @@ const SUGGESTED_CATEGORIES = [
   "Inne",
 ];
 
+const FREQUENCIES: Frequency[] = ["monthly", "quarterly", "semiannual", "annual", "oneoff"];
+
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+  const monthlyTotal = useMemo(
+    () => expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0),
+    [expenses],
+  );
+  const annualTotal = useMemo(
+    () => expenses.reduce((s, e) => s + toAnnual(e.amount, e.frequency), 0),
+    [expenses],
+  );
+  const oneoffTotal = useMemo(
+    () =>
+      expenses
+        .filter((e) => e.frequency === "oneoff")
+        .reduce((s, e) => s + e.amount, 0),
+    [expenses],
+  );
 
   const grouped = useMemo(() => {
     const m = new Map<string, Expense[]>();
@@ -41,8 +71,9 @@ function ExpensesPage() {
     return Array.from(m, ([category, items]) => ({
       category,
       items,
-      sum: items.reduce((s, x) => s + x.amount, 0),
-    })).sort((a, b) => b.sum - a.sum);
+      monthly: items.reduce((s, x) => s + toMonthly(x.amount, x.frequency), 0),
+      annual: items.reduce((s, x) => s + toAnnual(x.amount, x.frequency), 0),
+    })).sort((a, b) => b.annual - a.annual);
   }, [expenses]);
 
   return (
@@ -50,11 +81,22 @@ function ExpensesPage() {
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-            Wydatki miesięczne
+            Wydatki
           </p>
           <h1 className="font-display text-4xl sm:text-5xl">
-            Suma: <span className="italic text-accent tabular-nums">{formatPLN(total)}</span>
+            <span className="italic text-accent tabular-nums">{formatPLN(monthlyTotal)}</span>{" "}
+            <span className="text-muted-foreground text-2xl sm:text-3xl">/ m-c</span>
           </h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Rocznie: <span className="font-mono tabular-nums">{formatPLN(annualTotal)}</span>
+            {oneoffTotal > 0 && (
+              <>
+                {" "}
+                · w tym jednorazowe:{" "}
+                <span className="font-mono tabular-nums">{formatPLN(oneoffTotal)}</span>
+              </>
+            )}
+          </p>
         </div>
       </header>
 
@@ -71,16 +113,21 @@ function ExpensesPage() {
               key={g.category}
               className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
             >
-              <div className="flex items-baseline justify-between mb-3">
+              <div className="flex items-baseline justify-between mb-3 gap-2">
                 <h3 className="font-display text-lg">{g.category}</h3>
-                <p className="font-mono tabular-nums text-sm">
-                  {formatPLN2(g.sum)}{" "}
-                  <span className="text-muted-foreground text-xs">
-                    ({total > 0 ? ((g.sum / total) * 100).toFixed(0) : 0}%)
-                  </span>
-                </p>
+                <div className="text-right">
+                  <p className="font-mono tabular-nums text-sm">
+                    {formatPLN2(g.monthly)}{" "}
+                    <span className="text-muted-foreground text-xs">
+                      ({monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100).toFixed(0) : 0}%)
+                    </span>
+                  </p>
+                  <p className="font-mono tabular-nums text-xs text-muted-foreground">
+                    {formatPLN(g.annual)} / rok
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {g.items.map((e) => (
                   <ExpenseRow key={e.id} expense={e} />
                 ))}
@@ -97,13 +144,19 @@ function AddExpenseForm() {
   const [category, setCategory] = useState("Mieszkanie");
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState(0);
+  const [frequency, setFrequency] = useState<Frequency>("monthly");
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!label.trim() || amount <= 0) return;
-        actions.addExpense({ category: category.trim(), label: label.trim(), amount });
+        actions.addExpense({
+          category: category.trim(),
+          label: label.trim(),
+          amount,
+          frequency,
+        });
         setLabel("");
         setAmount(0);
       }}
@@ -132,7 +185,7 @@ function AddExpenseForm() {
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="np. Netflix, czynsz, paliwo"
+          placeholder="np. OC samochodu, Netflix, czynsz"
           className="mt-1 h-10"
         />
       </div>
@@ -148,6 +201,23 @@ function AddExpenseForm() {
           className="mt-1 h-10 font-mono tabular-nums"
         />
       </div>
+      <div className="w-40">
+        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          Okres
+        </label>
+        <Select value={frequency} onValueChange={(v) => setFrequency(v as Frequency)}>
+          <SelectTrigger className="mt-1 h-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FREQUENCIES.map((f) => (
+              <SelectItem key={f} value={f}>
+                {FREQUENCY_LABELS[f]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <Button type="submit" className="h-10">
         <Plus className="w-4 h-4 mr-1" /> Dodaj
       </Button>
@@ -156,8 +226,9 @@ function AddExpenseForm() {
 }
 
 function ExpenseRow({ expense }: { expense: Expense }) {
+  const monthly = toMonthly(expense.amount, expense.frequency);
   return (
-    <div className="flex items-center gap-2 group">
+    <div className="flex items-center gap-1 group">
       <Input
         value={expense.label}
         onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
@@ -169,8 +240,28 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         onChange={(e) =>
           actions.updateExpense(expense.id, { amount: parseFloat(e.target.value) || 0 })
         }
-        className="h-9 w-28 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+        className="h-9 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
+      <Select
+        value={expense.frequency}
+        onValueChange={(v) => actions.updateExpense(expense.id, { frequency: v as Frequency })}
+      >
+        <SelectTrigger className="h-9 w-[130px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {FREQUENCIES.map((f) => (
+            <SelectItem key={f} value={f} className="text-xs">
+              {FREQUENCY_LABELS[f]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {expense.frequency !== "monthly" && expense.frequency !== "oneoff" && (
+        <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
+          ≈ {formatPLN(monthly)}/m
+        </span>
+      )}
       <button
         type="button"
         onClick={() => actions.removeExpense(expense.id)}
