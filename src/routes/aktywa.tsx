@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState } from "@/lib/store";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
-import { monthlyPayment, loanTotalInterest, rentalCashflow } from "@/lib/finance";
+import {
+  monthlyPayment,
+  loanTotalInterest,
+  rentalCashflow,
+  amortizationSchedule,
+} from "@/lib/finance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
@@ -198,7 +212,8 @@ function LoansSection() {
   const loans = useAppState((s) => s.loans);
   const totalDebt = loans.reduce((s, l) => s + l.principal, 0);
   const totalPmt = loans.reduce(
-    (s, l) => s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
+    (s, l) =>
+      s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0),
     0,
   );
 
@@ -207,6 +222,7 @@ function LoansSection() {
     principal: 0,
     annualRatePct: 7.5,
     monthsRemaining: 240,
+    monthlyOverpayment: 0,
   });
 
   return (
@@ -214,7 +230,7 @@ function LoansSection() {
       <div className="flex items-baseline justify-between flex-wrap gap-2">
         <h2 className="font-display text-2xl">Kredyty</h2>
         <p className="text-sm text-muted-foreground">
-          Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c
+          Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c (z nadpłatą)
         </p>
       </div>
 
@@ -223,9 +239,15 @@ function LoansSection() {
           e.preventDefault();
           if (!draft.label.trim() || draft.principal <= 0) return;
           actions.addLoan(draft);
-          setDraft({ label: "", principal: 0, annualRatePct: 7.5, monthsRemaining: 240 });
+          setDraft({
+            label: "",
+            principal: 0,
+            annualRatePct: 7.5,
+            monthsRemaining: 240,
+            monthlyOverpayment: 0,
+          });
         }}
-        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-5 gap-2 items-end"
+        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-6 gap-2 items-end"
       >
         <Field label="Nazwa" className="col-span-2">
           <Input
@@ -264,98 +286,240 @@ function LoansSection() {
             className="h-10 font-mono tabular-nums"
           />
         </Field>
-        <Button type="submit" className="h-10 col-span-2 md:col-span-5">
+        <Field label="Nadpłata / m-c">
+          <Input
+            type="number"
+            value={draft.monthlyOverpayment || ""}
+            onChange={(e) =>
+              setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })
+            }
+            className="h-10 font-mono tabular-nums"
+          />
+        </Field>
+        <Button type="submit" className="h-10 col-span-2 md:col-span-6">
           <Plus className="w-4 h-4 mr-1" /> Dodaj kredyt
         </Button>
       </form>
 
       {loans.length > 0 && (
-        <div className="grid md:grid-cols-2 gap-4">
-          {loans.map((l) => {
-            const pmt = monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining);
-            const totalInt = loanTotalInterest(l.principal, l.annualRatePct, l.monthsRemaining);
-            const yearsLeft = (l.monthsRemaining / 12).toFixed(1);
-            return (
-              <div
-                key={l.id}
-                className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <Input
-                    value={l.label}
-                    onChange={(e) => actions.updateLoan(l.id, { label: e.target.value })}
-                    className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-                  />
-                  <button
-                    onClick={() => actions.removeLoan(l.id)}
-                    className="text-muted-foreground hover:text-destructive p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Field label="Kapitał">
-                    <Input
-                      type="number"
-                      value={l.principal}
-                      onChange={(e) =>
-                        actions.updateLoan(l.id, { principal: parseFloat(e.target.value) || 0 })
-                      }
-                      className="h-9 font-mono tabular-nums"
-                    />
-                  </Field>
-                  <Field label="Oproc. %">
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={l.annualRatePct}
-                      onChange={(e) =>
-                        actions.updateLoan(l.id, {
-                          annualRatePct: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className="h-9 font-mono tabular-nums"
-                    />
-                  </Field>
-                  <Field label="Pozostałe m-ce">
-                    <Input
-                      type="number"
-                      value={l.monthsRemaining}
-                      onChange={(e) =>
-                        actions.updateLoan(l.id, {
-                          monthsRemaining: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="h-9 font-mono tabular-nums"
-                    />
-                  </Field>
-                </div>
-
-                <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Rata</p>
-                    <p className="font-mono tabular-nums text-sm font-semibold">
-                      {formatPLN2(pmt)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Odsetki łącznie</p>
-                    <p className="font-mono tabular-nums text-sm font-semibold text-destructive">
-                      {formatPLN(totalInt)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Pozostało</p>
-                    <p className="font-mono tabular-nums text-sm font-semibold">{yearsLeft} lat</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid lg:grid-cols-2 gap-4">
+          {loans.map((l) => (
+            <LoanCard key={l.id} loan={l} />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+function LoanCard({
+  loan,
+}: {
+  loan: {
+    id: string;
+    label: string;
+    principal: number;
+    annualRatePct: number;
+    monthsRemaining: number;
+    monthlyOverpayment?: number;
+  };
+}) {
+  const [showSchedule, setShowSchedule] = useState(false);
+  const overpay = loan.monthlyOverpayment ?? 0;
+
+  const scheduleNoOverpay = useMemo(
+    () => amortizationSchedule(loan.principal, loan.annualRatePct, loan.monthsRemaining, 0),
+    [loan.principal, loan.annualRatePct, loan.monthsRemaining],
+  );
+  const schedule = useMemo(
+    () => amortizationSchedule(loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay),
+    [loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay],
+  );
+
+  const pmt = monthlyPayment(loan.principal, loan.annualRatePct, loan.monthsRemaining);
+  const interestNoOverpay = loanTotalInterest(loan.principal, loan.annualRatePct, loan.monthsRemaining);
+  const interestWithOverpay = schedule.reduce((s, r) => s + r.interest, 0);
+  const interestSaved = interestNoOverpay - interestWithOverpay;
+  const monthsSaved = scheduleNoOverpay.length - schedule.length;
+
+  // Sample chart down to ~60 points
+  const chartData = useMemo(() => {
+    const step = Math.max(1, Math.floor(schedule.length / 60));
+    return schedule
+      .filter((_, i) => i % step === 0 || i === schedule.length - 1)
+      .map((r) => ({ month: r.month, balance: r.balance }));
+  }, [schedule]);
+
+  return (
+    <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <Input
+          value={loan.label}
+          onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
+          className="font-display text-lg h-9 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
+        />
+        <button
+          onClick={() => actions.removeLoan(loan.id)}
+          className="text-muted-foreground hover:text-destructive p-1"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Field label="Kapitał">
+          <Input
+            type="number"
+            value={loan.principal}
+            onChange={(e) =>
+              actions.updateLoan(loan.id, { principal: parseFloat(e.target.value) || 0 })
+            }
+            className="h-9 font-mono tabular-nums"
+          />
+        </Field>
+        <Field label="Oproc. %">
+          <Input
+            type="number"
+            step="0.1"
+            value={loan.annualRatePct}
+            onChange={(e) =>
+              actions.updateLoan(loan.id, { annualRatePct: parseFloat(e.target.value) || 0 })
+            }
+            className="h-9 font-mono tabular-nums"
+          />
+        </Field>
+        <Field label="Pozostałe m-ce">
+          <Input
+            type="number"
+            value={loan.monthsRemaining}
+            onChange={(e) =>
+              actions.updateLoan(loan.id, { monthsRemaining: parseInt(e.target.value) || 0 })
+            }
+            className="h-9 font-mono tabular-nums"
+          />
+        </Field>
+        <Field label="Nadpłata / m-c">
+          <Input
+            type="number"
+            value={overpay || ""}
+            onChange={(e) =>
+              actions.updateLoan(loan.id, { monthlyOverpayment: parseFloat(e.target.value) || 0 })
+            }
+            className="h-9 font-mono tabular-nums"
+          />
+        </Field>
+      </div>
+
+      <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-3 gap-2 text-center mb-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Rata bazowa</p>
+          <p className="font-mono tabular-nums text-sm font-semibold">{formatPLN2(pmt)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Odsetki razem</p>
+          <p className="font-mono tabular-nums text-sm font-semibold text-destructive">
+            {formatPLN(interestWithOverpay)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Spłata za</p>
+          <p className="font-mono tabular-nums text-sm font-semibold">
+            {(schedule.length / 12).toFixed(1)} lat
+          </p>
+        </div>
+      </div>
+
+      {overpay > 0 && (
+        <div className="bg-success/10 border border-success/30 rounded-xl p-3 grid grid-cols-2 gap-2 text-center mb-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Zaoszczędzone odsetki</p>
+            <p className="font-mono tabular-nums text-sm font-semibold text-success">
+              {formatPLN(interestSaved)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Spłata szybciej o</p>
+            <p className="font-mono tabular-nums text-sm font-semibold text-success">
+              {monthsSaved} m-cy
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="h-32 -mx-2">
+        <ResponsiveContainer>
+          <AreaChart data={chartData} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={`bal-${loan.id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="oklch(0.55 0.12 30)" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="oklch(0.55 0.12 30)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 10 }}
+              tickFormatter={(v) => `${(v / 12).toFixed(0)}r`}
+            />
+            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+            <Tooltip
+              formatter={(v: number) => formatPLN(v)}
+              labelFormatter={(m) => `Miesiąc ${m}`}
+              contentStyle={{ fontSize: 11, borderRadius: 8 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="balance"
+              stroke="oklch(0.55 0.12 30)"
+              strokeWidth={2}
+              fill={`url(#bal-${loan.id})`}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowSchedule((s) => !s)}
+        className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+      >
+        <ChevronDown
+          className={`w-3 h-3 transition-transform ${showSchedule ? "rotate-180" : ""}`}
+        />
+        {showSchedule ? "Ukryj" : "Pokaż"} harmonogram
+      </button>
+
+      {showSchedule && (
+        <div className="mt-2 max-h-64 overflow-y-auto border border-border rounded-lg">
+          <table className="w-full text-xs">
+            <thead className="text-muted-foreground bg-muted/40 sticky top-0">
+              <tr>
+                <th className="text-left px-2 py-1 font-medium">M-c</th>
+                <th className="text-right px-2 py-1 font-medium">Rata</th>
+                <th className="text-right px-2 py-1 font-medium">Odsetki</th>
+                <th className="text-right px-2 py-1 font-medium">Kapitał</th>
+                <th className="text-right px-2 py-1 font-medium">Saldo</th>
+              </tr>
+            </thead>
+            <tbody className="font-mono tabular-nums">
+              {schedule.map((r) => (
+                <tr key={r.month} className="border-t border-border">
+                  <td className="px-2 py-0.5">{r.month}</td>
+                  <td className="px-2 py-0.5 text-right">{formatPLN2(r.payment)}</td>
+                  <td className="px-2 py-0.5 text-right text-destructive">
+                    {formatPLN2(r.interest)}
+                  </td>
+                  <td className="px-2 py-0.5 text-right">
+                    {formatPLN2(r.principal + r.overpayment)}
+                  </td>
+                  <td className="px-2 py-0.5 text-right">{formatPLN2(r.balance)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

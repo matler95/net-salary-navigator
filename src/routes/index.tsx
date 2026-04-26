@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { useAppState } from "@/lib/store";
 import { calculateSalary, computeJointFiling, formatPLN, formatPLN2 } from "@/lib/salary";
-import { rentalCashflow, monthlyPayment } from "@/lib/finance";
+import { rentalCashflow, monthlyPayment, toMonthly } from "@/lib/finance";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -78,11 +78,12 @@ function Dashboard() {
 
   const totalNet = breakdowns.reduce((sum, { r }) => sum + r.net, 0);
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
   const totalInvestments = investments.reduce((s, i) => s + i.value, 0);
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
   const monthlyLoanPmt = loans.reduce(
-    (s, l) => s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
+    (s, l) =>
+      s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0),
     0,
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
@@ -98,7 +99,9 @@ function Dashboard() {
   // Expense breakdown by category
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    expenses.forEach((e) => map.set(e.category, (map.get(e.category) || 0) + e.amount));
+    expenses.forEach((e) =>
+      map.set(e.category, (map.get(e.category) || 0) + toMonthly(e.amount, e.frequency)),
+    );
     return Array.from(map, ([name, value]) => ({ name, value }));
   }, [expenses]);
 

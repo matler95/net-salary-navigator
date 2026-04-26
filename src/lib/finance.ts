@@ -1,5 +1,6 @@
 /**
- * Loan amortization (equal installments / "raty równe") and rental P&L helpers.
+ * Loan amortization (equal installments / "raty równe"), rental P&L,
+ * expense frequency, portfolio projection, real-estate buy-to-let scenarios.
  */
 
 export function monthlyPayment(principal: number, annualRatePct: number, months: number): number {
@@ -33,12 +34,65 @@ export function loanTotalInterest(
   return monthlyPayment(principal, annualRatePct, months) * months - principal;
 }
 
+/**
+ * Build full amortization schedule with optional fixed monthly overpayment.
+ * Overpayment shortens the term (we keep the original installment).
+ */
+export interface AmortRow {
+  month: number;
+  payment: number;
+  interest: number;
+  principal: number;
+  overpayment: number;
+  balance: number;
+}
+
+export function amortizationSchedule(
+  principal: number,
+  annualRatePct: number,
+  months: number,
+  monthlyOverpayment = 0,
+): AmortRow[] {
+  const rows: AmortRow[] = [];
+  if (principal <= 0 || months <= 0) return rows;
+  const r = annualRatePct / 100 / 12;
+  const pmt = monthlyPayment(principal, annualRatePct, months);
+  let balance = principal;
+  let m = 0;
+  const maxMonths = months + 12; // safety
+  while (balance > 0.01 && m < maxMonths) {
+    m++;
+    const interest = balance * r;
+    let principalPart = pmt - interest;
+    let overpayment = monthlyOverpayment;
+    if (principalPart + overpayment > balance) {
+      // last month
+      overpayment = Math.max(0, balance - principalPart);
+      if (principalPart > balance) {
+        principalPart = balance;
+        overpayment = 0;
+      }
+    }
+    balance = Math.max(0, balance - principalPart - overpayment);
+    rows.push({
+      month: m,
+      payment: round2(pmt + overpayment),
+      interest: round2(interest),
+      principal: round2(principalPart),
+      overpayment: round2(overpayment),
+      balance: round2(balance),
+    });
+    if (balance <= 0.01) break;
+  }
+  return rows;
+}
+
 export interface RentalInput {
   monthlyRent: number;
-  monthlyCosts: number;       // utilities not paid by tenant, management fee, czynsz administracyjny
-  monthlyMortgage: number;    // can be 0
-  vacancyRatePct: number;     // 0–100
-  taxRatePct: number;         // ryczałt 8.5% / 12.5% above 100k
+  monthlyCosts: number;
+  monthlyMortgage: number;
+  vacancyRatePct: number;
+  taxRatePct: number;
 }
 
 export function rentalCashflow(r: RentalInput) {
@@ -52,6 +106,253 @@ export function rentalCashflow(r: RentalInput) {
     tax: round2(tax),
     cashflow: round2(cashflow),
     annualCashflow: round2(cashflow * 12),
+  };
+}
+
+/* ============================================================
+   Expense frequency
+============================================================ */
+
+export type Frequency = "monthly" | "quarterly" | "semiannual" | "annual" | "oneoff";
+
+export const FREQUENCY_LABELS: Record<Frequency, string> = {
+  monthly: "Miesięcznie",
+  quarterly: "Kwartalnie",
+  semiannual: "Co pół roku",
+  annual: "Rocznie",
+  oneoff: "Jednorazowo",
+};
+
+/** Convert any-frequency amount into an equivalent monthly amount. */
+export function toMonthly(amount: number, frequency: Frequency): number {
+  switch (frequency) {
+    case "monthly":
+      return amount;
+    case "quarterly":
+      return amount / 3;
+    case "semiannual":
+      return amount / 6;
+    case "annual":
+      return amount / 12;
+    case "oneoff":
+      return 0;
+  }
+}
+
+export function toAnnual(amount: number, frequency: Frequency): number {
+  switch (frequency) {
+    case "monthly":
+      return amount * 12;
+    case "quarterly":
+      return amount * 4;
+    case "semiannual":
+      return amount * 2;
+    case "annual":
+      return amount;
+    case "oneoff":
+      return amount;
+  }
+}
+
+/* ============================================================
+   Investment portfolio projection
+============================================================ */
+
+export interface PortfolioInputs {
+  initial: number;
+  monthlyContribution: number;
+  years: number;
+  annualReturnPct: number;
+  annualFeePct: number;       // TER (e.g. 0.22 for VWCE)
+  annualInflationPct: number; // for real-value series
+}
+
+export interface PortfolioPoint {
+  year: number;
+  contributions: number;
+  value: number;
+  realValue: number;
+  gain: number;
+}
+
+export function projectPortfolio(p: PortfolioInputs): PortfolioPoint[] {
+  const monthlyReturn = (p.annualReturnPct - p.annualFeePct) / 100 / 12;
+  const monthlyInflation = p.annualInflationPct / 100 / 12;
+  const months = Math.max(0, Math.round(p.years * 12));
+  let value = p.initial;
+  let contributions = p.initial;
+  const points: PortfolioPoint[] = [
+    {
+      year: 0,
+      contributions: round2(contributions),
+      value: round2(value),
+      realValue: round2(value),
+      gain: 0,
+    },
+  ];
+  for (let m = 1; m <= months; m++) {
+    value = value * (1 + monthlyReturn) + p.monthlyContribution;
+    contributions += p.monthlyContribution;
+    if (m % 12 === 0) {
+      const realValue = value / Math.pow(1 + monthlyInflation, m);
+      points.push({
+        year: m / 12,
+        contributions: round2(contributions),
+        value: round2(value),
+        realValue: round2(realValue),
+        gain: round2(value - contributions),
+      });
+    }
+  }
+  return points;
+}
+
+/* ============================================================
+   Buy-to-let real estate scenario
+============================================================ */
+
+export interface RealEstateScenario {
+  // Purchase
+  purchasePrice: number;
+  downPaymentPct: number;          // e.g. 20
+  renovationCost: number;
+  closingCostsPct: number;         // notarial, PCC 2%, agency etc. ≈ 4–6%
+  // Mortgage
+  mortgageRatePct: number;         // annual %
+  mortgageYears: number;
+  // Rent
+  monthlyRent: number;
+  monthlyCosts: number;            // czynsz admin., zarządzanie, ubezpieczenie /m-c
+  vacancyRatePct: number;
+  taxRatePct: number;              // 8.5% ryczałt
+  // Long-term
+  rentGrowthPct: number;           // annual %
+  appreciationPct: number;         // annual property appreciation %
+  holdingYears: number;
+}
+
+export interface RealEstateResult {
+  // Upfront
+  downPayment: number;
+  closingCosts: number;
+  totalUpfront: number;            // down + reno + closing
+  loanAmount: number;
+  monthlyPmt: number;
+  // First-year cashflow
+  effectiveRent: number;
+  monthlyTax: number;
+  monthlyCashflow: number;
+  annualCashflow: number;
+  // Returns
+  grossYieldPct: number;           // gross rent / purchase price
+  netYieldPct: number;             // (rent − costs − tax) / price
+  cashOnCashPct: number;           // annual cashflow / cash invested
+  capRate: number;                 // NOI / property value
+  breakEvenMonths: number;         // months for cumulative cashflow + appreciation to equal upfront
+  // 10-yr (or holdingYears) projection
+  yearly: RealEstateYearPoint[];
+  totalCashflow: number;
+  finalEquity: number;
+  totalReturn: number;             // cashflow + (final equity − upfront)
+  totalReturnPct: number;          // % of upfront
+  irrAnnualPct: number;            // approximate IRR
+}
+
+export interface RealEstateYearPoint {
+  year: number;
+  rent: number;
+  cashflow: number;
+  cumulativeCashflow: number;
+  propertyValue: number;
+  loanBalance: number;
+  equity: number;
+  totalValueIfSold: number;
+}
+
+export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
+  const downPayment = s.purchasePrice * (s.downPaymentPct / 100);
+  const closingCosts = s.purchasePrice * (s.closingCostsPct / 100);
+  const totalUpfront = downPayment + s.renovationCost + closingCosts;
+  const loanAmount = Math.max(0, s.purchasePrice - downPayment);
+  const months = Math.max(1, s.mortgageYears * 12);
+  const monthlyPmt = monthlyPayment(loanAmount, s.mortgageRatePct, months);
+
+  const effectiveRent = s.monthlyRent * (1 - s.vacancyRatePct / 100);
+  const monthlyTax = effectiveRent * (s.taxRatePct / 100);
+  const monthlyCashflow = effectiveRent - s.monthlyCosts - monthlyPmt - monthlyTax;
+  const annualCashflow = monthlyCashflow * 12;
+
+  const grossYieldPct = s.purchasePrice > 0 ? ((s.monthlyRent * 12) / s.purchasePrice) * 100 : 0;
+  const noi = (effectiveRent - s.monthlyCosts - monthlyTax) * 12;
+  const netYieldPct = s.purchasePrice > 0 ? (noi / s.purchasePrice) * 100 : 0;
+  const cashOnCashPct = totalUpfront > 0 ? (annualCashflow / totalUpfront) * 100 : 0;
+  const capRate = s.purchasePrice > 0 ? (noi / s.purchasePrice) * 100 : 0;
+
+  // Yearly projection
+  const yearly: RealEstateYearPoint[] = [];
+  let cumulative = 0;
+  let propertyValue = s.purchasePrice;
+  for (let y = 1; y <= s.holdingYears; y++) {
+    const rentYear = s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
+    const effectiveYear = rentYear * (1 - s.vacancyRatePct / 100);
+    const taxYear = effectiveYear * (s.taxRatePct / 100);
+    const costsYear = s.monthlyCosts * 12;
+    const pmtYear = monthlyPmt * 12;
+    const cf = effectiveYear - costsYear - pmtYear - taxYear;
+    cumulative += cf;
+    propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
+    const loanBalance = remainingBalance(loanAmount, s.mortgageRatePct, months, Math.min(y * 12, months));
+    const equity = propertyValue - loanBalance;
+    yearly.push({
+      year: y,
+      rent: round2(rentYear),
+      cashflow: round2(cf),
+      cumulativeCashflow: round2(cumulative),
+      propertyValue: round2(propertyValue),
+      loanBalance: round2(loanBalance),
+      equity: round2(equity),
+      totalValueIfSold: round2(equity + cumulative),
+    });
+  }
+
+  // Break-even (cashflow only, no appreciation) — months until cumulative monthly cf > 0 and recoups upfront
+  let beMonths = Infinity;
+  if (monthlyCashflow > 0) {
+    beMonths = totalUpfront / monthlyCashflow;
+  }
+
+  const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
+  const totalCashflow = cumulative;
+  const totalReturn = totalCashflow + (finalEquity - totalUpfront);
+  const totalReturnPct = totalUpfront > 0 ? (totalReturn / totalUpfront) * 100 : 0;
+  // Approximate annualized IRR: ((endValue / start) ^ (1/years) − 1)
+  const endValue = totalUpfront + totalReturn;
+  const irrAnnualPct =
+    totalUpfront > 0 && s.holdingYears > 0
+      ? (Math.pow(Math.max(0.0001, endValue / totalUpfront), 1 / s.holdingYears) - 1) * 100
+      : 0;
+
+  return {
+    downPayment: round2(downPayment),
+    closingCosts: round2(closingCosts),
+    totalUpfront: round2(totalUpfront),
+    loanAmount: round2(loanAmount),
+    monthlyPmt: round2(monthlyPmt),
+    effectiveRent: round2(effectiveRent),
+    monthlyTax: round2(monthlyTax),
+    monthlyCashflow: round2(monthlyCashflow),
+    annualCashflow: round2(annualCashflow),
+    grossYieldPct: round2(grossYieldPct),
+    netYieldPct: round2(netYieldPct),
+    cashOnCashPct: round2(cashOnCashPct),
+    capRate: round2(capRate),
+    breakEvenMonths: isFinite(beMonths) ? Math.round(beMonths) : -1,
+    yearly,
+    totalCashflow: round2(totalCashflow),
+    finalEquity: round2(finalEquity),
+    totalReturn: round2(totalReturn),
+    totalReturnPct: round2(totalReturnPct),
+    irrAnnualPct: round2(irrAnnualPct),
   };
 }
 

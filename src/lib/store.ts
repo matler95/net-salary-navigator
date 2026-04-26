@@ -5,6 +5,7 @@
 
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SALARY_INPUTS, type SalaryInputs } from "./salary";
+import type { Frequency } from "./finance";
 
 export type Spouse = {
   id: string;
@@ -16,7 +17,8 @@ export type Expense = {
   id: string;
   category: string;
   label: string;
-  amount: number;       // monthly PLN
+  amount: number;             // amount per occurrence
+  frequency: Frequency;       // monthly | quarterly | semiannual | annual | oneoff
 };
 
 export type Investment = {
@@ -30,9 +32,10 @@ export type Investment = {
 export type Loan = {
   id: string;
   label: string;
-  principal: number;        // remaining principal
+  principal: number;            // remaining principal
   annualRatePct: number;
   monthsRemaining: number;
+  monthlyOverpayment?: number;  // optional fixed extra payment / month
 };
 
 export type Rental = {
@@ -72,16 +75,18 @@ const DEFAULT_STATE: AppState = {
   ],
   jointFiling: false,
   expenses: [
-    { id: uid(), category: "Mieszkanie", label: "Czynsz / kredyt", amount: 2500 },
-    { id: uid(), category: "Mieszkanie", label: "Media", amount: 600 },
-    { id: uid(), category: "Jedzenie", label: "Zakupy spożywcze", amount: 2000 },
-    { id: uid(), category: "Transport", label: "Paliwo / komunikacja", amount: 600 },
+    { id: uid(), category: "Mieszkanie", label: "Czynsz administracyjny", amount: 800, frequency: "monthly" },
+    { id: uid(), category: "Mieszkanie", label: "Media", amount: 600, frequency: "monthly" },
+    { id: uid(), category: "Jedzenie", label: "Zakupy spożywcze", amount: 2000, frequency: "monthly" },
+    { id: uid(), category: "Transport", label: "Paliwo / komunikacja", amount: 600, frequency: "monthly" },
+    { id: uid(), category: "Ubezpieczenia", label: "OC + AC samochodu", amount: 1800, frequency: "annual" },
+    { id: uid(), category: "Ubezpieczenia", label: "Ubezpieczenie mieszkania", amount: 400, frequency: "annual" },
   ],
   investments: [
     { id: uid(), label: "IKE — ETF S&P500", type: "ETF", value: 45000, monthlyContribution: 1000 },
   ],
   loans: [
-    { id: uid(), label: "Kredyt hipoteczny", principal: 380000, annualRatePct: 7.5, monthsRemaining: 280 },
+    { id: uid(), label: "Kredyt hipoteczny", principal: 380000, annualRatePct: 7.5, monthsRemaining: 280, monthlyOverpayment: 0 },
   ],
   rentals: [],
 };
@@ -104,6 +109,12 @@ function loadInitial(): AppState {
             inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
           }))
         : DEFAULT_STATE.spouses,
+      expenses: parsed.expenses
+        ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
+        : DEFAULT_STATE.expenses,
+      loans: parsed.loans
+        ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
+        : DEFAULT_STATE.loans,
     };
   } catch {
     return DEFAULT_STATE;
