@@ -33,3 +33,4 @@ dist-ssr
 salary_data.csv
 salary.csv
 package-lock.json
+.env

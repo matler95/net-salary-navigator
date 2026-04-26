@@ -4,9 +4,18 @@
  */
 
 import { useSyncExternalStore } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { DEFAULT_SALARY_INPUTS, type SalaryInputs } from "./salary";
 import type { Frequency } from "./finance";
 import type { InvestmentCurrency } from "./fx";
+import {
+  acceptHouseholdInvite,
+  createHouseholdInvite,
+  ensureHouseholdForSession,
+  loadHouseholdState,
+  saveHouseholdState,
+} from "./repository";
+import { migrateLocalToCloudOnce } from "./migration";
 
 export type Spouse = {
   id: string;
@@ -27,7 +36,11 @@ export type Investment = {
   label: string;
   type: "Akcje" | "ETF" | "Obligacje" | "Crypto" | "Lokata" | "Gotówka" | "Inne";
   currency: InvestmentCurrency;
-  value: number; // current market value in selected currency
+  ticker?: string;
+  volume?: number;
+  tickerPriceAtAdd?: number;
+  tickerPriceDate?: string;
+  value: number; // legacy/manual base value fallback
   monthlyContribution: number;
 };
 
@@ -120,6 +133,10 @@ const DEFAULT_STATE: AppState = {
       label: "IKE — ETF S&P500",
       type: "ETF",
       currency: "PLN",
+      ticker: "",
+      volume: 0,
+      tickerPriceAtAdd: 0,
+      tickerPriceDate: "",
       value: 45000,
       monthlyContribution: 1000,
     },
@@ -139,6 +156,10 @@ const DEFAULT_STATE: AppState = {
 
 let state: AppState = loadInitial();
 const listeners = new Set<() => void>();
+let cloudSyncEnabled = false;
+let activeHouseholdId: string | null = null;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let syncInProgress = false;
 
 function loadInitial(): AppState {
   if (typeof window === "undefined") return DEFAULT_STATE;
@@ -159,7 +180,14 @@ function loadInitial(): AppState {
         ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
         : DEFAULT_STATE.expenses,
       investments: parsed.investments
-        ? parsed.investments.map((i) => ({ ...i, currency: i.currency ?? "PLN" }))
+        ? parsed.investments.map((i) => ({
+            ...i,
+            currency: i.currency ?? "PLN",
+            ticker: i.ticker ?? "",
+            volume: i.volume ?? 0,
+            tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
+            tickerPriceDate: i.tickerPriceDate ?? "",
+          }))
         : DEFAULT_STATE.investments,
       loans: parsed.loans
         ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
@@ -183,6 +211,7 @@ function setState(updater: (s: AppState) => AppState) {
   state = updater(state);
   persist();
   listeners.forEach((l) => l());
+  scheduleCloudSync();
 }
 
 function subscribe(cb: () => void) {
@@ -196,6 +225,60 @@ const getServerSnapshot = () => DEFAULT_STATE;
 export function useAppState<T>(selector: (s: AppState) => T): T {
   const full = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return selector(full);
+}
+
+export async function initCloudSync(session: Session | null) {
+  if (!session) {
+    cloudSyncEnabled = false;
+    activeHouseholdId = null;
+    return;
+  }
+  // Prevent concurrent initialisations from racing
+  if (syncInProgress) return;
+  syncInProgress = true;
+  try {
+    const household = await ensureHouseholdForSession(session);
+    // `return` inside try still triggers finally, so syncInProgress resets correctly
+    if (!household?.householdId) return;
+    activeHouseholdId = household.householdId;
+    cloudSyncEnabled = true;
+    await migrateLocalToCloudOnce(household.householdId, state);
+    const cloudState = await loadHouseholdState(household.householdId);
+    state = {
+      ...state,
+      spouses: cloudState.spouses?.length ? cloudState.spouses : state.spouses,
+      expenses: cloudState.expenses ?? state.expenses,
+      investments: cloudState.investments ?? state.investments,
+      loans: cloudState.loans ?? state.loans,
+      rentals: cloudState.rentals ?? state.rentals,
+    };
+    persist();
+    listeners.forEach((l) => l());
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+export async function createInvite(email: string): Promise<string | null> {
+  if (!activeHouseholdId) return null;
+  const invite = await createHouseholdInvite(activeHouseholdId, email);
+  return invite?.token ? `${window.location.origin}/login?invite=${invite.token}` : null;
+}
+
+export async function acceptInvite(token: string, session: Session): Promise<boolean> {
+  const ok = await acceptHouseholdInvite(token, session);
+  if (!ok) return false;
+  await initCloudSync(session);
+  return true;
+}
+
+function scheduleCloudSync() {
+  if (!cloudSyncEnabled || !activeHouseholdId) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    if (!activeHouseholdId) return;
+    void saveHouseholdState(activeHouseholdId, state);
+  }, 450);
 }
 
 export const actions = {

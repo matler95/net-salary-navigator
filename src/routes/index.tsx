@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
   PieChart,
@@ -18,6 +18,7 @@ import { useAppState } from "@/lib/store";
 import { calculateSalary, computeJointFiling, formatPLN, formatPLN2 } from "@/lib/salary";
 import { rentalCashflow, monthlyPayment, toMonthly } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
+import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -70,6 +71,7 @@ function Dashboard() {
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
   const { rates } = useDailyFxRates();
+  const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
   const breakdowns = useMemo(
     () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs) })),
@@ -80,7 +82,7 @@ function Dashboard() {
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
   const totalExpenses = expenses.reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
   const totalInvestments = investments.reduce(
-    (s, i) => s + convertToPLN(i.value, i.currency, rates),
+    (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
   );
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
@@ -294,15 +296,15 @@ function Dashboard() {
   );
 }
 
-function QuickCard({ to, title, desc }: { to: string; title: string; desc: string }) {
+function QuickCard({ to, title, desc }: { to: "/wynagrodzenia" | "/wydatki" | "/aktywa"; title: string; desc: string }) {
   return (
-    <a
-      href={to}
-      className="group bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] hover:border-accent/50 transition-colors"
+    <Link
+      to={to}
+      className="group bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] hover:border-accent/50 transition-colors block"
     >
       <p className="font-display text-lg group-hover:text-accent transition-colors">{title} →</p>
       <p className="text-sm text-muted-foreground mt-1">{desc}</p>
-    </a>
+    </Link>
   );
 }
 

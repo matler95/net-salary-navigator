@@ -1,4 +1,8 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useAuthSession } from "@/lib/auth";
+import { initCloudSync } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 
 const NAV = [
   { to: "/", label: "Pulpit" },
@@ -6,10 +10,17 @@ const NAV = [
   { to: "/wydatki", label: "Wydatki" },
   { to: "/aktywa", label: "Aktywa" },
   { to: "/kalkulatory", label: "Kalkulatory" },
+  { to: "/settings", label: "Ustawienia" },
 ] as const;
 
 export function AppShell() {
   const loc = useLocation();
+  const { session, isAuthenticated } = useAuthSession();
+
+  useEffect(() => {
+    if (session) void initCloudSync(session);
+  }, [session]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur-sm sticky top-0 z-20">
@@ -28,8 +39,7 @@ export function AppShell() {
 
           <nav className="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
             {NAV.map((n) => {
-              const active =
-                n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
+              const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
               return (
                 <Link
                   key={n.to}
@@ -45,6 +55,21 @@ export function AppShell() {
               );
             })}
           </nav>
+          <div className="text-xs text-muted-foreground shrink-0">
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => void supabase?.auth.signOut()}
+                className="hover:text-foreground"
+              >
+                Wyloguj
+              </button>
+            ) : (
+              <Link to="/login" search={{ invite: undefined }} className="hover:text-foreground">
+                Zaloguj
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -52,7 +77,8 @@ export function AppShell() {
 
       <footer className="border-t border-border mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-xs text-muted-foreground">
-          Wartości orientacyjne. Stawki ZUS/PIT na 2025. Dane zapisywane lokalnie w przeglądarce.
+          Wartości orientacyjne. Stawki ZUS/PIT na 2025. Dane lokalne i synchronizacja cloud
+          (Supabase).
         </div>
       </footer>
     </div>

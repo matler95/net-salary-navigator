@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WynagrodzeniaRouteImport } from './routes/wynagrodzenia'
 import { Route as WydatkiRouteImport } from './routes/wydatki'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as KalkulatoryRouteImport } from './routes/kalkulatory'
 import { Route as AktywaRouteImport } from './routes/aktywa'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +25,16 @@ const WynagrodzeniaRoute = WynagrodzeniaRouteImport.update({
 const WydatkiRoute = WydatkiRouteImport.update({
   id: '/wydatki',
   path: '/wydatki',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KalkulatoryRoute = KalkulatoryRouteImport.update({
@@ -45,6 +57,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
   '/kalkulatory': typeof KalkulatoryRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
@@ -52,6 +66,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
   '/kalkulatory': typeof KalkulatoryRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
@@ -60,19 +76,37 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
   '/kalkulatory': typeof KalkulatoryRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/aktywa' | '/kalkulatory' | '/wydatki' | '/wynagrodzenia'
+  fullPaths:
+    | '/'
+    | '/aktywa'
+    | '/kalkulatory'
+    | '/login'
+    | '/settings'
+    | '/wydatki'
+    | '/wynagrodzenia'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/aktywa' | '/kalkulatory' | '/wydatki' | '/wynagrodzenia'
+  to:
+    | '/'
+    | '/aktywa'
+    | '/kalkulatory'
+    | '/login'
+    | '/settings'
+    | '/wydatki'
+    | '/wynagrodzenia'
   id:
     | '__root__'
     | '/'
     | '/aktywa'
     | '/kalkulatory'
+    | '/login'
+    | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
   fileRoutesById: FileRoutesById
@@ -81,6 +115,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AktywaRoute: typeof AktywaRoute
   KalkulatoryRoute: typeof KalkulatoryRoute
+  LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   WydatkiRoute: typeof WydatkiRoute
   WynagrodzeniaRoute: typeof WynagrodzeniaRoute
 }
@@ -99,6 +135,20 @@ declare module '@tanstack/react-router' {
       path: '/wydatki'
       fullPath: '/wydatki'
       preLoaderRoute: typeof WydatkiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kalkulatory': {
@@ -129,6 +179,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AktywaRoute: AktywaRoute,
   KalkulatoryRoute: KalkulatoryRoute,
+  LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   WydatkiRoute: WydatkiRoute,
   WynagrodzeniaRoute: WynagrodzeniaRoute,
 }

@@ -7,6 +7,7 @@ import {
   type InvestmentCurrency,
   useDailyFxRates,
 } from "@/lib/fx";
+import { getInvestmentCurrentValue, useDailyTickerPrices, searchTickers, type TickerSearchResult } from "@/lib/market";
 import {
   monthlyPayment,
   loanTotalInterest,
@@ -22,8 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Plus, Trash2, ChevronDown, PlusCircle, Loader2, Search, Check } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -33,6 +34,16 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
@@ -71,116 +82,42 @@ function AssetsPage() {
 function InvestmentsSection() {
   const investments = useAppState((s) => s.investments);
   const { rates, loading: fxLoading } = useDailyFxRates();
-  const total = investments.reduce((s, i) => s + convertToPLN(i.value, i.currency, rates), 0);
-  const monthly = investments.reduce(
-    (s, i) => s + convertToPLN(i.monthlyContribution, i.currency, rates),
+  const { prices: tickerPrices, loading: tickerLoading } = useDailyTickerPrices(
+    investments.map((i) => i.ticker ?? ""),
+  );
+  const total = investments.reduce(
+    (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
   );
 
-  const [draft, setDraft] = useState({
-    label: "",
-    type: "ETF" as const,
-    currency: "PLN" as InvestmentCurrency,
-    value: 0,
-    monthlyContribution: 0,
-  });
+
 
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <h2 className="font-display text-2xl">Inwestycje</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl">Inwestycje</h2>
+          <AddInvestmentDialog />
+        </div>
         <div className="text-right">
           <p className="text-sm text-muted-foreground">
-            Łącznie {formatPLN(total)} · {formatPLN(monthly)}/m-c dopłat
-            {fxLoading ? " · kursy FX aktualizowane..." : ""}
+            Łącznie {formatPLN(total)}
+            {fxLoading || tickerLoading ? " · kursy aktualizowane..." : ""}
           </p>
           {!!rates.asOf && (
             <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground mt-1">
-              Kursy z: {rates.asOf}
+              Kursy FX z: {rates.asOf}
+            </span>
+          )}
+          {!!tickerPrices.asOf && (
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground mt-1 ml-1">
+              Ticker z: {tickerPrices.asOf}
             </span>
           )}
         </div>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!draft.label.trim() || draft.value <= 0) return;
-          actions.addInvestment(draft);
-          setDraft({
-            label: "",
-            type: "ETF",
-            currency: "PLN",
-            value: 0,
-            monthlyContribution: 0,
-          });
-        }}
-        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-6 gap-2 items-end"
-      >
-        <Field label="Nazwa" className="col-span-2">
-          <Input
-            value={draft.label}
-            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            placeholder="np. IKZE — VWCE"
-            className="h-10"
-          />
-        </Field>
-        <Field label="Typ">
-          <Select
-            value={draft.type}
-            onValueChange={(v) => setDraft({ ...draft, type: v as typeof draft.type })}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["Akcje", "ETF", "Obligacje", "Crypto", "Lokata", "Gotówka", "Inne"].map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Wartość">
-          <Input
-            type="number"
-            value={draft.value || ""}
-            onChange={(e) => setDraft({ ...draft, value: parseFloat(e.target.value) || 0 })}
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Waluta">
-          <Select
-            value={draft.currency}
-            onValueChange={(v) => setDraft({ ...draft, currency: v as InvestmentCurrency })}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["PLN", "EUR", "USD"] as InvestmentCurrency[]).map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Dopłata/m-c">
-          <Input
-            type="number"
-            value={draft.monthlyContribution || ""}
-            onChange={(e) =>
-              setDraft({ ...draft, monthlyContribution: parseFloat(e.target.value) || 0 })
-            }
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Button type="submit" className="h-10 col-span-2 md:col-span-6">
-          <Plus className="w-4 h-4 mr-1" /> Dodaj inwestycję
-        </Button>
-      </form>
+
 
       {investments.length > 0 && (
         <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
@@ -189,9 +126,9 @@ function InvestmentsSection() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Nazwa</th>
                 <th className="text-left px-4 py-3 font-medium">Typ</th>
+                <th className="text-left px-4 py-3 font-medium">Ticker</th>
                 <th className="text-left px-4 py-3 font-medium">Waluta</th>
-                <th className="text-right px-4 py-3 font-medium">Wartość</th>
-                <th className="text-right px-4 py-3 font-medium">Dopłata</th>
+                <th className="text-right px-4 py-3 font-medium">Wolumen</th>
                 <th className="text-right px-4 py-3 font-medium">% portfela</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -207,6 +144,18 @@ function InvestmentsSection() {
                     />
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{i.type}</td>
+                  <td className="px-4 py-2">
+                    <Input
+                      value={i.ticker ?? ""}
+                      onChange={(e) =>
+                        actions.updateInvestment(i.id, {
+                          ticker: e.target.value.trim().toLowerCase(),
+                        })
+                      }
+                      placeholder="np. vwce.de"
+                      className="h-9 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                    />
+                  </td>
                   <td className="px-4 py-2">
                     <Select
                       value={i.currency}
@@ -229,42 +178,55 @@ function InvestmentsSection() {
                   <td className="px-4 py-2">
                     <Input
                       type="number"
-                      value={i.value}
+                      step="0.0001"
+                      value={i.volume ?? ""}
                       onChange={(e) =>
-                        actions.updateInvestment(i.id, { value: parseFloat(e.target.value) || 0 })
-                      }
-                      className="h-9 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <Input
-                      type="number"
-                      value={i.monthlyContribution}
-                      onChange={(e) =>
-                        actions.updateInvestment(i.id, {
-                          monthlyContribution: parseFloat(e.target.value) || 0,
-                        })
+                        actions.updateInvestment(i.id, { volume: parseFloat(e.target.value) || 0 })
                       }
                       className="h-9 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
                     />
                   </td>
                   <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
                     {total > 0
-                      ? ((convertToPLN(i.value, i.currency, rates) / total) * 100).toFixed(1)
+                      ? (
+                          (convertToPLN(
+                            getInvestmentCurrentValue(i, tickerPrices),
+                            i.currency,
+                            rates,
+                          ) /
+                            total) *
+                          100
+                        ).toFixed(1)
                       : "0.0"}
                     %
                     <div className="text-[11px]">
-                      {formatCurrencyAmount(i.value, i.currency)} (
-                      {formatPLN2(convertToPLN(i.value, i.currency, rates))})
+                      {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), i.currency)}{" "}
+                      (
+                      {formatPLN2(
+                        convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
+                      )}
+                      )
+                    </div>
+                    <div className="text-[11px]">
+                      wolumen: {(i.volume ?? 0).toLocaleString("pl-PL")}
+                      {i.tickerPriceAtAdd && i.tickerPriceDate
+                        ? ` · śr. chwila ${i.tickerPriceDate}`
+                        : " · bez automatycznej wyceny"}
                     </div>
                   </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => actions.removeInvestment(i.id)}
-                      className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <td className="px-4 py-2 w-28">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <BuyMoreDialog 
+                        investment={i} 
+                        currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined} 
+                      />
+                      <button
+                        onClick={() => actions.removeInvestment(i.id)}
+                        className="text-muted-foreground hover:text-destructive p-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -273,9 +235,260 @@ function InvestmentsSection() {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        Kursy walut: NBP, odświeżane maksymalnie raz dziennie.
+        Kursy walut: NBP, odświeżane maksymalnie raz dziennie. Ticker: dzienny close, cache dobowy. Moduł inwestycji odświeżony w ramach rewizji interfejsu (UX/UI).
       </p>
     </section>
+  );
+}
+
+function AddInvestmentDialog() {
+  const [open, setOpen] = useState(false);
+  const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency, volume: 0 };
+  const [draft, setDraft] = useState(EMPTY);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<TickerSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleQuery = useCallback((value: string) => {
+    setQuery(value);
+    setDropOpen(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value.trim() || value.length < 2) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      const found = await searchTickers(value);
+      setResults(found);
+      setSearching(false);
+    }, 350);
+  }, []);
+
+  const handleSelect = (result: TickerSearchResult) => {
+    // Map Yahoo currency to our supported currencies
+    const cur = (result.currency === "GBp" ? "GBP" : result.currency) as InvestmentCurrency;
+    const supportedCur = (["PLN", "EUR", "USD"] as InvestmentCurrency[]).includes(cur)
+      ? cur
+      : "EUR";
+    setDraft({ ...draft, ticker: result.symbol, name: result.name, currency: supportedCur });
+    setQuery(result.symbol);
+    setDropOpen(false);
+    setResults([]);
+  };
+
+  const handleReset = () => {
+    setDraft(EMPTY);
+    setQuery("");
+    setResults([]);
+    setDropOpen(false);
+    setSearching(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) handleReset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 shadow-sm">
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          Dodaj inwestycję
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Dodaj inwestycję</DialogTitle>
+          <DialogDescription>
+            Wyszukaj ETF, akcję lub krypto. Wycena pobierana automatycznie.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-5 py-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const ticker = draft.ticker.trim();
+            if (!ticker || draft.volume <= 0) return;
+            actions.addInvestment({
+              label: draft.name || ticker,
+              type: "ETF",
+              ticker: ticker.toLowerCase(),
+              currency: draft.currency,
+              volume: draft.volume,
+              value: 0,
+              tickerPriceAtAdd: 0,
+              tickerPriceDate: "",
+              monthlyContribution: 0,
+            });
+            handleReset();
+            setOpen(false);
+          }}
+        >
+          {/* Ticker search */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Instrument</label>
+            <Popover open={dropOpen && (results.length > 0 || searching)} onOpenChange={setDropOpen}>
+              <PopoverAnchor asChild>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    ref={inputRef}
+                    value={query}
+                    onChange={(e) => handleQuery(e.target.value)}
+                    onFocus={() => { if (results.length > 0) setDropOpen(true); }}
+                    placeholder="Szukaj: iShares, VWCE, AAPL, Bitcoin..."
+                    className="pl-9 font-mono"
+                    autoFocus
+                    autoComplete="off"
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              </PopoverAnchor>
+              <PopoverContent
+                className="p-0 w-[380px]"
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <ul className="max-h-64 overflow-y-auto divide-y divide-border">
+                  {results.map((r) => (
+                    <li key={r.symbol}>
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2.5 hover:bg-accent transition-colors flex items-start justify-between gap-3"
+                        onClick={() => handleSelect(r)}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-mono text-sm font-semibold truncate">{r.symbol}</p>
+                          <p className="text-xs text-muted-foreground truncate">{r.name}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] bg-muted text-muted-foreground rounded px-1.5 py-0.5">{r.type}</span>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{r.exchange} · {r.currency}</p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+            {draft.name && (
+              <p className="text-[11px] text-emerald-500 flex items-center gap-1">
+                <Check className="w-3 h-3" /> {draft.name} ({draft.ticker})
+              </p>
+            )}
+          </div>
+
+          {/* Currency */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Waluta</label>
+            <Select value={draft.currency} onValueChange={(v: any) => setDraft({ ...draft, currency: v })}>
+              <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(["PLN", "EUR", "USD"] as InvestmentCurrency[]).map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Volume */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Wolumen</label>
+            <Input
+              type="number"
+              value={draft.volume || ""}
+              onChange={(e) => setDraft({ ...draft, volume: parseFloat(e.target.value) || 0 })}
+              step="0.0001"
+              placeholder="np. 10"
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="submit" disabled={!draft.ticker.trim() || draft.volume <= 0}>
+              Dodaj do portfolio
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+
+function BuyMoreDialog({ investment, currentPrice }: { investment: any, currentPrice?: number }) {
+  const [open, setOpen] = useState(false);
+  const [addedVolume, setAddedVolume] = useState("");
+  const [buyPrice, setBuyPrice] = useState(currentPrice ? String(currentPrice) : "");
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="text-muted-foreground hover:text-accent p-1.5" title="Dokup więcej">
+          <PlusCircle className="w-4 h-4" />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Dokup: {investment.label}</DialogTitle>
+          <DialogDescription>Dodaj wolumen do istniejącej pozycji i przelicz średnią cenę.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4 py-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const additionalVol = parseFloat(addedVolume) || 0;
+            const newPrice = parseFloat(buyPrice) || 0;
+
+            if (additionalVol <= 0) return;
+
+            const oldVol = investment.volume || 0;
+            const oldAvgPrice = investment.tickerPriceAtAdd || newPrice;
+            const newTotalVol = oldVol + additionalVol;
+
+            let newAvgPrice = newPrice;
+            if (newTotalVol > 0 && oldAvgPrice > 0 && newPrice > 0) {
+              newAvgPrice = (oldVol * oldAvgPrice + additionalVol * newPrice) / newTotalVol;
+            }
+
+            actions.updateInvestment(investment.id, {
+              volume: newTotalVol,
+              tickerPriceAtAdd: newAvgPrice,
+              tickerPriceDate: new Date().toISOString().slice(0, 10),
+            });
+
+            setOpen(false);
+            setAddedVolume("");
+            // keep buyPrice as is, or updated
+          }}
+        >
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm">Sztuki</label>
+            <Input
+              type="number"
+              step="0.0001"
+              value={addedVolume}
+              onChange={(e) => setAddedVolume(e.target.value)}
+              className="col-span-3 font-mono"
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm">Cena / szt.</label>
+            <Input
+              type="number"
+              step="0.0001"
+              value={buyPrice}
+              onChange={(e) => setBuyPrice(e.target.value)}
+              className="col-span-3 font-mono"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit">Zapisz transakcję</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -291,85 +504,21 @@ function LoansSection() {
     0,
   );
 
-  const [draft, setDraft] = useState({
-    label: "",
-    principal: 0,
-    annualRatePct: 7.5,
-    monthsRemaining: 240,
-    monthlyOverpayment: 0,
-  });
+
 
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <h2 className="font-display text-2xl">Kredyty</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl">Kredyty</h2>
+          <AddLoanDialog />
+        </div>
         <p className="text-sm text-muted-foreground">
           Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c (z nadpłatą)
         </p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!draft.label.trim() || draft.principal <= 0) return;
-          actions.addLoan(draft);
-          setDraft({
-            label: "",
-            principal: 0,
-            annualRatePct: 7.5,
-            monthsRemaining: 240,
-            monthlyOverpayment: 0,
-          });
-        }}
-        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] grid grid-cols-2 md:grid-cols-6 gap-2 items-end"
-      >
-        <Field label="Nazwa" className="col-span-2">
-          <Input
-            value={draft.label}
-            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            placeholder="np. Hipoteka mieszkanie"
-            className="h-10"
-          />
-        </Field>
-        <Field label="Pozostały kapitał">
-          <Input
-            type="number"
-            value={draft.principal || ""}
-            onChange={(e) => setDraft({ ...draft, principal: parseFloat(e.target.value) || 0 })}
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Oproc. rocznie %">
-          <Input
-            type="number"
-            step="0.1"
-            value={draft.annualRatePct}
-            onChange={(e) => setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })}
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Pozostałe m-ce">
-          <Input
-            type="number"
-            value={draft.monthsRemaining}
-            onChange={(e) => setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })}
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Nadpłata / m-c">
-          <Input
-            type="number"
-            value={draft.monthlyOverpayment || ""}
-            onChange={(e) =>
-              setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })
-            }
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Button type="submit" className="h-10 col-span-2 md:col-span-6">
-          <Plus className="w-4 h-4 mr-1" /> Dodaj kredyt
-        </Button>
-      </form>
+
 
       {loans.length > 0 && (
         <div className="grid lg:grid-cols-2 gap-4">
@@ -603,71 +752,22 @@ function RentalsSection() {
   const totalCashflow = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const totalValue = rentals.reduce((s, r) => s + r.marketValue, 0);
 
-  const [draft, setDraft] = useState({
-    label: "",
-    monthlyRent: 0,
-    monthlyCosts: 0,
-    monthlyMortgage: 0,
-    vacancyRatePct: 5,
-    taxRatePct: 8.5,
-    marketValue: 0,
-  });
+
 
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <h2 className="font-display text-2xl">Mieszkania na wynajem</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl">Mieszkania na wynajem</h2>
+          <AddRentalDialog />
+        </div>
         <p className="text-sm text-muted-foreground">
           {rentals.length} {rentals.length === 1 ? "mieszkanie" : "mieszkań"} · wartość{" "}
           {formatPLN(totalValue)} · cashflow {formatPLN(totalCashflow)}/m-c
         </p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!draft.label.trim()) return;
-          actions.addRental(draft);
-          setDraft({
-            label: "",
-            monthlyRent: 0,
-            monthlyCosts: 0,
-            monthlyMortgage: 0,
-            vacancyRatePct: 5,
-            taxRatePct: 8.5,
-            marketValue: 0,
-          });
-        }}
-        className="bg-card rounded-2xl p-4 border border-border shadow-[var(--shadow-card)] flex flex-wrap gap-2 items-end"
-      >
-        <Field label="Nazwa" className="flex-1 min-w-[200px]">
-          <Input
-            value={draft.label}
-            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            placeholder="np. Kawalerka Mokotów"
-            className="h-10"
-          />
-        </Field>
-        <Field label="Czynsz">
-          <Input
-            type="number"
-            value={draft.monthlyRent || ""}
-            onChange={(e) => setDraft({ ...draft, monthlyRent: parseFloat(e.target.value) || 0 })}
-            className="h-10 w-28 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Wartość rynkowa">
-          <Input
-            type="number"
-            value={draft.marketValue || ""}
-            onChange={(e) => setDraft({ ...draft, marketValue: parseFloat(e.target.value) || 0 })}
-            className="h-10 w-32 font-mono tabular-nums"
-          />
-        </Field>
-        <Button type="submit" className="h-10">
-          <Plus className="w-4 h-4 mr-1" /> Dodaj
-        </Button>
-      </form>
+
 
       {rentals.length === 0 ? (
         <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
@@ -826,5 +926,182 @@ function Field({
       </label>
       <div className="mt-1">{children}</div>
     </div>
+  );
+}
+
+function isTickerFormatValid(value: string): boolean {
+  return /^[a-z0-9._-]+\.[a-z]{2,}$/.test(value.trim().toLowerCase());
+}
+
+function AddLoanDialog() {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    label: "",
+    principal: 0,
+    annualRatePct: 7.5,
+    monthsRemaining: 240,
+    monthlyOverpayment: 0,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 shadow-sm group">
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          Dodaj kredyt
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Dodaj kredyt / zobowiązanie</DialogTitle>
+          <DialogDescription>Wprowadź dane kredytu, aby wyliczyć ratę i harmonogram.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4 py-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draft.label.trim() || draft.principal <= 0) return;
+            actions.addLoan(draft);
+            setDraft({
+              label: "",
+              principal: 0,
+              annualRatePct: 7.5,
+              monthsRemaining: 240,
+              monthlyOverpayment: 0,
+            });
+            setOpen(false);
+          }}
+        >
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Nazwa</label>
+            <Input
+              value={draft.label}
+              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+              placeholder="np. Hipoteka Mokotów"
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Kapitał do spłaty</label>
+            <Input
+              type="number"
+              value={draft.principal || ""}
+              onChange={(e) => setDraft({ ...draft, principal: parseFloat(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Pozostałe m-ce</label>
+            <Input
+              type="number"
+              value={draft.monthsRemaining || ""}
+              onChange={(e) => setDraft({ ...draft, monthsRemaining: parseInt(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Oproc. % rocznie</label>
+            <Input
+              type="number"
+              step="0.1"
+              value={draft.annualRatePct || ""}
+              onChange={(e) => setDraft({ ...draft, annualRatePct: parseFloat(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium text-muted-foreground">Nadpłata / m-c</label>
+            <Input
+              type="number"
+              value={draft.monthlyOverpayment || ""}
+              onChange={(e) => setDraft({ ...draft, monthlyOverpayment: parseFloat(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit">Dodaj kredyt</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddRentalDialog() {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    label: "",
+    monthlyRent: 0,
+    monthlyCosts: 0,
+    monthlyMortgage: 0,
+    vacancyRatePct: 5,
+    taxRatePct: 8.5,
+    marketValue: 0,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 shadow-sm group">
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          Dodaj nieruchomość
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Dodaj wynajem / nieruchomość</DialogTitle>
+          <DialogDescription>Wprowadź dane lokalu na wynajem i oblicz cashflow.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4 py-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draft.label.trim()) return;
+            actions.addRental(draft);
+            setDraft({
+              label: "",
+              monthlyRent: 0,
+              monthlyCosts: 0,
+              monthlyMortgage: 0,
+              vacancyRatePct: 5,
+              taxRatePct: 8.5,
+              marketValue: 0,
+            });
+            setOpen(false);
+          }}
+        >
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Nazwa</label>
+            <Input
+              value={draft.label}
+              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+              placeholder="np. Kawalerka centrum"
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium text-success">Czynsz</label>
+            <Input
+              type="number"
+              value={draft.monthlyRent || ""}
+              onChange={(e) => setDraft({ ...draft, monthlyRent: parseFloat(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Wartość rynkowa</label>
+            <Input
+              type="number"
+              value={draft.marketValue || ""}
+              onChange={(e) => setDraft({ ...draft, marketValue: parseFloat(e.target.value) || 0 })}
+              className="col-span-3 font-mono tabular-nums"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit">Dodaj nieruchomość</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

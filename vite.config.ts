@@ -6,4 +6,21 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+export default defineConfig({
+  vite: {
+    server: {
+      proxy: {
+        "/api/stooq": {
+          target: "https://stooq.com",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/stooq/, ""),
+        },
+        "/api/yahoo": {
+          target: "https://query1.finance.yahoo.com",
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/yahoo/, ""),
+        },
+      },
+    },
+  },
+});

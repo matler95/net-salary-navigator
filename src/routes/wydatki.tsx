@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/wydatki")({
@@ -146,6 +146,7 @@ function ExpensesPage() {
 
 function AddExpenseForm() {
   const [category, setCategory] = useState("Mieszkanie");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState(0);
   const [amountInput, setAmountInput] = useState("");
@@ -158,7 +159,7 @@ function AddExpenseForm() {
         const parsedAmount = parseLocaleAmount(amountInput);
         if (!label.trim() || parsedAmount <= 0) return;
         actions.addExpense({
-          category: category.trim(),
+          category: isCustomCategory ? (category.trim() || "Inne") : category,
           label: label.trim(),
           amount: parsedAmount,
           frequency,
@@ -173,17 +174,53 @@ function AddExpenseForm() {
         <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
           Kategoria
         </label>
-        <Input
-          list="categories"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="mt-1 h-10"
-        />
-        <datalist id="categories">
-          {SUGGESTED_CATEGORIES.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
+        {isCustomCategory ? (
+          <div className="relative mt-1">
+            <Input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 pr-8"
+              autoFocus
+              placeholder="Wpisz własną..."
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setIsCustomCategory(false);
+                setCategory("Mieszkanie");
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <Select
+            value={category}
+            onValueChange={(v) => {
+              if (v === "__custom__") {
+                setIsCustomCategory(true);
+                setCategory("");
+              } else {
+                setCategory(v);
+              }
+            }}
+          >
+            <SelectTrigger className="mt-1 h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SUGGESTED_CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+              <SelectItem value="__custom__" className="font-medium text-accent">
+                + Własna...
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex-[2] min-w-[180px]">
         <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
