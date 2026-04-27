@@ -102,6 +102,7 @@ export type AppState = {
 };
 
 const STORAGE_KEY = "placa-netto-state-v1";
+const ACTIVE_HOUSEHOLD_KEY = "placa-netto-active-household-id";
 
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -230,10 +231,15 @@ export async function initCloudSync(session: Session | null) {
   if (syncInProgress) return;
   syncInProgress = true;
   try {
-    const household = await ensureHouseholdForSession(session);
+    const preferredHouseholdId =
+      typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_HOUSEHOLD_KEY) : null;
+    const household = await ensureHouseholdForSession(session, preferredHouseholdId);
     // `return` inside try still triggers finally, so syncInProgress resets correctly
     if (!household?.householdId) return;
     activeHouseholdId = household.householdId;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, household.householdId);
+    }
     cloudSyncEnabled = true;
     await migrateLocalToCloudOnce(household.householdId, state);
     const cloudState = await loadHouseholdState(household.householdId);
@@ -269,10 +275,15 @@ export async function createInvite(email: string): Promise<string | null> {
     if (supabase) {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        const household = await ensureHouseholdForSession(data.session);
+        const preferredHouseholdId =
+          typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_HOUSEHOLD_KEY) : null;
+        const household = await ensureHouseholdForSession(data.session, preferredHouseholdId);
         householdId = household?.householdId ?? null;
         if (householdId) {
           activeHouseholdId = householdId;
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
+          }
           cloudSyncEnabled = true;
         }
       }

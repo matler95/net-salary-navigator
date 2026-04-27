@@ -9,27 +9,36 @@ export type HouseholdContext = {
 };
 
 type HouseholdRow = { id: string };
-type MembershipRow = { household_id: string; user_id: string };
+type MembershipRow = { household_id: string; user_id: string; created_at?: string };
 type InviteRow = { id: string; household_id: string; email: string; token: string };
 
 export async function ensureHouseholdForSession(
   session: Session,
+  preferredHouseholdId?: string | null,
 ): Promise<HouseholdContext | null> {
   const supabase = await getSupabase();
   if (!supabase) return null;
   const userId = session.user.id;
-  const { data: membership, error: membershipError } = (await supabase
+
+  const { data: memberships, error: membershipError } = (await supabase
     .from("household_members")
-    .select("household_id,user_id")
+    .select("household_id,user_id,created_at")
     .eq("user_id", userId)
-    .maybeSingle()) as { data: MembershipRow | null; error: any };
+    .order("created_at", { ascending: false })) as { data: MembershipRow[] | null; error: any };
 
   if (membershipError) {
     console.error("Error loading household membership:", membershipError);
   }
 
-  if (membership?.household_id) {
-    return { householdId: membership.household_id, userId };
+  const membershipsList = memberships ?? [];
+  if (membershipsList.length > 0) {
+    if (preferredHouseholdId) {
+      const preferredMembership = membershipsList.find((m) => m.household_id === preferredHouseholdId);
+      if (preferredMembership?.household_id) {
+        return { householdId: preferredMembership.household_id, userId };
+      }
+    }
+    return { householdId: membershipsList[0].household_id, userId };
   }
 
   const { data: householdId, error: householdError } = await supabase.rpc("create_household", {
