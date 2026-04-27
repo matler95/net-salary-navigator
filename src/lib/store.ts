@@ -146,7 +146,7 @@ let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 
 // Debounced version of syncFromCloud to prevent rapid calls from realtime subscriptions
-const debouncedSyncFromCloud = debounce(syncFromCloud, 500);
+const debouncedSyncFromCloud = debounce(syncFromCloud, 100);
 
 function mergeGlobalSettings(next?: Partial<GlobalSettings>): GlobalSettings {
   if (!next) return state.globalSettings;
@@ -191,7 +191,7 @@ function loadInitial(): AppState {
       savings: parsed.savings
         ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
         : DEFAULT_STATE.savings,
-      globalSettings: parsed.globalSettings 
+      globalSettings: parsed.globalSettings
         ? { ...DEFAULT_STATE.globalSettings, ...parsed.globalSettings }
         : DEFAULT_STATE.globalSettings,
     };
@@ -391,14 +391,20 @@ export async function acceptInvite(token: string, session: Session): Promise<boo
 let lastCloudSyncTime = 0;
 export async function syncFromCloud() {
   if (!activeHouseholdId || syncInProgress) return;
-  
+
+  // If a save is pending, skip sync to avoid overwriting local changes
+  if (syncTimer) {
+    console.log("Skipping cloud sync because save is pending");
+    return;
+  }
+
   // Verify membership before syncing
   const membershipOk = await verifyAndRestoreHouseholdAccess();
   if (!membershipOk) return;
 
-  // Debounce cloud fetches to once every 2 seconds
+  // Debounce cloud fetches to once every 0.5 seconds
   const now = Date.now();
-  if (now - lastCloudSyncTime < 2000) return;
+  if (now - lastCloudSyncTime < 500) return;
   lastCloudSyncTime = now;
 
   syncInProgress = true;
@@ -418,6 +424,7 @@ export async function syncFromCloud() {
     };
     persist();
     listeners.forEach((l) => l());
+    console.log("Cloud sync completed successfully");
   } catch (error) {
     console.error("Failed to sync from cloud:", error);
   } finally {
@@ -440,25 +447,122 @@ async function subscribeToCloudChanges(householdId: string) {
   try {
     // Subscribe to all relevant tables for this household
     const channel = supabase.channel(`household:${householdId}`);
-    
+    console.log(`Setting up real-time subscriptions for household ${householdId}`);
+
     channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${householdId}` }, () => {
-        notifyHouseholdMetaChange();
-        debouncedSyncFromCloud();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_invites', filter: `household_id=eq.${householdId}` }, () => {
-        notifyHouseholdMetaChange();
-        debouncedSyncFromCloud();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'spouses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .subscribe();
-    
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "households", filter: `id=eq.${householdId}` },
+        () => {
+          console.log("Received change on households table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "household_members",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on household_members table");
+          notifyHouseholdMetaChange();
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "household_invites",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on household_invites table");
+          notifyHouseholdMetaChange();
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "spouses",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on spouses table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "expenses",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on expenses table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "investments",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on investments table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "loans", filter: `household_id=eq.${householdId}` },
+        () => {
+          console.log("Received change on loans table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rentals",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on rentals table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "savings",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          console.log("Received change on savings table");
+          debouncedSyncFromCloud();
+        },
+      )
+      .subscribe((status) => {
+        console.log(`Subscription status for household ${householdId}:`, status);
+      });
+
     return () => {
       void supabase.removeChannel(channel);
     };
@@ -487,8 +591,14 @@ function scheduleCloudSync() {
       console.log("Starting cloud sync...");
       await saveHouseholdState(activeHouseholdId, state);
       console.log("Cloud sync completed successfully");
+      // After saving, sync from cloud to get any concurrent changes
+      setTimeout(() => {
+        void syncFromCloud();
+      }, 100);
     } catch (error) {
       console.error("Cloud sync failed:", error);
+    } finally {
+      syncTimer = null;
     }
   }, 450);
 }
