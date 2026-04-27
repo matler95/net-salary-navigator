@@ -106,8 +106,9 @@ function LoginPage() {
           password,
         });
         if (error) {
+          console.log("Auth error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("too many requests") || message.includes("429")) {
+          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
@@ -148,9 +149,10 @@ function LoginPage() {
           password,
         });
         if (error) {
+          console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("too many requests") || message.includes("429")) {
-            setCooldownSeconds(60); // Increased from 30 to 60 seconds
+          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
+            setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
           return;
@@ -303,11 +305,8 @@ function translateAuthError(msg: string): string {
   if (m.includes("password should be at least")) {
     return "Hasło jest za krótkie (minimum 6 znaków).";
   }
-  if (m.includes("too many requests") || m.includes("429")) {
-    return "Zbyt wiele prób. Serwer tymczasowo blokuje rejestrację z tego adresu IP. Odśwież stronę, aby zresetować licznik i spróbuj ponownie za chwilę.";
-  }
-  if (m.includes("rate limit") || m.includes("too many requests")) {
-    return "Zbyt wiele prób. Serwer tymczasowo blokuje rejestrację z tego adresu IP. Odśwież stronę, aby zresetować licznik i spróbuj ponownie za chwilę.";
+  if (m.includes("too many requests") || m.includes("429") || m.includes("rate limit") || m.includes("exceeded")) {
+    return "Zbyt wiele prób. Serwer Supabase tymczasowo blokuje rejestrację z tego adresu IP. Spróbuj ponownie za kilka minut lub użyj innego adresu email.";
   }
   if (m.includes("network") || m.includes("fetch")) {
     return "Błąd sieci. Sprawdź połączenie z internetem.";
