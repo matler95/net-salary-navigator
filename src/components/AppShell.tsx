@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuthSession } from "@/lib/auth";
 import { initCloudSync } from "@/lib/store";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
   { to: "/", label: "Pulpit" },
@@ -59,7 +59,10 @@ export function AppShell() {
             {isAuthenticated ? (
               <button
                 type="button"
-                onClick={() => void supabase?.auth.signOut()}
+                onClick={async () => {
+                  const supabase = await getSupabase();
+                  if (supabase) void supabase.auth.signOut();
+                }}
                 className="hover:text-foreground"
               >
                 Wyloguj
