@@ -26,6 +26,7 @@ function LoginPage() {
     null,
   );
   const [loading, setLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const hasInvite = useMemo(() => !!search.invite, [search.invite]);
 
   useEffect(() => {
@@ -75,6 +76,11 @@ function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cooldownSeconds > 0) {
+      setStatus({ msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`, type: "error" });
+      return;
+    }
+
     const supabase = await getSupabase();
     if (!supabase) {
       setStatus({
@@ -138,6 +144,10 @@ function LoginPage() {
           password,
         });
         if (error) {
+          const message = error.message.toLowerCase();
+          if (message.includes("too many requests") || message.includes("429")) {
+            setCooldownSeconds(30);
+          }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
           return;
         }
@@ -154,6 +164,20 @@ function LoginPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setCooldownSeconds((current) => {
+        if (current <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   // Don't render the form while we're checking auth (prevents flash)
   if (authLoading) {
@@ -204,8 +228,14 @@ function LoginPage() {
           disabled={loading}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Proszę czekać…" : mode === "login" ? "Zaloguj" : "Utwórz konto"}
+        <Button type="submit" className="w-full" disabled={loading || cooldownSeconds > 0}>
+          {loading
+            ? "Proszę czekać…"
+            : cooldownSeconds > 0
+            ? `Poczekaj ${cooldownSeconds}s`
+            : mode === "login"
+            ? "Zaloguj"
+            : "Utwórz konto"}
         </Button>
         <Button
           type="button"
@@ -257,6 +287,9 @@ function translateAuthError(msg: string): string {
   }
   if (m.includes("password should be at least")) {
     return "Hasło jest za krótkie (minimum 6 znaków).";
+  }
+  if (m.includes("too many requests") || m.includes("429")) {
+    return "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.";
   }
   if (m.includes("rate limit") || m.includes("too many requests")) {
     return "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.";
