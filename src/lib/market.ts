@@ -59,7 +59,7 @@ export type TickerSearchResult = {
 export async function searchTickers(query: string): Promise<TickerSearchResult[]> {
   if (!query.trim() || query.length < 2) return [];
   try {
-    const url = `/api/yahoo?action=search&q=${encodeURIComponent(query)}`;
+    const url = `/api/yahoo/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const json = await res.json();
@@ -212,32 +212,35 @@ async function fetchYahooDetails(
   symbol: string,
 ): Promise<{ price: number; currency: string } | null> {
   if (!symbol) return null;
-  const url = `/api/yahoo?action=chart&symbol=${encodeURIComponent(symbol)}`;
+  const proxyUrl = `/api/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+  const directUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const json = await res.json();
-    const meta = json?.chart?.result?.[0]?.meta;
-    let price: number = meta?.regularMarketPrice;
-    let currency: string = meta?.currency ?? "";
-    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
-    
-    // Normalize GBp (pence) → GBP: divide price by 100
-    if (currency === "GBp") {
-      price = price / 100;
-      currency = "GBP";
+  for (const url of [proxyUrl, directUrl]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const meta = json?.chart?.result?.[0]?.meta;
+      let price: number = meta?.regularMarketPrice;
+      let currency: string = meta?.currency ?? "";
+      if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) continue;
+      // Normalize GBp (pence) → GBP: divide price by 100
+      if (currency === "GBp") {
+        price = price / 100;
+        currency = "GBP";
+      }
+      return { price, currency };
+    } catch {
+      // try next
     }
-    return { price, currency };
-  } catch {
-    return null;
   }
+  return null;
 }
 
 async function fetchStooqPrice(ticker: string): Promise<number | null> {
   if (!ticker) return null;
   try {
-    const res = await fetch(`/api/stooq/quote?s=${encodeURIComponent(ticker)}`);
+    const res = await fetch(`/api/stooq/q/l/?s=${encodeURIComponent(ticker)}&i=d`);
     if (!res.ok) return null;
     const text = await res.text();
     const lines = text.trim().split("\n");
