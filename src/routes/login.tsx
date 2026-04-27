@@ -13,6 +13,8 @@ export const Route = createFileRoute("/login")({
   }),
 });
 
+const PENDING_INVITE_KEY = "placa-netto-pending-invite-token";
+
 function LoginPage() {
   const router = useRouter();
   const { session, loading: authLoading } = useAuthSession();
@@ -26,12 +28,41 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const hasInvite = useMemo(() => !!search.invite, [search.invite]);
 
-  // Redirect already-authenticated users away from the login page
   useEffect(() => {
-    if (!authLoading && session) {
-      void router.navigate({ to: "/" });
-    }
-  }, [authLoading, session, router]);
+    if (!search.invite || typeof window === "undefined") return;
+    window.localStorage.setItem(PENDING_INVITE_KEY, search.invite);
+  }, [search.invite]);
+
+  // Handle already-authenticated users and pending invite acceptance.
+  useEffect(() => {
+    if (authLoading || !session) return;
+    let cancelled = false;
+
+    const run = async () => {
+      const pendingInvite =
+        search.invite ??
+        (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined : undefined);
+
+      if (pendingInvite) {
+        const accepted = await acceptInvite(pendingInvite, session);
+        if (!cancelled && accepted) {
+          if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+          await router.navigate({ to: "/" });
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        await initCloudSync(session);
+        await router.navigate({ to: "/" });
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, session, router, search.invite]);
 
   function validate(): string | null {
     const trimEmail = email.trim();
@@ -74,12 +105,32 @@ function LoginPage() {
         }
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          await initCloudSync(data.session);
-          if (search.invite) {
-            await acceptInvite(search.invite, data.session);
+          const pendingInvite =
+            search.invite ??
+            (typeof window !== "undefined"
+              ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined
+              : undefined);
+
+          if (pendingInvite) {
+            const accepted = await acceptInvite(pendingInvite, data.session);
+            if (!accepted) {
+              setStatus({
+                msg: "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że logujesz się na ten sam email, na który wysłano zaproszenie.",
+                type: "error",
+              });
+              return;
+            }
+            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+          } else {
+            await initCloudSync(data.session);
           }
         }
-        setStatus({ msg: "Zalogowano pomyślnie.", type: "success" });
+        setStatus({
+          msg: hasInvite
+            ? "Zalogowano i dołączono do gospodarstwa."
+            : "Zalogowano pomyślnie.",
+          type: "success",
+        });
         await router.navigate({ to: "/" });
       } else {
         const { error } = await supabase.auth.signUp({
@@ -91,7 +142,9 @@ function LoginPage() {
           return;
         }
         setStatus({
-          msg: "Konto utworzone. Sprawdź skrzynkę i potwierdź adres email, a następnie zaloguj się.",
+          msg: hasInvite
+            ? "Konto utworzone. Potwierdź email, a potem zaloguj się tym samym adresem - zaproszenie zostanie dokończone automatycznie."
+            : "Konto utworzone. Sprawdź skrzynkę i potwierdź adres email, a następnie zaloguj się.",
           type: "success",
         });
         setMode("login");
@@ -119,6 +172,12 @@ function LoginPage() {
       <p className="text-sm text-muted-foreground mb-6">
         Konto umożliwia bezpieczną synchronizację danych między urządzeniami.
       </p>
+      {hasInvite && (
+        <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground">
+          Link zaproszenia wykryty. Aby dołączyć do gospodarstwa:
+          <br />1) załóż konto (jeśli go nie masz), 2) potwierdź email, 3) zaloguj się tym samym adresem.
+        </div>
+      )}
       <form
         className="space-y-3 bg-card border border-border rounded-2xl p-5"
         onSubmit={(e) => void handleSubmit(e)}
@@ -159,8 +218,8 @@ function LoginPage() {
         </Button>
         {hasInvite && (
           <p className="text-xs text-accent">
-            Masz zaproszenie do wspólnego gospodarstwa. Po zalogowaniu zostanie zaakceptowane
-            automatycznie.
+            Masz zaproszenie do wspólnego gospodarstwa. Po poprawnym logowaniu na zaproszony email
+            dołączenie zostanie wykonane automatycznie.
           </p>
         )}
         {status && (

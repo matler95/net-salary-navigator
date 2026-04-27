@@ -78,13 +78,14 @@ function SalariesPage() {
             <AlertDialogContent>
               <AlertDialogTitle>Zresetować dane?</AlertDialogTitle>
               <AlertDialogDescription>
-                Spowoduje to zastąpienie wszystkich danych przykładowymi wartościami. 
+                Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki,
+                aktywa i ustawienia). 
                 Tej operacji nie można cofnąć.
               </AlertDialogDescription>
               <AlertDialogFooter>
                 <AlertDialogCancel>Anuluj</AlertDialogCancel>
                 <AlertDialogAction onClick={() => actions.reset()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Zresetuj
+                  Wyczyść dane
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -97,6 +98,18 @@ function SalariesPage() {
           <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
         ))}
       </div>
+
+      {spouses.length === 0 && (
+        <div className="bg-card rounded-2xl p-8 border border-dashed border-border text-center">
+          <p className="text-base font-medium">Brak osób w gospodarstwie.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Dodaj pierwszą osobę, aby rozpocząć kalkulacje wynagrodzeń i synchronizację danych.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={() => actions.addSpouse()}>
+            <Plus className="w-4 h-4 mr-1" /> Dodaj pierwszą osobę
+          </Button>
+        </div>
+      )}
 
       {spouses.length === 2 && (
         <div className="bg-muted/40 rounded-2xl p-6 border border-border flex flex-wrap items-center justify-between gap-6 shadow-sm mt-8">

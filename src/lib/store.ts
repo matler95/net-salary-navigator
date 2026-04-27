@@ -109,76 +109,11 @@ function uid(): string {
 }
 
 const DEFAULT_STATE: AppState = {
-  spouses: [
-    {
-      id: uid(),
-      name: "Małżonek 1",
-      inputs: { ...DEFAULT_SALARY_INPUTS, gross: 12000 },
-    },
-  ],
+  spouses: [],
   jointFiling: false,
-  expenses: [
-    {
-      id: uid(),
-      category: "Mieszkanie",
-      label: "Czynsz administracyjny",
-      amount: 800,
-      frequency: "monthly",
-    },
-    { id: uid(), category: "Mieszkanie", label: "Media", amount: 600, frequency: "monthly" },
-    {
-      id: uid(),
-      category: "Jedzenie",
-      label: "Zakupy spożywcze",
-      amount: 2000,
-      frequency: "monthly",
-    },
-    {
-      id: uid(),
-      category: "Transport",
-      label: "Paliwo / komunikacja",
-      amount: 600,
-      frequency: "monthly",
-    },
-    {
-      id: uid(),
-      category: "Ubezpieczenia",
-      label: "OC + AC samochodu",
-      amount: 1800,
-      frequency: "annual",
-    },
-    {
-      id: uid(),
-      category: "Ubezpieczenia",
-      label: "Ubezpieczenie mieszkania",
-      amount: 400,
-      frequency: "annual",
-    },
-  ],
-  investments: [
-    {
-      id: uid(),
-      label: "IKE — ETF S&P500",
-      type: "ETF",
-      currency: "PLN",
-      ticker: "",
-      volume: 0,
-      tickerPriceAtAdd: 0,
-      tickerPriceDate: "",
-      value: 45000,
-      monthlyContribution: 1000,
-    },
-  ],
-  loans: [
-    {
-      id: uid(),
-      label: "Kredyt hipoteczny",
-      principal: 380000,
-      annualRatePct: 7.5,
-      monthsRemaining: 280,
-      monthlyOverpayment: 0,
-    },
-  ],
+  expenses: [],
+  investments: [],
+  loans: [],
   rentals: [],
   savings: [],
   globalSettings: {

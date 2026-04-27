@@ -122,6 +122,13 @@ function Dashboard() {
   const nextMonthCashflow = totalNextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
 
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
+  const isCompletelyEmpty =
+    spouses.length === 0 &&
+    expenses.length === 0 &&
+    investments.length === 0 &&
+    loans.length === 0 &&
+    rentals.length === 0 &&
+    savings.length === 0;
 
   // Joint filing comparison
   const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
@@ -181,12 +188,12 @@ function Dashboard() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    const isDefault = expenses.length === 6 && spouses.length === 1 && spouses[0].inputs.gross === 12000;
-    const dismissed = localStorage.getItem("onboarding_dismissed");
-    if (isDefault && !dismissed) {
+    if (isCompletelyEmpty) {
       setShowBanner(true);
+      return;
     }
-  }, [expenses, spouses]);
+    setShowBanner(false);
+  }, [isCompletelyEmpty]);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
@@ -195,13 +202,12 @@ function Dashboard() {
           <div>
             <h3 className="font-semibold text-accent mb-1">Witaj w Płaca.netto!</h3>
             <p className="text-sm text-muted-foreground">
-              Widzisz teraz przykładowe dane. Przejdź do zakładek <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Wynagrodzenia</Link> oraz <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link>, aby wpisać własne i zacząć budować swój budżet.
+              Zacznij od dodania osoby w <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Wynagrodzenia</Link>, potem uzupełnij <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link> i <Link to="/aktywa" className="text-accent underline hover:text-accent/80">Aktywa</Link>.
             </p>
           </div>
           <button
             onClick={() => {
               setShowBanner(false);
-              localStorage.setItem("onboarding_dismissed", "true");
             }}
             className="text-muted-foreground hover:text-foreground shrink-0 p-1"
             aria-label="Zamknij"
