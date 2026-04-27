@@ -428,6 +428,11 @@ export async function syncFromCloud() {
   }
 }
 
+function notifyHouseholdMetaChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("household:meta-change"));
+}
+
 async function subscribeToCloudChanges(householdId: string) {
   const supabase = await getSupabase();
   if (!supabase) return null;
@@ -438,23 +443,22 @@ async function subscribeToCloudChanges(householdId: string) {
     
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members', filter: `household_id=eq.${householdId}` }, () => {
+        notifyHouseholdMetaChange();
+        debouncedSyncFromCloud();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_invites', filter: `household_id=eq.${householdId}` }, () => {
+        notifyHouseholdMetaChange();
+        debouncedSyncFromCloud();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'spouses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'loans', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'savings', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
-      .subscribe((status, err) => {
-        console.log(`Supabase Realtime status for household ${householdId}:`, status);
-        if (err) {
-          console.error(`Realtime subscription error for household ${householdId}:`, err);
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error(`Realtime channel failed for household ${householdId}, status: ${status}`);
-          // Could implement retry logic here
-        }
-      });
-      
+      .subscribe();
+    
     return () => {
       void supabase.removeChannel(channel);
     };

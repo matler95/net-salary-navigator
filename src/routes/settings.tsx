@@ -2,7 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuthSession } from "@/lib/auth";
 import { createInvite, getActiveHouseholdId } from "@/lib/store";
-import { loadHouseholdInvites, loadHouseholdMembers } from "@/lib/repository";
+import {
+  loadHouseholdInvites,
+  loadHouseholdMembers,
+  removeHouseholdMember,
+  revokeHouseholdInvite,
+} from "@/lib/repository";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,22 +30,32 @@ function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [members, setMembers] = useState<{ user_id: string; created_at: string; role: string }[]>([]);
-  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<{ id: string; email: string; expires_at: string }[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
   const { session } = useAuthSession();
 
+  async function refreshHouseholdInfo() {
+    const householdId = getActiveHouseholdId();
+    if (!householdId) return;
+
+    const members = await loadHouseholdMembers(householdId);
+    const invites = await loadHouseholdInvites(householdId);
+
+    setMembers(members);
+    setPendingInvites(invites);
+    setIsOwner(members.some((member) => member.user_id === session?.user.id && member.role === "owner"));
+  }
+
   useEffect(() => {
-    async function loadHouseholdInfo() {
-      const householdId = getActiveHouseholdId();
-      if (!householdId) return;
+    void refreshHouseholdInfo();
+  }, [session]);
 
-      const members = await loadHouseholdMembers(householdId);
-      const invites = await loadHouseholdInvites(householdId);
-
-      setMembers(members);
-      setPendingInvites(invites.map((invite) => invite.email));
-    }
-
-    void loadHouseholdInfo();
+  useEffect(() => {
+    const handleMetaChange = () => {
+      void refreshHouseholdInfo();
+    };
+    window.addEventListener("household:meta-change", handleMetaChange);
+    return () => window.removeEventListener("household:meta-change", handleMetaChange);
   }, [session]);
 
   if (!isAuthenticated) {
@@ -79,6 +94,8 @@ function SettingsPage() {
         msg: "Zaproszenie utworzone. Skopiuj link poniżej i wyślij go zapraszanej osobie.",
         type: "success",
       });
+      setEmail("");
+      await refreshHouseholdInfo();
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Nie udało się utworzyć zaproszenia.";
       setStatus({ msg, type: "error" });
@@ -103,6 +120,51 @@ function SettingsPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  }
+
+  async function handleRevokeInvite(inviteId: string) {
+    setLoading(true);
+    setStatus(null);
+    const revoked = await revokeHouseholdInvite(inviteId);
+    if (!revoked) {
+      setStatus({ msg: "Nie udało się unieważnić zaproszenia.", type: "error" });
+      setLoading(false);
+      return;
+    }
+    setStatus({ msg: "Zaproszenie zostało unieważnione.", type: "success" });
+    await refreshHouseholdInfo();
+    setLoading(false);
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!session?.user.id) return;
+    if (!isOwner) {
+      setStatus({ msg: "Tylko właściciel może usuwać członków.", type: "error" });
+      return;
+    }
+    if (userId === session.user.id) {
+      setStatus({ msg: "Nie możesz usunąć siebie. Aby opuścić gospodarstwo, wyloguj się.", type: "error" });
+      return;
+    }
+
+    setLoading(true);
+    setStatus(null);
+    const householdId = getActiveHouseholdId();
+    if (!householdId) {
+      setStatus({ msg: "Nie znaleziono aktywnego gospodarstwa.", type: "error" });
+      setLoading(false);
+      return;
+    }
+
+    const removed = await removeHouseholdMember(householdId, userId);
+    if (!removed) {
+      setStatus({ msg: "Nie udało się usunąć członka gospodarstwa.", type: "error" });
+      setLoading(false);
+      return;
+    }
+    setStatus({ msg: "Członek został usunięty.", type: "success" });
+    await refreshHouseholdInfo();
+    setLoading(false);
   }
 
   return (
@@ -192,25 +254,66 @@ function SettingsPage() {
                 <strong className="text-foreground">{session.user.email}</strong>
               </div>
             )}
+            {isOwner && (
+              <div className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
+                Jako właściciel możesz usuwać członków gospodarstwa i unieważniać zaproszenia.
+              </div>
+            )}
           </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-muted p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-            Zaproszenia
+            Członkowie gospodarstwa
           </p>
-          {pendingInvites.length > 0 ? (
+          {members.length > 0 ? (
             <ul className="space-y-2 text-sm text-muted-foreground">
-              {pendingInvites.map((invite) => (
-                <li key={invite} className="rounded-xl border border-border bg-card px-3 py-2">
-                  {invite}
+              {members.map((member, index) => (
+                <li key={member.user_id} className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Członek {index + 1}</p>
+                    <p className="text-xs text-muted-foreground">Rola: {member.role}</p>
+                    {session?.user.id === member.user_id && (
+                      <p className="text-xs text-muted-foreground">(Twoje konto)</p>
+                    )}
+                  </div>
+                  {isOwner && member.user_id !== session?.user.id ? (
+                    <Button size="sm" variant="outline" onClick={() => void handleRemoveMember(member.user_id)} disabled={loading}>
+                      Usuń
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Brak oczekujących zaproszeń.</p>
+            <p className="text-sm text-muted-foreground">Brak aktywnych członków.</p>
           )}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-muted p-5">
+        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+          Zaproszenia
+        </p>
+        {pendingInvites.length > 0 ? (
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            {pendingInvites.map((invite) => (
+              <li key={invite.id} className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium text-foreground">{invite.email}</p>
+                  <p className="text-xs text-muted-foreground">Ważne do: {new Date(invite.expires_at).toLocaleString()}</p>
+                </div>
+                {isOwner ? (
+                  <Button size="sm" variant="outline" onClick={() => void handleRevokeInvite(invite.id)} disabled={loading}>
+                    Unieważnij
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">Brak oczekujących zaproszeń.</p>
+        )}
       </div>
 
       <Separator className="my-10" />

@@ -10,7 +10,7 @@ export type HouseholdContext = {
 
 type HouseholdRow = { id: string };
 type MembershipRow = { household_id: string; user_id: string; created_at?: string; role?: string };
-type InviteRow = { id: string; household_id: string; email: string; token: string };
+type InviteRow = { id: string; household_id: string; email: string; token: string; expires_at?: string };
 
 export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
   const supabase = await getSupabase();
@@ -43,16 +43,16 @@ export async function loadHouseholdMembers(householdId: string): Promise<{ user_
     return [];
   }
 
-  return data as { user_id: string; created_at: string }[];
+  return data as { user_id: string; created_at: string; role: string }[];
 }
 
-export async function loadHouseholdInvites(householdId: string): Promise<{ email: string; expires_at: string }[]> {
+export async function loadHouseholdInvites(householdId: string): Promise<{ id: string; email: string; expires_at: string }[]> {
   const supabase = await getSupabase();
   if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("household_invites")
-    .select("email, expires_at")
+    .select("id, email, expires_at")
     .eq("household_id", householdId)
     .order("created_at", { ascending: false });
 
@@ -61,7 +61,35 @@ export async function loadHouseholdInvites(householdId: string): Promise<{ email
     return [];
   }
 
-  return data as { email: string; expires_at: string }[];
+  return data as { id: string; email: string; expires_at: string }[];
+}
+
+export async function revokeHouseholdInvite(inviteId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.from("household_invites").delete().eq("id", inviteId);
+  if (error) {
+    console.error("Error revoking invite:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function removeHouseholdMember(householdId: string, userId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from("household_members")
+    .delete()
+    .eq("household_id", householdId)
+    .eq("user_id", userId);
+  if (error) {
+    console.error("Error removing household member:", error);
+    return false;
+  }
+  return true;
 }
 
 export async function ensureHouseholdForSession(

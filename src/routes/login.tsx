@@ -200,8 +200,8 @@ function LoginPage() {
         <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground">
           <p className="font-semibold">Zaproszenie do gospodarstwa wykryte</p>
           <p className="mt-2">
-            Aby dołączyć, użyj tego samego adresu email, na który przyszło zaproszenie.
-            Jeżeli jeszcze nie masz konta, zarejestruj się, potwierdź email i potem zaloguj.
+            Aby dołączyć, użyj tego samego adresu email, na który wysłano zaproszenie.
+            Jeśli już masz konto, zaloguj się. Jeśli nie, zarejestruj się tym samym adresem.
           </p>
         </div>
       )}
