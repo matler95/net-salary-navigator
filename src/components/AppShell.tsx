@@ -1,7 +1,13 @@
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuthSession } from "@/lib/auth";
-import { clearAppState, initCloudSync, syncFromCloud, ACTIVE_HOUSEHOLD_KEY } from "@/lib/store";
+import {
+  clearAppState,
+  initCloudSync,
+  syncFromCloud,
+  ACTIVE_HOUSEHOLD_KEY,
+  PENDING_INVITE_TOKEN_KEY,
+} from "@/lib/store";
 import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
@@ -21,6 +27,14 @@ export function AppShell() {
 
   useEffect(() => {
     if (!session) return;
+
+    const hasPendingInvite =
+      typeof window !== "undefined" &&
+      Boolean(window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY));
+    if (hasPendingInvite && loc.pathname.startsWith("/login")) {
+      console.log("Pending invite detected, delaying cloud sync until invite acceptance.");
+      return;
+    }
 
     void initCloudSync(session);
 
@@ -49,7 +63,7 @@ export function AppShell() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.clearInterval(poll);
     };
-  }, [session]);
+  }, [session, loc.pathname]);
 
   const handleLogout = async () => {
     if (signOutInProgress) return;

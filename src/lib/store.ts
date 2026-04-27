@@ -114,6 +114,7 @@ export type AppState = {
 
 export const STORAGE_KEY = "placa-netto-state-v1";
 export const ACTIVE_HOUSEHOLD_KEY = "placa-netto-active-household-id";
+export const PENDING_INVITE_TOKEN_KEY = "placa-netto-pending-invite-token";
 
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();

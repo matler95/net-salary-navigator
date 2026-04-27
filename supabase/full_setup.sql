@@ -187,6 +187,9 @@ begin
     drop policy if exists member_insert on public.household_members;
     create policy member_insert on public.household_members for insert with check (public.is_household_member(household_id) or user_id = auth.uid());
     
+    drop policy if exists member_delete on public.household_members;
+    create policy member_delete on public.household_members for delete using (public.is_household_member(household_id) or user_id = auth.uid());
+    
     drop policy if exists invites_access on public.household_invites;
     drop policy if exists invites_select on public.household_invites;
     drop policy if exists invites_insert on public.household_invites;
