@@ -173,9 +173,12 @@ function LoginPage() {
         Konto umożliwia bezpieczną synchronizację danych między urządzeniami.
       </p>
       {hasInvite && (
-        <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground">
-          Link zaproszenia wykryty. Aby dołączyć do gospodarstwa:
-          <br />1) załóż konto (jeśli go nie masz), 2) potwierdź email, 3) zaloguj się tym samym adresem.
+        <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground">
+          <p className="font-semibold">Zaproszenie do gospodarstwa wykryte</p>
+          <p className="mt-2">
+            Aby dołączyć, użyj tego samego adresu email, na który przyszło zaproszenie.
+            Jeżeli jeszcze nie masz konta, zarejestruj się, potwierdź email i potem zaloguj.
+          </p>
         </div>
       )}
       <form

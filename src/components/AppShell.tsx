@@ -1,7 +1,7 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useAuthSession } from "@/lib/auth";
-import { initCloudSync, syncFromCloud } from "@/lib/store";
+import { clearAppState, initCloudSync, syncFromCloud, ACTIVE_HOUSEHOLD_KEY } from "@/lib/store";
 import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
@@ -15,22 +15,67 @@ const NAV = [
 
 export function AppShell() {
   const loc = useLocation();
-  const { session, isAuthenticated } = useAuthSession();
+  const router = useRouter();
+  const { session, isAuthenticated, loading } = useAuthSession();
+  const [signOutInProgress, setSignOutInProgress] = useState(false);
 
   useEffect(() => {
     if (session) {
       void initCloudSync(session);
-      
-      // Sync from cloud when window gains focus
+
       const onFocus = () => {
         console.log("Window focused, checking for cloud updates...");
         void syncFromCloud();
       };
-      
+
       window.addEventListener("focus", onFocus);
       return () => window.removeEventListener("focus", onFocus);
     }
   }, [session]);
+
+  const handleLogout = async () => {
+    if (signOutInProgress) return;
+    setSignOutInProgress(true);
+    const supabase = await getSupabase();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    clearAppState();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(ACTIVE_HOUSEHOLD_KEY);
+    }
+    await router.navigate({ to: "/login" });
+    setSignOutInProgress(false);
+  };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="rounded-2xl border border-border bg-card p-6 text-center">
+          <p className="text-sm text-muted-foreground">Ładowanie sesji użytkownika…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated && loc.pathname !== "/login") {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-xl rounded-3xl border border-border bg-card p-8 shadow-lg">
+          <h1 className="text-3xl font-display mb-4">Zaloguj się, aby kontynuować</h1>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Twoje dane są bezpieczne — aby zobaczyć swój pulpit i gospodarstwo domowe, musisz zalogować się ponownie.
+          </p>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Przejdź do logowania
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,42 +93,44 @@ export function AppShell() {
             </div>
           </Link>
 
-          <nav className="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
-            {NAV.map((n) => {
-              const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
-              return (
-                <Link
-                  key={n.to}
-                  to={n.to}
-                  className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                    active
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
+          {isAuthenticated ? (
+            <>
+              <nav className="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
+                {NAV.map((n) => {
+                  const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
+                  return (
+                    <Link
+                      key={n.to}
+                      to={n.to}
+                      className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                        active
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {n.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="text-xs text-muted-foreground shrink-0">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={signOutInProgress}
+                  className="hover:text-foreground"
                 >
-                  {n.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="text-xs text-muted-foreground shrink-0">
-            {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  const supabase = await getSupabase();
-                  if (supabase) void supabase.auth.signOut();
-                }}
-                className="hover:text-foreground"
-              >
-                Wyloguj
-              </button>
-            ) : (
+                  {signOutInProgress ? "Wylogowywanie…" : "Wyloguj"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground shrink-0">
               <Link to="/login" search={{ invite: undefined }} className="hover:text-foreground">
                 Zaloguj
               </Link>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </header>
 

@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthSession } from "@/lib/auth";
-import { createInvite } from "@/lib/store";
+import { createInvite, getActiveHouseholdId } from "@/lib/store";
+import { loadHouseholdInvites, loadHouseholdMembers } from "@/lib/repository";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,24 @@ function SettingsPage() {
   );
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [membersCount, setMembersCount] = useState<number>(0);
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+  const { session } = useAuthSession();
+
+  useEffect(() => {
+    async function loadHouseholdInfo() {
+      const householdId = getActiveHouseholdId();
+      if (!householdId) return;
+
+      const members = await loadHouseholdMembers(householdId);
+      const invites = await loadHouseholdInvites(householdId);
+
+      setMembersCount(members.length);
+      setPendingInvites(invites.map((invite) => invite.email));
+    }
+
+    void loadHouseholdInfo();
+  }, [session]);
 
   if (!isAuthenticated) {
     return (
@@ -141,6 +160,50 @@ function SettingsPage() {
           </p>
         )}
       </form>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-muted p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+            Stan gospodarstwa
+          </p>
+          <p className="text-sm text-foreground mb-3">
+            Gospodarstwo domowe jest współdzielone między członków. Zmiany w danych są synchronizowane dla wszystkich.
+          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="flex justify-between gap-3">
+              <span>Liczba członków</span>
+              <strong className="text-foreground">{membersCount}</strong>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Oczekujące zaproszenia</span>
+              <strong className="text-foreground">{pendingInvites.length}</strong>
+            </div>
+            {session?.user.email && (
+              <div className="flex justify-between gap-3">
+                <span>Twój email</span>
+                <strong className="text-foreground">{session.user.email}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-muted p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+            Zaproszenia
+          </p>
+          {pendingInvites.length > 0 ? (
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              {pendingInvites.map((invite) => (
+                <li key={invite} className="rounded-xl border border-border bg-card px-3 py-2">
+                  {invite}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Brak oczekujących zaproszeń.</p>
+          )}
+        </div>
+      </div>
 
       <Separator className="my-10" />
 

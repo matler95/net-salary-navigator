@@ -29,6 +29,41 @@ export async function verifyHouseholdMembership(householdId: string, userId: str
   return true;
 }
 
+export async function loadHouseholdMembers(householdId: string): Promise<{ user_id: string; created_at: string }[]> {
+  const supabase = await getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("household_members")
+    .select("user_id, created_at")
+    .eq("household_id", householdId);
+
+  if (error || !data) {
+    console.error("Error loading household members:", error);
+    return [];
+  }
+
+  return data as { user_id: string; created_at: string }[];
+}
+
+export async function loadHouseholdInvites(householdId: string): Promise<{ email: string; expires_at: string }[]> {
+  const supabase = await getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("household_invites")
+    .select("email, expires_at")
+    .eq("household_id", householdId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Error loading household invites:", error);
+    return [];
+  }
+
+  return data as { email: string; expires_at: string }[];
+}
+
 export async function ensureHouseholdForSession(
   session: Session,
   preferredHouseholdId?: string | null,

@@ -111,8 +111,8 @@ export type AppState = {
   globalSettings: GlobalSettings;
 };
 
-const STORAGE_KEY = "placa-netto-state-v1";
-const ACTIVE_HOUSEHOLD_KEY = "placa-netto-active-household-id";
+export const STORAGE_KEY = "placa-netto-state-v1";
+export const ACTIVE_HOUSEHOLD_KEY = "placa-netto-active-household-id";
 
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -214,6 +214,34 @@ function setState(updater: (s: AppState) => AppState) {
   persist();
   listeners.forEach((l) => l());
   scheduleCloudSync();
+}
+
+export function clearAppState(): void {
+  state = DEFAULT_STATE;
+  cloudSyncEnabled = false;
+  cloudSyncInitialized = false;
+  activeHouseholdId = null;
+  syncInProgress = false;
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  if (cloudRealtimeUnsubscribe) {
+    cloudRealtimeUnsubscribe();
+    cloudRealtimeUnsubscribe = null;
+  }
+  try {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    // ignore localStorage write errors
+  }
+  listeners.forEach((l) => l());
+}
+
+export function getActiveHouseholdId(): string | null {
+  return activeHouseholdId;
 }
 
 function subscribe(cb: () => void) {
