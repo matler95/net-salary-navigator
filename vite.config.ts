@@ -7,20 +7,12 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  vite: {
+  tanstackStart: {
     server: {
-      proxy: {
-        "/api/stooq": {
-          target: "https://stooq.com",
-          changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/api\/stooq/, ""),
-        },
-        "/api/yahoo": {
-          target: "https://query1.finance.yahoo.com",
-          changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/api\/yahoo/, ""),
-        },
-      },
+      preset: process.env.VERCEL ? "vercel" : "cloudflare-pages",
     },
+  },
+  vite: {
+    // Proxies removed in favor of explicit TanStack Start API routes
   },
 });

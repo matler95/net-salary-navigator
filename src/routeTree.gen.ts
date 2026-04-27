@@ -16,6 +16,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as KalkulatoryRouteImport } from './routes/kalkulatory'
 import { Route as AktywaRouteImport } from './routes/aktywa'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiYahooRouteImport } from './routes/api/yahoo'
+import { Route as ApiStooqRouteImport } from './routes/api/stooq'
 
 const WynagrodzeniaRoute = WynagrodzeniaRouteImport.update({
   id: '/wynagrodzenia',
@@ -52,6 +54,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiYahooRoute = ApiYahooRouteImport.update({
+  id: '/api/yahoo',
+  path: '/api/yahoo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStooqRoute = ApiStooqRouteImport.update({
+  id: '/api/stooq',
+  path: '/api/stooq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +73,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/stooq': typeof ApiStooqRoute
+  '/api/yahoo': typeof ApiYahooRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +84,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/stooq': typeof ApiStooqRoute
+  '/api/yahoo': typeof ApiYahooRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +96,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/stooq': typeof ApiStooqRoute
+  '/api/yahoo': typeof ApiYahooRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +109,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/stooq'
+    | '/api/yahoo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +120,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/stooq'
+    | '/api/yahoo'
   id:
     | '__root__'
     | '/'
@@ -109,6 +131,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/stooq'
+    | '/api/yahoo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +143,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   WydatkiRoute: typeof WydatkiRoute
   WynagrodzeniaRoute: typeof WynagrodzeniaRoute
+  ApiStooqRoute: typeof ApiStooqRoute
+  ApiYahooRoute: typeof ApiYahooRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/yahoo': {
+      id: '/api/yahoo'
+      path: '/api/yahoo'
+      fullPath: '/api/yahoo'
+      preLoaderRoute: typeof ApiYahooRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stooq': {
+      id: '/api/stooq'
+      path: '/api/stooq'
+      fullPath: '/api/stooq'
+      preLoaderRoute: typeof ApiStooqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +223,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   WydatkiRoute: WydatkiRoute,
   WynagrodzeniaRoute: WynagrodzeniaRoute,
+  ApiStooqRoute: ApiStooqRoute,
+  ApiYahooRoute: ApiYahooRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
