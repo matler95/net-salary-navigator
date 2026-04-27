@@ -9,7 +9,7 @@ export type HouseholdContext = {
 };
 
 type HouseholdRow = { id: string };
-type MembershipRow = { household_id: string; user_id: string; created_at?: string };
+type MembershipRow = { household_id: string; user_id: string; created_at?: string; role?: string };
 type InviteRow = { id: string; household_id: string; email: string; token: string };
 
 export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
@@ -29,13 +29,13 @@ export async function verifyHouseholdMembership(householdId: string, userId: str
   return true;
 }
 
-export async function loadHouseholdMembers(householdId: string): Promise<{ user_id: string; created_at: string }[]> {
+export async function loadHouseholdMembers(householdId: string): Promise<{ user_id: string; created_at: string; role: string }[]> {
   const supabase = await getSupabase();
   if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("household_members")
-    .select("user_id, created_at")
+    .select("user_id, created_at, role")
     .eq("household_id", householdId);
 
   if (error || !data) {
@@ -98,6 +98,14 @@ export async function ensureHouseholdForSession(
   });
   
   if (!householdError && householdId) {
+    const { error: ensureMemberError } = await supabase.from("household_members").insert({
+      household_id: householdId,
+      user_id: userId,
+      role: "owner",
+    });
+    if (ensureMemberError && !String(ensureMemberError.message ?? "").toLowerCase().includes("duplicate")) {
+      console.error("Error ensuring owner membership after create_household RPC:", ensureMemberError);
+    }
     return { householdId, userId };
   }
 
@@ -119,6 +127,7 @@ export async function ensureHouseholdForSession(
   const { error: insertMemberError } = await supabase.from("household_members").insert({
     household_id: fallbackHouseholdId,
     user_id: userId,
+    role: "owner",
   });
 
   if (insertMemberError && !String(insertMemberError.message ?? "").toLowerCase().includes("duplicate")) {
@@ -263,6 +272,7 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
   const { error: memberError } = await supabase.from("household_members").insert({
     household_id: invite.household_id,
     user_id: session.user.id,
+    role: "member",
   });
   if (memberError && !memberError.message.toLowerCase().includes("duplicate")) {
     console.error("Error adding invited user to household:", memberError);

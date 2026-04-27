@@ -16,6 +16,7 @@ create table if not exists public.households (
 create table if not exists public.household_members (
   household_id uuid not null references public.households(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member',
   created_at timestamptz not null default now(),
   primary key (household_id, user_id)
 );
@@ -105,6 +106,7 @@ create table if not exists public.savings (
 -- 2. ENSURE COLUMNS (for existing databases)
 alter table public.households add column if not exists joint_filing boolean not null default false;
 alter table public.households add column if not exists global_settings jsonb not null default '{}'::jsonb;
+alter table public.household_members add column if not exists role text not null default 'member';
 alter table public.expenses add column if not exists month integer;
 alter table public.loans add column if not exists "paymentDayOfMonth" integer;
 alter table public.loans add column if not exists "lastPaymentDate" text;
@@ -151,8 +153,8 @@ begin
   values (household_name)
   returning id into new_household_id;
 
-  insert into public.household_members (household_id, user_id)
-  values (new_household_id, auth.uid());
+  insert into public.household_members (household_id, user_id, role)
+  values (new_household_id, auth.uid(), 'owner');
 
   return new_household_id;
 end;

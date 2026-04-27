@@ -24,7 +24,7 @@ function SettingsPage() {
   );
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [membersCount, setMembersCount] = useState<number>(0);
+  const [members, setMembers] = useState<{ user_id: string; created_at: string; role: string }[]>([]);
   const [pendingInvites, setPendingInvites] = useState<string[]>([]);
   const { session } = useAuthSession();
 
@@ -36,7 +36,7 @@ function SettingsPage() {
       const members = await loadHouseholdMembers(householdId);
       const invites = await loadHouseholdInvites(householdId);
 
-      setMembersCount(members.length);
+      setMembers(members);
       setPendingInvites(invites.map((invite) => invite.email));
     }
 
@@ -172,12 +172,20 @@ function SettingsPage() {
           <div className="space-y-2 text-sm text-muted-foreground">
             <div className="flex justify-between gap-3">
               <span>Liczba członków</span>
-              <strong className="text-foreground">{membersCount}</strong>
+              <strong className="text-foreground">{members.length}</strong>
             </div>
             <div className="flex justify-between gap-3">
               <span>Oczekujące zaproszenia</span>
               <strong className="text-foreground">{pendingInvites.length}</strong>
             </div>
+            {session?.user.id && (
+              <div className="flex justify-between gap-3">
+                <span>Twoja rola</span>
+                <strong className="text-foreground">
+                  {members.find((member) => member.user_id === session.user.id)?.role ?? "member"}
+                </strong>
+              </div>
+            )}
             {session?.user.email && (
               <div className="flex justify-between gap-3">
                 <span>Twój email</span>
