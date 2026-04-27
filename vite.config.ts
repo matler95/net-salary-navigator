@@ -7,6 +7,12 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  cloudflare: false,
+  tanstackStart: {
+    deployment: {
+      preset: "vercel",
+    },
+  },
   vite: {
     server: {
       proxy: {
