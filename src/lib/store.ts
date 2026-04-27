@@ -323,11 +323,13 @@ export async function acceptInvite(token: string, session: Session): Promise<boo
 let lastCloudSyncTime = 0;
 export async function syncFromCloud() {
   if (!activeHouseholdId || syncInProgress) return;
+  
   // Debounce cloud fetches to once every 2 seconds
   const now = Date.now();
   if (now - lastCloudSyncTime < 2000) return;
   lastCloudSyncTime = now;
 
+  syncInProgress = true;
   console.log("Syncing from cloud due to external change...");
   try {
     const cloudState = await loadHouseholdState(activeHouseholdId);
@@ -346,6 +348,11 @@ export async function syncFromCloud() {
     listeners.forEach((l) => l());
   } catch (error) {
     console.error("Failed to sync from cloud:", error);
+  } finally {
+    // Add a small delay to prevent immediate re-triggering if local state updates take time
+    setTimeout(() => {
+      syncInProgress = false;
+    }, 100);
   }
 }
 

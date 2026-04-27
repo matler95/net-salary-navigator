@@ -218,6 +218,7 @@ function mapExpenseFromRow(row: unknown): Expense {
     label: String(r.label ?? ""),
     amount: Number(r.amount ?? 0),
     frequency: String(r.frequency ?? "monthly") as Expense["frequency"],
+    month: r.month ? Number(r.month) : undefined,
   };
 }
 function mapInvestmentToRow(householdId: string, x: Investment) {
@@ -250,6 +251,8 @@ function mapLoanFromRow(row: unknown): Loan {
     annualRatePct: Number(r.annualRatePct ?? 0),
     monthsRemaining: Number(r.monthsRemaining ?? 0),
     monthlyOverpayment: Number(r.monthlyOverpayment ?? 0),
+    paymentDayOfMonth: r.paymentDayOfMonth ? Number(r.paymentDayOfMonth) : undefined,
+    lastPaymentDate: r.lastPaymentDate ? String(r.lastPaymentDate) : undefined,
   };
 }
 function mapRentalToRow(householdId: string, x: Rental) {
@@ -276,6 +279,9 @@ function mapSavingsFromRow(row: unknown): any {
     type: String(r.type ?? "zwykłe"),
     balance: Number(r.balance ?? 0),
     ratePct: Number(r.ratePct ?? 0),
+    lokataStartDate: r.lokataStartDate ? String(r.lokataStartDate) : undefined,
+    lokataDurationMonths: r.lokataDurationMonths ? Number(r.lokataDurationMonths) : undefined,
+    lokataCapitalization: r.lokataCapitalization ? String(r.lokataCapitalization) : undefined,
   };
 }
 
