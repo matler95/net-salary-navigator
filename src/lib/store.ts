@@ -199,6 +199,15 @@ let syncInProgress = false;
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 
+function mergeGlobalSettings(next?: Partial<GlobalSettings>): GlobalSettings {
+  if (!next) return state.globalSettings;
+  return {
+    ...DEFAULT_STATE.globalSettings,
+    ...state.globalSettings,
+    ...next,
+  };
+}
+
 function loadInitial(): AppState {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return DEFAULT_STATE;
   try {
@@ -302,7 +311,7 @@ export async function initCloudSync(session: Session | null) {
       rentals: cloudState.rentals ?? state.rentals,
       savings: cloudState.savings ?? state.savings,
       jointFiling: cloudState.jointFiling ?? state.jointFiling,
-      globalSettings: cloudState.globalSettings ?? state.globalSettings,
+      globalSettings: mergeGlobalSettings(cloudState.globalSettings),
     };
     persist();
     cloudSyncInitialized = true;
@@ -376,7 +385,7 @@ export async function syncFromCloud() {
       rentals: cloudState.rentals ?? state.rentals,
       savings: cloudState.savings ?? state.savings,
       jointFiling: cloudState.jointFiling ?? state.jointFiling,
-      globalSettings: cloudState.globalSettings ?? state.globalSettings,
+      globalSettings: mergeGlobalSettings(cloudState.globalSettings),
     };
     persist();
     listeners.forEach((l) => l());
