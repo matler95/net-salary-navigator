@@ -2,7 +2,14 @@
 alter table public.households add column if not exists joint_filing boolean not null default false;
 alter table public.households add column if not exists global_settings jsonb not null default '{}'::jsonb;
 
--- Create missing savings table
+-- Add missing columns to expenses table
+alter table public.expenses add column if not exists month integer;
+
+-- Add missing columns to loans table
+alter table public.loans add column if not exists "paymentDayOfMonth" integer;
+alter table public.loans add column if not exists "lastPaymentDate" text;
+
+-- Create or update savings table with all required columns
 create table if not exists public.savings (
   id text primary key,
   household_id uuid not null references public.households(id) on delete cascade,
@@ -10,6 +17,9 @@ create table if not exists public.savings (
   type text not null default 'zwykłe',
   balance numeric not null default 0,
   ratePct numeric not null default 0,
+  "lokataStartDate" text,
+  "lokataDurationMonths" integer,
+  "lokataCapitalization" text,
   created_at timestamptz not null default now()
 );
 
@@ -24,10 +34,38 @@ for all using (public.is_household_member(household_id))
 with check (public.is_household_member(household_id));
 
 -- Enable Realtime for all data tables
-alter publication supabase_realtime add table public.households;
-alter publication supabase_realtime add table public.spouses;
-alter publication supabase_realtime add table public.expenses;
-alter publication supabase_realtime add table public.investments;
-alter publication supabase_realtime add table public.loans;
-alter publication supabase_realtime add table public.rentals;
-alter publication supabase_realtime add table public.savings;
+-- Note: We wrap in a block to ignore errors if they are already in the publication
+do $$
+begin
+  alter publication supabase_realtime add table public.households;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.spouses;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.expenses;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.investments;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.loans;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.rentals;
+exception when others then null; end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.savings;
+exception when others then null; end $$;
