@@ -199,7 +199,7 @@ let syncInProgress = false;
 function loadInitial(): AppState {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return DEFAULT_STATE;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
     const parsed = JSON.parse(raw) as Partial<AppState>;
     return {
@@ -240,9 +240,9 @@ function loadInitial(): AppState {
 }
 
 function persist() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     /* quota exceeded — ignore */
   }

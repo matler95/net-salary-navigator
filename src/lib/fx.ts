@@ -113,7 +113,7 @@ async function fetchNbpRate(code: "eur" | "usd" | "gbp"): Promise<{ mid: number 
 function readCachedRates(): FxRates | null {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(FX_CACHE_KEY);
+    const raw = localStorage.getItem(FX_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<FxRates>;
     if (
@@ -139,7 +139,7 @@ function readCachedRates(): FxRates | null {
 function writeCachedRates(rates: FxRates) {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return;
   try {
-    window.localStorage.setItem(FX_CACHE_KEY, JSON.stringify(rates));
+    localStorage.setItem(FX_CACHE_KEY, JSON.stringify(rates));
   } catch {
     // Ignore storage errors.
   }

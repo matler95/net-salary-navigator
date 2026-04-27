@@ -268,7 +268,7 @@ function mergePrices(source: DailyTickerPrices, tickers: string[]): DailyTickerP
 function readCachedPrices(): DailyTickerPrices | null {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(TICKER_CACHE_KEY);
+    const raw = localStorage.getItem(TICKER_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DailyTickerPrices>;
     if (
@@ -295,7 +295,7 @@ function readCachedPrices(): DailyTickerPrices | null {
 function writeCachedPrices(prices: DailyTickerPrices) {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return;
   try {
-    window.localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify(prices));
+    localStorage.setItem(TICKER_CACHE_KEY, JSON.stringify(prices));
   } catch {
     // Ignore cache write issues.
   }

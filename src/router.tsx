@@ -1,3 +1,4 @@
+console.log("ROUTER MODULE LOADED");
 import { createRouter, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
