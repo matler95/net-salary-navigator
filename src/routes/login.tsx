@@ -21,7 +21,9 @@ function LoginPage() {
   const search = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(() =>
+    typeof window !== "undefined" && search.invite ? "register" : "login",
+  );
   const [status, setStatus] = useState<{ msg: string; type: "error" | "success" | "info" } | null>(
     null,
   );
@@ -144,10 +146,16 @@ function LoginPage() {
         });
         await router.navigate({ to: "/" });
       } else {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        });
+        const signUpOptions = hasInvite && search.invite
+          ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
+          : undefined;
+        const { error } = await supabase.auth.signUp(
+          {
+            email: email.trim(),
+            password,
+          },
+          signUpOptions,
+        );
         if (error) {
           console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
@@ -159,7 +167,7 @@ function LoginPage() {
         }
         setStatus({
           msg: hasInvite
-            ? "Konto utworzone. Potwierdź email, a potem zaloguj się tym samym adresem - zaproszenie zostanie dokończone automatycznie."
+            ? "Konto utworzone. Sprawdź skrzynkę, potwierdź email, a następnie wróć do aplikacji — zaproszenie zostanie dokończone automatycznie."
             : "Konto utworzone. Sprawdź skrzynkę i potwierdź adres email, a następnie zaloguj się.",
           type: "success",
         });

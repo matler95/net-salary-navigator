@@ -35,6 +35,7 @@ create table if not exists public.spouses (
   household_id uuid not null references public.households(id) on delete cascade,
   name text not null,
   inputs jsonb not null default '{}'::jsonb,
+  assigned_user_id uuid references auth.users(id),
   created_at timestamptz not null default now()
 );
 

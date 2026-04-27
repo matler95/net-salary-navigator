@@ -368,6 +368,7 @@ function mapSpouseToRow(householdId: string, spouse: Spouse) {
     household_id: householdId,
     name: spouse.name,
     inputs: spouse.inputs,
+    assigned_user_id: spouse.assignedUserId ?? null,
   };
 }
 function mapSpouseFromRow(row: unknown): Spouse {
@@ -376,6 +377,7 @@ function mapSpouseFromRow(row: unknown): Spouse {
     id: String(r.id ?? ""),
     name: String(r.name ?? "Małżonek"),
     inputs: { ...DEFAULT_SALARY_INPUTS, ...asRecord(r.inputs) },
+    assignedUserId: r.assigned_user_id ? String(r.assigned_user_id) : undefined,
   };
 }
 function mapExpenseToRow(householdId: string, x: Expense) {

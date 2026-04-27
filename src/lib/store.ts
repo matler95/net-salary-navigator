@@ -32,6 +32,7 @@ export type Spouse = {
   id: string;
   name: string;
   inputs: SalaryInputs;
+  assignedUserId?: string;
 };
 
 export type Expense = {
@@ -170,6 +171,7 @@ function loadInitial(): AppState {
         ? parsed.spouses.map((s) => ({
             ...s,
             inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
+            assignedUserId: s.assignedUserId,
           }))
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses

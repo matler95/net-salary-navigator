@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState } from "@/lib/store";
 import { SpousePanel } from "@/components/SpousePanel";
@@ -5,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw } from "lucide-react";
 import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
+import { loadHouseholdMembers } from "@/lib/repository";
+import { getActiveHouseholdId } from "@/lib/store";
+import { useAuthSession } from "@/lib/auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +37,32 @@ function SalariesPage() {
   const spouses = useAppState((s) => s.spouses);
   const jointFiling = useAppState((s) => s.jointFiling);
   const globalSettings = useAppState((s) => s.globalSettings);
+  const { session } = useAuthSession();
+  const [members, setMembers] = useState<{ user_id: string; role: string; label: string }[]>([]);
+  const householdId = getActiveHouseholdId();
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      if (!session?.user.id || !householdId) {
+        setMembers([]);
+        return;
+      }
+      const loaded = await loadHouseholdMembers(householdId);
+      setMembers(
+        loaded.map((member, index) => ({
+          ...member,
+          label:
+            member.user_id === session.user.id
+              ? "Ty"
+              : member.role === "owner"
+              ? `Właściciel (${member.user_id.slice(0, 8)})`
+              : `Członek ${index + 1} (${member.user_id.slice(0, 8)})`,
+        })),
+      );
+    };
+
+    void loadMembers();
+  }, [session, householdId]);
 
   // Household summary calculations
   const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
@@ -95,7 +125,7 @@ function SalariesPage() {
 
       <div className="grid xl:grid-cols-2 gap-6">
         {spouses.map((s) => (
-          <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} />
+          <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} memberOptions={members} />
         ))}
       </div>
 

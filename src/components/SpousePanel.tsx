@@ -116,7 +116,15 @@ function ToggleRow({
   );
 }
 
-export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: boolean }) {
+export function SpousePanel({
+  spouse,
+  canDelete,
+  memberOptions,
+}: {
+  spouse: Spouse;
+  canDelete: boolean;
+  memberOptions?: { user_id: string; label: string }[];
+}) {
   const globalSettings = useAppState((s) => s.globalSettings);
   const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
@@ -165,6 +173,34 @@ export function SpousePanel({ spouse, canDelete }: { spouse: Spouse; canDelete: 
           </Button>
         )}
       </div>
+      {memberOptions && memberOptions.length > 0 ? (
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6 border-b border-border bg-muted/40">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            Przypisany użytkownik
+          </Label>
+          <Select
+            value={spouse.assignedUserId ?? ""}
+            onValueChange={(value) =>
+              actions.updateSpouse(spouse.id, {
+                assignedUserId: value || undefined,
+              })
+            }
+            className="mt-2"
+          >
+            <SelectTrigger className="h-11">
+              <SelectValue placeholder="Brak przypisania" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Brak przypisania</SelectItem>
+              {memberOptions.map((member) => (
+                <SelectItem key={member.user_id} value={member.user_id}>
+                  {member.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-6">
         {/* Inputs */}

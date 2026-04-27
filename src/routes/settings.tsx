@@ -24,6 +24,8 @@ function SettingsPage() {
   const globalSettings = useAppState((s) => s.globalSettings);
   const [email, setEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
+  const [inviteRecipient, setInviteRecipient] = useState("");
+  const [shareSupported, setShareSupported] = useState(false);
   const [status, setStatus] = useState<{ msg: string; type: "error" | "success" | "info" } | null>(
     null,
   );
@@ -51,6 +53,10 @@ function SettingsPage() {
   }, [session]);
 
   useEffect(() => {
+    setShareSupported(typeof navigator !== "undefined" && typeof navigator.share === "function");
+  }, []);
+
+  useEffect(() => {
     const handleMetaChange = () => {
       void refreshHouseholdInfo();
     };
@@ -73,15 +79,17 @@ function SettingsPage() {
 
   async function handleCreateInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) {
+    const recipient = email.trim();
+    if (!recipient) {
       setStatus({ msg: "Podaj adres email.", type: "error" });
       return;
     }
     setLoading(true);
     setStatus(null);
     setInviteLink("");
+    setInviteRecipient("");
     try {
-      const link = await createInvite(email.trim());
+      const link = await createInvite(recipient);
       if (!link) {
         setStatus({
           msg: "Nie udało się utworzyć zaproszenia. Upewnij się, że jesteś zalogowany i spróbuj ponownie.",
@@ -90,8 +98,9 @@ function SettingsPage() {
         return;
       }
       setInviteLink(link);
+      setInviteRecipient(recipient);
       setStatus({
-        msg: "Zaproszenie utworzone. Skopiuj link poniżej i wyślij go zapraszanej osobie.",
+        msg: "Zaproszenie utworzone. Udostępnij link poniżej lub wyślij je bezpośrednio na email zapraszanej osoby.",
         type: "success",
       });
       setEmail("");
@@ -101,6 +110,39 @@ function SettingsPage() {
       setStatus({ msg, type: "error" });
     } finally {
       setLoading(false);
+    }
+  }
+
+  function buildMailtoLink() {
+    if (!inviteRecipient || !inviteLink) return "";
+    const subject = "Zaproszenie do Net Salary Navigator";
+    const body = `Cześć,
+
+Zostałeś zaproszony do wspólnego gospodarstwa w aplikacji Net Salary Navigator.
+Kliknij ten link, aby dołączyć:
+
+${inviteLink}
+
+Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
+    return `mailto:${encodeURIComponent(inviteRecipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  async function handleSendEmail() {
+    const href = buildMailtoLink();
+    if (!href) return;
+    window.location.href = href;
+  }
+
+  async function handleShare() {
+    if (!inviteLink || !shareSupported) return;
+    try {
+      await navigator.share({
+        title: "Zaproszenie do Net Salary Navigator",
+        text: "Dołącz do wspólnego gospodarstwa:",
+        url: inviteLink,
+      });
+    } catch {
+      setStatus({ msg: "Udostępnianie nie powiodło się. Spróbuj skopiować link ręcznie.", type: "error" });
     }
   }
 
@@ -192,19 +234,42 @@ function SettingsPage() {
         </Button>
 
         {!!inviteLink && (
-          <div className="space-y-1">
+          <div className="space-y-3">
             <p className="text-xs text-muted-foreground">Link zaproszenia:</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input value={inviteLink} readOnly className="font-mono text-xs" />
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0"
-                onClick={() => void handleCopy()}
-              >
-                {copied ? "Skopiowano ✓" : "Kopiuj"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => void handleCopy()}
+                >
+                  {copied ? "Skopiowano ✓" : "Kopiuj"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => void handleSendEmail()}
+                >
+                  Wyślij email
+                </Button>
+                {shareSupported ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => void handleShare()}
+                  >
+                    Udostępnij
+                  </Button>
+                ) : null}
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Możesz wysłać zaproszenie bezpośrednio na email zaproszonej osoby lub skopiować link i wkleić go w dowolnym komunikatorze.
+            </p>
           </div>
         )}
 
