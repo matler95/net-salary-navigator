@@ -382,8 +382,13 @@ export async function createInvite(email: string): Promise<string | null> {
 }
 
 export async function acceptInvite(token: string, session: Session): Promise<boolean> {
-  const ok = await acceptHouseholdInvite(token, session);
-  if (!ok) return false;
+  const householdId = await acceptHouseholdInvite(token, session);
+  if (!householdId) return false;
+  activeHouseholdId = householdId;
+  cloudSyncEnabled = true;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
+  }
   await initCloudSync(session);
   return true;
 }
