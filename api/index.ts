@@ -2,8 +2,11 @@
 import server from '../dist/server/server.js';
 
 export default async function handler(request: Request) {
+  console.log(`SSR handling request: ${request.url}`);
   try {
-    return await server.fetch(request);
+    const response = await server.fetch(request);
+    console.log(`SSR response status: ${response.status}`);
+    return response;
   } catch (error: any) {
     console.error('SSR Error:', error);
     return new Response(
