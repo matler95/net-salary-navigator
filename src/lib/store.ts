@@ -197,7 +197,7 @@ let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress = false;
 
 function loadInitial(): AppState {
-  if (typeof window === "undefined") return DEFAULT_STATE;
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return DEFAULT_STATE;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
