@@ -6,8 +6,8 @@ alter table public.households add column if not exists global_settings jsonb not
 alter table public.expenses add column if not exists month integer;
 
 -- Add missing columns to loans table
-alter table public.loans add column if not exists "paymentDayOfMonth" integer;
-alter table public.loans add column if not exists "lastPaymentDate" text;
+alter table public.loans add column if not exists payment_day_of_month integer;
+alter table public.loans add column if not exists last_payment_date text;
 
 -- Create or update savings table with all required columns
 create table if not exists public.savings (
@@ -16,10 +16,10 @@ create table if not exists public.savings (
   bank text not null,
   type text not null default 'zwykłe',
   balance numeric not null default 0,
-  ratePct numeric not null default 0,
-  "lokataStartDate" text,
-  "lokataDurationMonths" integer,
-  "lokataCapitalization" text,
+  rate_pct numeric not null default 0,
+  lokata_start_date text,
+  lokata_duration_months integer,
+  lokata_capitalization text,
   created_at timestamptz not null default now()
 );
 

@@ -48,10 +48,10 @@ create table if not exists public.investments (
   currency text not null default 'PLN',
   ticker text,
   volume numeric not null default 0,
-  tickerPriceAtAdd numeric not null default 0,
-  tickerPriceDate text,
+  ticker_price_at_add numeric not null default 0,
+  ticker_price_date text,
   value numeric not null default 0,
-  monthlyContribution numeric not null default 0,
+  monthly_contribution numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -60,9 +60,9 @@ create table if not exists public.loans (
   household_id uuid not null references public.households(id) on delete cascade,
   label text not null,
   principal numeric not null default 0,
-  annualRatePct numeric not null default 0,
-  monthsRemaining integer not null default 0,
-  monthlyOverpayment numeric not null default 0,
+  annual_rate_pct numeric not null default 0,
+  months_remaining integer not null default 0,
+  monthly_overpayment numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -70,12 +70,12 @@ create table if not exists public.rentals (
   id text primary key,
   household_id uuid not null references public.households(id) on delete cascade,
   label text not null,
-  monthlyRent numeric not null default 0,
-  monthlyCosts numeric not null default 0,
-  monthlyMortgage numeric not null default 0,
-  vacancyRatePct numeric not null default 0,
-  taxRatePct numeric not null default 8.5,
-  marketValue numeric not null default 0,
+  monthly_rent numeric not null default 0,
+  monthly_costs numeric not null default 0,
+  monthly_mortgage numeric not null default 0,
+  vacancy_rate_pct numeric not null default 0,
+  tax_rate_pct numeric not null default 8.5,
+  market_value numeric not null default 0,
   created_at timestamptz not null default now()
 );
 

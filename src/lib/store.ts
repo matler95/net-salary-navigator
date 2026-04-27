@@ -14,9 +14,19 @@ import {
   ensureHouseholdForSession,
   loadHouseholdState,
   saveHouseholdState,
+  verifyHouseholdMembership,
 } from "./repository";
 import { migrateLocalToCloudOnce } from "./migration";
 import { getSupabase } from "./supabase";
+
+// Simple debounce utility
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout | null = null;
+  return ((...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  }) as T;
+}
 
 export type Spouse = {
   id: string;
@@ -135,6 +145,9 @@ let syncInProgress = false;
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 
+// Debounced version of syncFromCloud to prevent rapid calls from realtime subscriptions
+const debouncedSyncFromCloud = debounce(syncFromCloud, 500);
+
 function mergeGlobalSettings(next?: Partial<GlobalSettings>): GlobalSettings {
   if (!next) return state.globalSettings;
   return {
@@ -225,6 +238,10 @@ export async function initCloudSync(session: Session | null) {
       cloudRealtimeUnsubscribe();
       cloudRealtimeUnsubscribe = null;
     }
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
     return;
   }
   // Prevent concurrent initialisations from racing
@@ -260,11 +277,45 @@ export async function initCloudSync(session: Session | null) {
       cloudRealtimeUnsubscribe();
       cloudRealtimeUnsubscribe = null;
     }
-    cloudRealtimeUnsubscribe = await subscribeToCloudChanges(household.householdId);
+    try {
+      cloudRealtimeUnsubscribe = await subscribeToCloudChanges(household.householdId);
+      if (!cloudRealtimeUnsubscribe) {
+        console.error("Failed to establish realtime subscription, sync may be delayed");
+      }
+    } catch (error) {
+      console.error("Error subscribing to cloud changes:", error);
+      // Realtime is optional - regular scheduled sync will still work
+    }
     listeners.forEach((l) => l());
   } finally {
     syncInProgress = false;
   }
+}
+
+// Re-verify household membership periodically and on sync
+async function verifyAndRestoreHouseholdAccess(): Promise<boolean> {
+  if (!activeHouseholdId) return false;
+
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { data: session, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session.session?.user.id) return false;
+
+  const isMember = await verifyHouseholdMembership(activeHouseholdId, session.session.user.id);
+  if (!isMember) {
+    console.warn(`User no longer member of household ${activeHouseholdId}, clearing sync`);
+    cloudSyncEnabled = false;
+    activeHouseholdId = null;
+    cloudSyncInitialized = false;
+    if (cloudRealtimeUnsubscribe) {
+      cloudRealtimeUnsubscribe();
+      cloudRealtimeUnsubscribe = null;
+    }
+    return false;
+  }
+
+  return true;
 }
 
 export async function createInvite(email: string): Promise<string | null> {
@@ -313,6 +364,10 @@ let lastCloudSyncTime = 0;
 export async function syncFromCloud() {
   if (!activeHouseholdId || syncInProgress) return;
   
+  // Verify membership before syncing
+  const membershipOk = await verifyAndRestoreHouseholdAccess();
+  if (!membershipOk) return;
+
   // Debounce cloud fetches to once every 2 seconds
   const now = Date.now();
   if (now - lastCloudSyncTime < 2000) return;
@@ -347,26 +402,38 @@ export async function syncFromCloud() {
 
 async function subscribeToCloudChanges(householdId: string) {
   const supabase = await getSupabase();
-  if (!supabase) return;
+  if (!supabase) return null;
 
-  // Subscribe to all relevant tables for this household
-  const channel = supabase.channel(`household:${householdId}`);
-  
-  channel
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'spouses', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'loans', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'savings', filter: `household_id=eq.${householdId}` }, syncFromCloud)
-    .subscribe((status) => {
-      console.log(`Supabase Realtime status for household ${householdId}:`, status);
-    });
+  try {
+    // Subscribe to all relevant tables for this household
+    const channel = supabase.channel(`household:${householdId}`);
     
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'spouses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings', filter: `household_id=eq.${householdId}` }, debouncedSyncFromCloud)
+      .subscribe((status, err) => {
+        console.log(`Supabase Realtime status for household ${householdId}:`, status);
+        if (err) {
+          console.error(`Realtime subscription error for household ${householdId}:`, err);
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error(`Realtime channel failed for household ${householdId}, status: ${status}`);
+          // Could implement retry logic here
+        }
+      });
+      
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  } catch (error) {
+    console.error(`Failed to subscribe to cloud changes for household ${householdId}:`, error);
+    return null;
+  }
 }
 
 async function ensureCloudSyncContext(): Promise<boolean> {

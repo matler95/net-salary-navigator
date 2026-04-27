@@ -12,6 +12,23 @@ type HouseholdRow = { id: string };
 type MembershipRow = { household_id: string; user_id: string; created_at?: string };
 type InviteRow = { id: string; household_id: string; email: string; token: string };
 
+export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("household_members")
+    .select("household_id")
+    .eq("household_id", householdId)
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+  return true;
+}
+
 export async function ensureHouseholdForSession(
   session: Session,
   preferredHouseholdId?: string | null,
@@ -230,27 +247,46 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
 async function replaceRows(table: string, householdId: string, rows: Record<string, unknown>[]) {
   const supabase = await getSupabase();
   if (!supabase) return;
-  
-  const { error: deleteError } = await supabase.from(table).delete().eq("household_id", householdId);
-  if (deleteError) {
-    console.error(`Error deleting from ${table}:`, deleteError);
-    throw deleteError;
-  }
-  
-  if (rows.length === 0) return;
-  
-  const { error: insertError } = await supabase.from(table).insert(rows);
-  if (insertError) {
-    console.error(`Error inserting into ${table}:`, insertError);
-    throw insertError;
-  }
-}
 
-function getField(record: Record<string, unknown>, ...keys: string[]) {
-  for (const key of keys) {
-    if (key in record) return record[key];
+  // Backup existing data first
+  const { data: backupData, error: backupError } = await supabase
+    .from(table)
+    .select('*')
+    .eq("household_id", householdId);
+
+  if (backupError) {
+    console.error(`Error backing up ${table}:`, backupError);
+    throw backupError;
   }
-  return undefined;
+
+  try {
+    // Delete existing data
+    const { error: deleteError } = await supabase.from(table).delete().eq("household_id", householdId);
+    if (deleteError) {
+      console.error(`Error deleting from ${table}:`, deleteError);
+      throw deleteError;
+    }
+
+    if (rows.length === 0) return;
+
+    // Insert new data
+    const { error: insertError } = await supabase.from(table).insert(rows);
+    if (insertError) {
+      console.error(`Error inserting into ${table}:`, insertError);
+      throw insertError;
+    }
+  } catch (error) {
+    // Restore backup if operation failed
+    if (backupData && backupData.length > 0) {
+      console.log(`Restoring backup for ${table} due to error:`, error);
+      const { error: restoreError } = await supabase.from(table).insert(backupData);
+      if (restoreError) {
+        console.error(`Critical: Failed to restore backup for ${table}:`, restoreError);
+        // This is a critical failure - data might be lost
+      }
+    }
+    throw error;
+  }
 }
 
 function mapSpouseToRow(householdId: string, spouse: Spouse) {
@@ -292,10 +328,10 @@ function mapInvestmentToRow(householdId: string, x: Investment) {
     currency: x.currency,
     ticker: x.ticker,
     volume: x.volume,
-    tickerpriceatadd: x.tickerPriceAtAdd,
-    tickerpricedate: x.tickerPriceDate,
+    ticker_price_at_add: x.tickerPriceAtAdd,
+    ticker_price_date: x.tickerPriceDate,
     value: x.value,
-    monthlycontribution: x.monthlyContribution,
+    monthly_contribution: x.monthlyContribution,
   };
 }
 function mapInvestmentFromRow(row: unknown): Investment {
@@ -307,10 +343,10 @@ function mapInvestmentFromRow(row: unknown): Investment {
     currency: (r.currency as Investment["currency"]) ?? "PLN",
     ticker: String(r.ticker ?? ""),
     volume: Number(r.volume ?? 0),
-    tickerPriceAtAdd: Number(getField(r, "tickerPriceAtAdd", "tickerpriceatadd") ?? 0),
-    tickerPriceDate: String(getField(r, "tickerPriceDate", "tickerpricedate") ?? ""),
+    tickerPriceAtAdd: Number(r.ticker_price_at_add ?? 0),
+    tickerPriceDate: String(r.ticker_price_date ?? ""),
     value: Number(r.value ?? 0),
-    monthlyContribution: Number(getField(r, "monthlyContribution", "monthlycontribution") ?? 0),
+    monthlyContribution: Number(r.monthly_contribution ?? 0),
   };
 }
 function mapLoanToRow(householdId: string, x: Loan) {
@@ -319,11 +355,11 @@ function mapLoanToRow(householdId: string, x: Loan) {
     household_id: householdId,
     label: x.label,
     principal: x.principal,
-    annualratepct: x.annualRatePct,
-    monthsremaining: x.monthsRemaining,
-    monthlyoverpayment: x.monthlyOverpayment,
-    paymentDayOfMonth: x.paymentDayOfMonth,
-    lastPaymentDate: x.lastPaymentDate,
+    annual_rate_pct: x.annualRatePct,
+    months_remaining: x.monthsRemaining,
+    monthly_overpayment: x.monthlyOverpayment,
+    payment_day_of_month: x.paymentDayOfMonth,
+    last_payment_date: x.lastPaymentDate,
   };
 }
 function mapLoanFromRow(row: unknown): Loan {
@@ -332,15 +368,11 @@ function mapLoanFromRow(row: unknown): Loan {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
     principal: Number(r.principal ?? 0),
-    annualRatePct: Number(getField(r, "annualRatePct", "annualratepct") ?? 0),
-    monthsRemaining: Number(getField(r, "monthsRemaining", "monthsremaining") ?? 0),
-    monthlyOverpayment: Number(getField(r, "monthlyOverpayment", "monthlyoverpayment") ?? 0),
-    paymentDayOfMonth: getField(r, "paymentDayOfMonth", "paymentdayofmonth")
-      ? Number(getField(r, "paymentDayOfMonth", "paymentdayofmonth"))
-      : undefined,
-    lastPaymentDate: getField(r, "lastPaymentDate", "lastpaymentdate")
-      ? String(getField(r, "lastPaymentDate", "lastpaymentdate"))
-      : undefined,
+    annualRatePct: Number(r.annual_rate_pct ?? 0),
+    monthsRemaining: Number(r.months_remaining ?? 0),
+    monthlyOverpayment: Number(r.monthly_overpayment ?? 0),
+    paymentDayOfMonth: r.payment_day_of_month ? Number(r.payment_day_of_month) : undefined,
+    lastPaymentDate: r.last_payment_date ? String(r.last_payment_date) : undefined,
   };
 }
 function mapRentalToRow(householdId: string, x: Rental) {
@@ -348,12 +380,12 @@ function mapRentalToRow(householdId: string, x: Rental) {
     id: x.id,
     household_id: householdId,
     label: x.label,
-    monthlyrent: x.monthlyRent,
-    monthlycosts: x.monthlyCosts,
-    monthlymortgage: x.monthlyMortgage,
-    vacancyratepct: x.vacancyRatePct,
-    taxratepct: x.taxRatePct,
-    marketvalue: x.marketValue,
+    monthly_rent: x.monthlyRent,
+    monthly_costs: x.monthlyCosts,
+    monthly_mortgage: x.monthlyMortgage,
+    vacancy_rate_pct: x.vacancyRatePct,
+    tax_rate_pct: x.taxRatePct,
+    market_value: x.marketValue,
   };
 }
 function mapRentalFromRow(row: unknown): Rental {
@@ -361,12 +393,12 @@ function mapRentalFromRow(row: unknown): Rental {
   return {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
-    monthlyRent: Number(getField(r, "monthlyRent", "monthlyrent") ?? 0),
-    monthlyCosts: Number(getField(r, "monthlyCosts", "monthlycosts") ?? 0),
-    monthlyMortgage: Number(getField(r, "monthlyMortgage", "monthlymortgage") ?? 0),
-    vacancyRatePct: Number(getField(r, "vacancyRatePct", "vacancyratepct") ?? 0),
-    taxRatePct: Number(getField(r, "taxRatePct", "taxratepct") ?? 8.5),
-    marketValue: Number(getField(r, "marketValue", "marketvalue") ?? 0),
+    monthlyRent: Number(r.monthly_rent ?? 0),
+    monthlyCosts: Number(r.monthly_costs ?? 0),
+    monthlyMortgage: Number(r.monthly_mortgage ?? 0),
+    vacancyRatePct: Number(r.vacancy_rate_pct ?? 0),
+    taxRatePct: Number(r.tax_rate_pct ?? 8.5),
+    marketValue: Number(r.market_value ?? 0),
   };
 }
 function mapSavingsToRow(householdId: string, account: AppState["savings"][number]) {
@@ -376,10 +408,10 @@ function mapSavingsToRow(householdId: string, account: AppState["savings"][numbe
     bank: account.bank,
     type: account.type,
     balance: account.balance,
-    ratepct: account.ratePct,
-    lokataStartDate: account.lokataStartDate,
-    lokataDurationMonths: account.lokataDurationMonths,
-    lokataCapitalization: account.lokataCapitalization,
+    rate_pct: account.ratePct,
+    lokata_start_date: account.lokataStartDate,
+    lokata_duration_months: account.lokataDurationMonths,
+    lokata_capitalization: account.lokataCapitalization,
   };
 }
 
@@ -390,16 +422,10 @@ function mapSavingsFromRow(row: unknown): AppState["savings"][number] {
     bank: String(r.bank ?? ""),
     type: String(r.type ?? "zwykłe"),
     balance: Number(r.balance ?? 0),
-    ratePct: Number(getField(r, "ratePct", "ratepct") ?? 0),
-    lokataStartDate: getField(r, "lokataStartDate", "lokatastartdate")
-      ? String(getField(r, "lokataStartDate", "lokatastartdate"))
-      : undefined,
-    lokataDurationMonths: getField(r, "lokataDurationMonths", "lokatadurationmonths")
-      ? Number(getField(r, "lokataDurationMonths", "lokatadurationmonths"))
-      : undefined,
-    lokataCapitalization: getField(r, "lokataCapitalization", "lokatacapitalization")
-      ? String(getField(r, "lokataCapitalization", "lokatacapitalization"))
-      : undefined,
+    ratePct: Number(r.rate_pct ?? 0),
+    lokataStartDate: r.lokata_start_date ? String(r.lokata_start_date) : undefined,
+    lokataDurationMonths: r.lokata_duration_months ? Number(r.lokata_duration_months) : undefined,
+    lokataCapitalization: r.lokata_capitalization ? String(r.lokata_capitalization) : undefined,
   };
 }
 

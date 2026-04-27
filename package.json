@@ -10,7 +10,15 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:reset": "echo '⚠️  For remote databases, use db:push to apply migrations. For local dev, ensure Docker is running.' && exit 1",
+    "db:push": "supabase db push",
+    "db:migrate": "supabase db push",
+    "db:status": "supabase db diff --schema public",
+    "db:generate": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "db:check": "node check-db.js",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -81,6 +89,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "prettier": "^3.7.3",
+    "supabase": "^2.95.5",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
