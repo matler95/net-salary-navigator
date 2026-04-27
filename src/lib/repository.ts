@@ -1,7 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import type { AppState, Expense, Investment, Loan, Rental, Spouse } from "./store";
 import { DEFAULT_SALARY_INPUTS } from "./salary";
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export type HouseholdContext = {
   householdId: string;
@@ -15,6 +15,7 @@ type InviteRow = { id: string; household_id: string; email: string; token: strin
 export async function ensureHouseholdForSession(
   session: Session,
 ): Promise<HouseholdContext | null> {
+  const supabase = await getSupabase();
   if (!supabase) return null;
   const userId = session.user.id;
   const { data: membership } = await supabase
@@ -44,6 +45,7 @@ export async function ensureHouseholdForSession(
 }
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
+  const supabase = await getSupabase();
   if (!supabase) return {};
   const [spouses, expenses, investments, loans, rentals, savings, household] = await Promise.all([
     supabase.from("spouses").select("*").eq("household_id", householdId),
@@ -68,6 +70,7 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
 }
 
 export async function saveHouseholdState(householdId: string, state: AppState): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) return;
   await Promise.all([
     replaceRows(
@@ -111,6 +114,7 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
 }
 
 export async function createHouseholdInvite(householdId: string, email: string) {
+  const supabase = await getSupabase();
   if (!supabase) return null;
   const token = crypto.randomUUID();
   const { data, error } = await supabase
@@ -127,6 +131,7 @@ export async function createHouseholdInvite(householdId: string, email: string) 
 }
 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<boolean> {
+  const supabase = await getSupabase();
   if (!supabase) return false;
   const { data: invite, error: inviteError } = await supabase
     .from("household_invites")
@@ -147,6 +152,7 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
 }
 
 async function replaceRows(table: string, householdId: string, rows: Record<string, unknown>[]) {
+  const supabase = await getSupabase();
   if (!supabase) return;
   await supabase.from(table).delete().eq("household_id", householdId);
   if (rows.length === 0) return;

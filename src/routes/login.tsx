@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { acceptInvite, initCloudSync } from "@/lib/store";
 import { useAuthSession } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = await getSupabase();
     if (!supabase) {
       setStatus({
         msg: "Brak konfiguracji Supabase (VITE_SUPABASE_URL / ANON_KEY).",
