@@ -318,8 +318,25 @@ export async function initCloudSync(session: Session | null) {
 }
 
 export async function createInvite(email: string): Promise<string | null> {
-  if (!activeHouseholdId) return null;
-  const invite = await createHouseholdInvite(activeHouseholdId, email);
+  let householdId = activeHouseholdId;
+
+  if (!householdId) {
+    const supabase = await getSupabase();
+    if (supabase) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const household = await ensureHouseholdForSession(data.session);
+        householdId = household?.householdId ?? null;
+        if (householdId) {
+          activeHouseholdId = householdId;
+          cloudSyncEnabled = true;
+        }
+      }
+    }
+  }
+
+  if (!householdId) return null;
+  const invite = await createHouseholdInvite(householdId, email);
   return invite?.token ? `${window.location.origin}/login?invite=${invite.token}` : null;
 }
 
