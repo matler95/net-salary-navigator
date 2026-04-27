@@ -288,6 +288,18 @@ export async function initCloudSync(session: Session | null) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, household.householdId);
     }
+
+    // Verify user is still a member of this household before proceeding
+    const isMember = await verifyHouseholdMembership(household.householdId, session.user.id);
+    if (!isMember) {
+      console.warn("User is no longer a member of household", household.householdId, "- clearing local state");
+      activeHouseholdId = null;
+      cloudSyncEnabled = false;
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(ACTIVE_HOUSEHOLD_KEY);
+      }
+      return;
+    }
     cloudSyncEnabled = true;
     await migrateLocalToCloudOnce(household.householdId, state);
     const cloudState = await loadHouseholdState(household.householdId);

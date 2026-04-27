@@ -52,6 +52,9 @@ function LoginPage() {
           if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
           await router.navigate({ to: "/" });
           return;
+        } else if (!cancelled && typeof window !== "undefined") {
+          // Clean up invalid/expired pending invite
+          window.localStorage.removeItem(PENDING_INVITE_KEY);
         }
       }
 

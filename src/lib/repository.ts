@@ -279,42 +279,20 @@ export async function createHouseholdInvite(householdId: string, email: string) 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<string | null> {
   const supabase = await getSupabase();
   if (!supabase) return null;
-  const { data: invite, error: inviteError } = (await supabase
-    .from("household_invites")
-    .select("id,household_id,email,token")
-    .eq("token", token)
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle()) as { data: InviteRow | null; error: any };
-  if (inviteError || !invite?.household_id) {
-    console.error("Error loading invite by token:", inviteError);
+
+  try {
+    const { data: householdId, error } = await supabase.rpc('accept_invite', {
+      invite_token: token,
+    });
+    if (error) {
+      console.error("Error accepting invite via RPC:", error);
+      return null;
+    }
+    return householdId;
+  } catch (err) {
+    console.error("Unexpected error accepting invite:", err);
     return null;
   }
-
-  const inviteEmail = invite.email.trim().toLowerCase();
-  const sessionEmail = (session.user.email ?? "").trim().toLowerCase();
-  if (!sessionEmail || inviteEmail !== sessionEmail) {
-    console.error("Invite email mismatch for current user.", { inviteEmail, sessionEmail });
-    return null;
-  }
-
-  const { error: memberError } = await supabase.from("household_members").insert({
-    household_id: invite.household_id,
-    user_id: session.user.id,
-    role: "member",
-  });
-  if (memberError && !memberError.message.toLowerCase().includes("duplicate")) {
-    console.error("Error adding invited user to household:", memberError);
-    return null;
-  }
-
-  const { error: deleteInviteError } = await supabase
-    .from("household_invites")
-    .delete()
-    .eq("id", invite.id);
-  if (deleteInviteError) {
-    console.error("Error deleting accepted invite:", deleteInviteError);
-  }
-  return invite.household_id;
 }
 
 async function replaceRows(table: string, householdId: string, rows: Record<string, unknown>[]) {

@@ -161,6 +161,39 @@ begin
 end;
 $$;
 
+-- Accept an invite atomically: validate, insert membership, delete invite
+create or replace function public.accept_invite(invite_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_household_id uuid;
+begin
+  -- Find valid invite for current user
+  select household_id into v_household_id
+  from public.household_invites
+  where token = invite_token
+    and expires_at > now()
+    and lower(email) = lower(auth.jwt()->>'email');
+
+  if v_household_id is null then
+    raise exception 'Invalid or expired invite';
+  end if;
+
+  -- Insert membership (on conflict do nothing to handle duplicates gracefully)
+  insert into public.household_members (household_id, user_id, role)
+  values (v_household_id, auth.uid(), 'member')
+  on conflict (household_id, user_id) do nothing;
+
+  -- Delete the invite
+  delete from public.household_invites where token = invite_token;
+
+  return v_household_id;
+end;
+$$;
+
 -- 5. SECURITY (RLS)
 alter table public.households enable row level security;
 alter table public.household_members enable row level security;
@@ -185,7 +218,7 @@ begin
     create policy member_read on public.household_members for select using (user_id = auth.uid() or public.is_household_member(household_id));
     
     drop policy if exists member_insert on public.household_members;
-    create policy member_insert on public.household_members for insert with check (public.is_household_member(household_id) or user_id = auth.uid());
+    create policy member_insert on public.household_members for insert with check (public.is_household_member(household_id));
     
     drop policy if exists member_delete on public.household_members;
     create policy member_delete on public.household_members for delete using (public.is_household_member(household_id) or user_id = auth.uid());
