@@ -28,20 +28,16 @@ export async function ensureHouseholdForSession(
     return { householdId: membership.household_id, userId };
   }
 
-  const { data: household, error: householdError } = (await supabase
-    .from("households")
-    .insert({ name: "Moje gospodarstwo" })
-    .select("id")
-    .single()) as { data: HouseholdRow | null; error: any };
-  if (householdError || !household?.id) return null;
-
-  const { error: memberError } = await supabase.from("household_members").insert({
-    household_id: household.id,
-    user_id: userId,
+  const { data: householdId, error: householdError } = await supabase.rpc("create_household", {
+    household_name: "Moje gospodarstwo",
   });
-  if (memberError) return null;
+  
+  if (householdError || !householdId) {
+    console.error("Error creating household via RPC:", householdError);
+    return null;
+  }
 
-  return { householdId: household.id, userId };
+  return { householdId, userId };
 }
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {

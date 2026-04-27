@@ -135,6 +135,29 @@ as $$
   );
 $$;
 
+-- Create a household and add the creator as a member in one go
+-- This bypasses the RLS issue where a user cannot select a household they just created
+-- because they aren't yet in the household_members table.
+create or replace function public.create_household(household_name text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_household_id uuid;
+begin
+  insert into public.households (name)
+  values (household_name)
+  returning id into new_household_id;
+
+  insert into public.household_members (household_id, user_id)
+  values (new_household_id, auth.uid());
+
+  return new_household_id;
+end;
+$$;
+
 -- 5. SECURITY (RLS)
 alter table public.households enable row level security;
 alter table public.household_members enable row level security;
