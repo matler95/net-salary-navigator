@@ -179,10 +179,10 @@ export function SpousePanel({
             Przypisany użytkownik
           </Label>
           <Select
-            value={spouse.assignedUserId ?? ""}
+            value={spouse.assignedUserId}
             onValueChange={(value) =>
               actions.updateSpouse(spouse.id, {
-                assignedUserId: value || undefined,
+                assignedUserId: value === "__unassigned" ? undefined : value,
               })
             }
             className="mt-2"
@@ -191,7 +191,7 @@ export function SpousePanel({
               <SelectValue placeholder="Brak przypisania" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Brak przypisania</SelectItem>
+              <SelectItem value="__unassigned">Brak przypisania</SelectItem>
               {memberOptions.map((member) => (
                 <SelectItem key={member.user_id} value={member.user_id}>
                   {member.label}

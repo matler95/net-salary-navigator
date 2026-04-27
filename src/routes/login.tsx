@@ -149,7 +149,7 @@ function LoginPage() {
         const signUpOptions = hasInvite && search.invite
           ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
           : undefined;
-        const { error } = await supabase.auth.signUp(
+        const { data: signUpData, error } = await supabase.auth.signUp(
           {
             email: email.trim(),
             password,
@@ -163,6 +163,11 @@ function LoginPage() {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
+          return;
+        }
+        if (signUpData?.session) {
+          await initCloudSync(signUpData.session);
+          await router.navigate({ to: "/" });
           return;
         }
         setStatus({
