@@ -1,7 +1,4 @@
-export const config = {
-  runtime: 'edge',
-};
-
+// @ts-ignore
 import server from '../dist/server/server.js';
 
 export default async function handler(request: Request) {
@@ -13,7 +10,10 @@ export default async function handler(request: Request) {
       process.env.NODE_ENV === 'development' 
         ? `SSR Error: ${error.message}\n${error.stack}` 
         : 'Internal Server Error',
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'text/plain' }
+      }
     );
   }
 }
