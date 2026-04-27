@@ -18,21 +18,21 @@ export async function ensureHouseholdForSession(
   const supabase = await getSupabase();
   if (!supabase) return null;
   const userId = session.user.id;
-  const { data: membership } = await supabase
+  const { data: membership } = (await supabase
     .from("household_members")
     .select("household_id,user_id")
     .eq("user_id", userId)
-    .maybeSingle<MembershipRow>();
+    .maybeSingle()) as { data: MembershipRow | null; error: any };
 
   if (membership?.household_id) {
     return { householdId: membership.household_id, userId };
   }
 
-  const { data: household, error: householdError } = await supabase
+  const { data: household, error: householdError } = (await supabase
     .from("households")
     .insert({ name: "Moje gospodarstwo" })
     .select("id")
-    .single<HouseholdRow>();
+    .single()) as { data: HouseholdRow | null; error: any };
   if (householdError || !household?.id) return null;
 
   const { error: memberError } = await supabase.from("household_members").insert({
@@ -45,6 +45,7 @@ export async function ensureHouseholdForSession(
 }
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
+  console.log(`Loading household state for: ${householdId}`);
   const supabase = await getSupabase();
   if (!supabase) return {};
   const [spouses, expenses, investments, loans, rentals, savings, household] = await Promise.all([
@@ -56,6 +57,10 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
     supabase.from("savings").select("*").eq("household_id", householdId),
     supabase.from("households").select("joint_filing, global_settings").eq("id", householdId).single(),
   ]);
+
+  if (household.error) {
+    console.error("Error loading household data:", household.error);
+  }
 
   return {
     spouses: (spouses.data ?? []).map(mapSpouseFromRow),
@@ -70,8 +75,12 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
 }
 
 export async function saveHouseholdState(householdId: string, state: AppState): Promise<void> {
+  console.log(`Saving household state for: ${householdId}`);
   const supabase = await getSupabase();
-  if (!supabase) return;
+  if (!supabase) {
+    console.warn("Cannot save: Supabase client not available");
+    return;
+  }
   await Promise.all([
     replaceRows(
       "spouses",
@@ -103,13 +112,19 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
       householdId,
       state.savings.map((x) => ({ ...x, household_id: householdId })),
     ),
-    supabase
-      .from("households")
-      .update({
-        joint_filing: state.jointFiling,
-        global_settings: state.globalSettings,
-      })
-      .eq("id", householdId),
+    (async () => {
+      const { error } = await supabase
+        .from("households")
+        .update({
+          joint_filing: state.jointFiling,
+          global_settings: state.globalSettings,
+        })
+        .eq("id", householdId);
+      if (error) {
+        console.error("Error updating household settings:", error);
+        throw error;
+      }
+    })(),
   ]);
 }
 
@@ -117,7 +132,7 @@ export async function createHouseholdInvite(householdId: string, email: string) 
   const supabase = await getSupabase();
   if (!supabase) return null;
   const token = crypto.randomUUID();
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from("household_invites")
     .insert({
       household_id: householdId,
@@ -125,7 +140,7 @@ export async function createHouseholdInvite(householdId: string, email: string) 
       token,
     })
     .select("id,household_id,email,token")
-    .single<InviteRow>();
+    .single()) as { data: InviteRow | null; error: any };
   if (error || !data) return null;
   return data;
 }
@@ -133,12 +148,12 @@ export async function createHouseholdInvite(householdId: string, email: string) 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<boolean> {
   const supabase = await getSupabase();
   if (!supabase) return false;
-  const { data: invite, error: inviteError } = await supabase
+  const { data: invite, error: inviteError } = (await supabase
     .from("household_invites")
     .select("id,household_id,email,token")
     .eq("token", token)
     .gt("expires_at", new Date().toISOString())
-    .maybeSingle<InviteRow>();
+    .maybeSingle()) as { data: InviteRow | null; error: any };
   if (inviteError || !invite?.household_id) return false;
 
   const { error: memberError } = await supabase.from("household_members").insert({
@@ -154,9 +169,20 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
 async function replaceRows(table: string, householdId: string, rows: Record<string, unknown>[]) {
   const supabase = await getSupabase();
   if (!supabase) return;
-  await supabase.from(table).delete().eq("household_id", householdId);
+  
+  const { error: deleteError } = await supabase.from(table).delete().eq("household_id", householdId);
+  if (deleteError) {
+    console.error(`Error deleting from ${table}:`, deleteError);
+    throw deleteError;
+  }
+  
   if (rows.length === 0) return;
-  await supabase.from(table).insert(rows);
+  
+  const { error: insertError } = await supabase.from(table).insert(rows);
+  if (insertError) {
+    console.error(`Error inserting into ${table}:`, insertError);
+    throw insertError;
+  }
 }
 
 function mapSpouseToRow(householdId: string, spouse: Spouse) {

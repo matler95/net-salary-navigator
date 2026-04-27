@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 console.log("SUPABASE MODULE LOADED");
-let supabaseInstance: any = null;
+let supabaseInstance: SupabaseClient | null = null;
 
 export async function getSupabase() {
   if (supabaseInstance) return supabaseInstance;
@@ -11,7 +13,10 @@ export async function getSupabase() {
     const supabaseUrl = (import.meta.env?.VITE_SUPABASE_URL as string) || "";
     const supabaseAnonKey = (import.meta.env?.VITE_SUPABASE_ANON_KEY as string) || "";
 
-    if (!supabaseUrl || !supabaseAnonKey) return null;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn("Supabase configuration missing (URL or Anon Key)");
+      return null;
+    }
 
     const { createClient } = await import("@supabase/supabase-js");
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);

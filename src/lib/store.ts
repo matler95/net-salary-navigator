@@ -319,9 +319,15 @@ export async function acceptInvite(token: string, session: Session): Promise<boo
 function scheduleCloudSync() {
   if (!cloudSyncEnabled || !activeHouseholdId) return;
   if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => {
+  syncTimer = setTimeout(async () => {
     if (!activeHouseholdId) return;
-    void saveHouseholdState(activeHouseholdId, state);
+    try {
+      console.log("Starting cloud sync...");
+      await saveHouseholdState(activeHouseholdId, state);
+      console.log("Cloud sync completed successfully");
+    } catch (error) {
+      console.error("Cloud sync failed:", error);
+    }
   }, 450);
 }
 
