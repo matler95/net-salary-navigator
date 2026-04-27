@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuthSession } from "@/lib/auth";
-import { initCloudSync } from "@/lib/store";
+import { initCloudSync, syncFromCloud } from "@/lib/store";
 import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
@@ -18,7 +18,18 @@ export function AppShell() {
   const { session, isAuthenticated } = useAuthSession();
 
   useEffect(() => {
-    if (session) void initCloudSync(session);
+    if (session) {
+      void initCloudSync(session);
+      
+      // Sync from cloud when window gains focus
+      const onFocus = () => {
+        console.log("Window focused, checking for cloud updates...");
+        void syncFromCloud();
+      };
+      
+      window.addEventListener("focus", onFocus);
+      return () => window.removeEventListener("focus", onFocus);
+    }
   }, [session]);
 
   return (

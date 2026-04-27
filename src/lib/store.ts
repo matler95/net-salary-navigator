@@ -16,6 +16,7 @@ import {
   saveHouseholdState,
 } from "./repository";
 import { migrateLocalToCloudOnce } from "./migration";
+import { getSupabase } from "./supabase";
 
 export type Spouse = {
   id: string;
@@ -195,6 +196,7 @@ let cloudSyncEnabled = false;
 let activeHouseholdId: string | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress = false;
+let cloudSyncInitialized = false;
 
 function loadInitial(): AppState {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return DEFAULT_STATE;
@@ -297,6 +299,8 @@ export async function initCloudSync(session: Session | null) {
       globalSettings: cloudState.globalSettings ?? state.globalSettings,
     };
     persist();
+    cloudSyncInitialized = true;
+    void subscribeToCloudChanges(household.householdId);
     listeners.forEach((l) => l());
   } finally {
     syncInProgress = false;
@@ -316,8 +320,61 @@ export async function acceptInvite(token: string, session: Session): Promise<boo
   return true;
 }
 
+let lastCloudSyncTime = 0;
+export async function syncFromCloud() {
+  if (!activeHouseholdId || syncInProgress) return;
+  // Debounce cloud fetches to once every 2 seconds
+  const now = Date.now();
+  if (now - lastCloudSyncTime < 2000) return;
+  lastCloudSyncTime = now;
+
+  console.log("Syncing from cloud due to external change...");
+  try {
+    const cloudState = await loadHouseholdState(activeHouseholdId);
+    state = {
+      ...state,
+      spouses: cloudState.spouses?.length ? cloudState.spouses : state.spouses,
+      expenses: cloudState.expenses ?? state.expenses,
+      investments: cloudState.investments ?? state.investments,
+      loans: cloudState.loans ?? state.loans,
+      rentals: cloudState.rentals ?? state.rentals,
+      savings: cloudState.savings ?? state.savings,
+      jointFiling: cloudState.jointFiling ?? state.jointFiling,
+      globalSettings: cloudState.globalSettings ?? state.globalSettings,
+    };
+    persist();
+    listeners.forEach((l) => l());
+  } catch (error) {
+    console.error("Failed to sync from cloud:", error);
+  }
+}
+
+async function subscribeToCloudChanges(householdId: string) {
+  const supabase = await getSupabase();
+  if (!supabase) return;
+
+  // Subscribe to all relevant tables for this household
+  const channel = supabase.channel(`household:${householdId}`);
+  
+  channel
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'households', filter: `id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'spouses', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'loans', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'savings', filter: `household_id=eq.${householdId}` }, syncFromCloud)
+    .subscribe((status) => {
+      console.log(`Supabase Realtime status for household ${householdId}:`, status);
+    });
+    
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 function scheduleCloudSync() {
-  if (!cloudSyncEnabled || !activeHouseholdId) return;
+  if (!cloudSyncEnabled || !activeHouseholdId || !cloudSyncInitialized) return;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
     if (!activeHouseholdId) return;

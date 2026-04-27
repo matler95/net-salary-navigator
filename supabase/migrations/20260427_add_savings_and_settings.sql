@@ -22,3 +22,12 @@ drop policy if exists savings_access on public.savings;
 create policy savings_access on public.savings
 for all using (public.is_household_member(household_id))
 with check (public.is_household_member(household_id));
+
+-- Enable Realtime for all data tables
+alter publication supabase_realtime add table public.households;
+alter publication supabase_realtime add table public.spouses;
+alter publication supabase_realtime add table public.expenses;
+alter publication supabase_realtime add table public.investments;
+alter publication supabase_realtime add table public.loans;
+alter publication supabase_realtime add table public.rentals;
+alter publication supabase_realtime add table public.savings;

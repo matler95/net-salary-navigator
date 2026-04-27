@@ -48,7 +48,8 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
   console.log(`Loading household state for: ${householdId}`);
   const supabase = await getSupabase();
   if (!supabase) return {};
-  const [spouses, expenses, investments, loans, rentals, savings, household] = await Promise.all([
+
+  const results = await Promise.all([
     supabase.from("spouses").select("*").eq("household_id", householdId),
     supabase.from("expenses").select("*").eq("household_id", householdId),
     supabase.from("investments").select("*").eq("household_id", householdId),
@@ -58,8 +59,13 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
     supabase.from("households").select("joint_filing, global_settings").eq("id", householdId).single(),
   ]);
 
-  if (household.error) {
-    console.error("Error loading household data:", household.error);
+  const [spouses, expenses, investments, loans, rentals, savings, household] = results;
+
+  // Check for errors in any of the requests
+  const errors = results.filter(r => r.error).map(r => r.error);
+  if (errors.length > 0) {
+    console.error("Errors loading household data:", errors);
+    throw new Error(`Failed to load household data: ${errors[0]?.message}`);
   }
 
   return {
