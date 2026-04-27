@@ -17,7 +17,6 @@ export async function migrateLocalToCloudOnce(householdId: string, localState: A
     (cloudState.loans?.length ?? 0) > 0 ||
     (cloudState.rentals?.length ?? 0) > 0 ||
     (cloudState.savings?.length ?? 0) > 0 ||
-    typeof cloudState.jointFiling === "boolean" ||
     (cloudState.globalSettings && Object.keys(cloudState.globalSettings).length > 0);
 
   if (!hasCloudData) {

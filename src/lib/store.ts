@@ -358,11 +358,21 @@ async function subscribeToCloudChanges(householdId: string) {
   };
 }
 
+async function ensureCloudSyncContext(): Promise<boolean> {
+  if (cloudSyncEnabled && activeHouseholdId && cloudSyncInitialized) return true;
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return false;
+  await initCloudSync(data.session);
+  return !!(cloudSyncEnabled && activeHouseholdId && cloudSyncInitialized);
+}
+
 function scheduleCloudSync() {
-  if (!cloudSyncEnabled || !activeHouseholdId || !cloudSyncInitialized) return;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
-    if (!activeHouseholdId) return;
+    const ready = await ensureCloudSyncContext();
+    if (!ready || !activeHouseholdId) return;
     try {
       console.log("Starting cloud sync...");
       await saveHouseholdState(activeHouseholdId, state);
