@@ -197,6 +197,7 @@ let activeHouseholdId: string | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress = false;
 let cloudSyncInitialized = false;
+let cloudRealtimeUnsubscribe: (() => void) | null = null;
 
 function loadInitial(): AppState {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return DEFAULT_STATE;
@@ -274,6 +275,11 @@ export async function initCloudSync(session: Session | null) {
   if (!session) {
     cloudSyncEnabled = false;
     activeHouseholdId = null;
+    cloudSyncInitialized = false;
+    if (cloudRealtimeUnsubscribe) {
+      cloudRealtimeUnsubscribe();
+      cloudRealtimeUnsubscribe = null;
+    }
     return;
   }
   // Prevent concurrent initialisations from racing
@@ -300,7 +306,11 @@ export async function initCloudSync(session: Session | null) {
     };
     persist();
     cloudSyncInitialized = true;
-    void subscribeToCloudChanges(household.householdId);
+    if (cloudRealtimeUnsubscribe) {
+      cloudRealtimeUnsubscribe();
+      cloudRealtimeUnsubscribe = null;
+    }
+    cloudRealtimeUnsubscribe = await subscribeToCloudChanges(household.householdId);
     listeners.forEach((l) => l());
   } finally {
     syncInProgress = false;

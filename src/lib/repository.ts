@@ -112,7 +112,7 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
     replaceRows(
       "savings",
       householdId,
-      state.savings.map((x) => ({ ...x, household_id: householdId })),
+      state.savings.map((x) => mapSavingsToRow(householdId, x)),
     ),
     (async () => {
       const { error } = await supabase
@@ -187,6 +187,13 @@ async function replaceRows(table: string, householdId: string, rows: Record<stri
   }
 }
 
+function getField(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    if (key in record) return record[key];
+  }
+  return undefined;
+}
+
 function mapSpouseToRow(householdId: string, spouse: Spouse) {
   return {
     id: spouse.id,
@@ -218,7 +225,19 @@ function mapExpenseFromRow(row: unknown): Expense {
   };
 }
 function mapInvestmentToRow(householdId: string, x: Investment) {
-  return { ...x, household_id: householdId };
+  return {
+    id: x.id,
+    household_id: householdId,
+    label: x.label,
+    type: x.type,
+    currency: x.currency,
+    ticker: x.ticker,
+    volume: x.volume,
+    tickerpriceatadd: x.tickerPriceAtAdd,
+    tickerpricedate: x.tickerPriceDate,
+    value: x.value,
+    monthlycontribution: x.monthlyContribution,
+  };
 }
 function mapInvestmentFromRow(row: unknown): Investment {
   const r = asRecord(row);
@@ -229,14 +248,24 @@ function mapInvestmentFromRow(row: unknown): Investment {
     currency: (r.currency as Investment["currency"]) ?? "PLN",
     ticker: String(r.ticker ?? ""),
     volume: Number(r.volume ?? 0),
-    tickerPriceAtAdd: Number(r.tickerPriceAtAdd ?? 0),
-    tickerPriceDate: String(r.tickerPriceDate ?? ""),
+    tickerPriceAtAdd: Number(getField(r, "tickerPriceAtAdd", "tickerpriceatadd") ?? 0),
+    tickerPriceDate: String(getField(r, "tickerPriceDate", "tickerpricedate") ?? ""),
     value: Number(r.value ?? 0),
-    monthlyContribution: Number(r.monthlyContribution ?? 0),
+    monthlyContribution: Number(getField(r, "monthlyContribution", "monthlycontribution") ?? 0),
   };
 }
 function mapLoanToRow(householdId: string, x: Loan) {
-  return { ...x, household_id: householdId };
+  return {
+    id: x.id,
+    household_id: householdId,
+    label: x.label,
+    principal: x.principal,
+    annualratepct: x.annualRatePct,
+    monthsremaining: x.monthsRemaining,
+    monthlyoverpayment: x.monthlyOverpayment,
+    paymentDayOfMonth: x.paymentDayOfMonth,
+    lastPaymentDate: x.lastPaymentDate,
+  };
 }
 function mapLoanFromRow(row: unknown): Loan {
   const r = asRecord(row);
@@ -244,40 +273,74 @@ function mapLoanFromRow(row: unknown): Loan {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
     principal: Number(r.principal ?? 0),
-    annualRatePct: Number(r.annualRatePct ?? 0),
-    monthsRemaining: Number(r.monthsRemaining ?? 0),
-    monthlyOverpayment: Number(r.monthlyOverpayment ?? 0),
-    paymentDayOfMonth: r.paymentDayOfMonth ? Number(r.paymentDayOfMonth) : undefined,
-    lastPaymentDate: r.lastPaymentDate ? String(r.lastPaymentDate) : undefined,
+    annualRatePct: Number(getField(r, "annualRatePct", "annualratepct") ?? 0),
+    monthsRemaining: Number(getField(r, "monthsRemaining", "monthsremaining") ?? 0),
+    monthlyOverpayment: Number(getField(r, "monthlyOverpayment", "monthlyoverpayment") ?? 0),
+    paymentDayOfMonth: getField(r, "paymentDayOfMonth", "paymentdayofmonth")
+      ? Number(getField(r, "paymentDayOfMonth", "paymentdayofmonth"))
+      : undefined,
+    lastPaymentDate: getField(r, "lastPaymentDate", "lastpaymentdate")
+      ? String(getField(r, "lastPaymentDate", "lastpaymentdate"))
+      : undefined,
   };
 }
 function mapRentalToRow(householdId: string, x: Rental) {
-  return { ...x, household_id: householdId };
+  return {
+    id: x.id,
+    household_id: householdId,
+    label: x.label,
+    monthlyrent: x.monthlyRent,
+    monthlycosts: x.monthlyCosts,
+    monthlymortgage: x.monthlyMortgage,
+    vacancyratepct: x.vacancyRatePct,
+    taxratepct: x.taxRatePct,
+    marketvalue: x.marketValue,
+  };
 }
 function mapRentalFromRow(row: unknown): Rental {
   const r = asRecord(row);
   return {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
-    monthlyRent: Number(r.monthlyRent ?? 0),
-    monthlyCosts: Number(r.monthlyCosts ?? 0),
-    monthlyMortgage: Number(r.monthlyMortgage ?? 0),
-    vacancyRatePct: Number(r.vacancyRatePct ?? 0),
-    taxRatePct: Number(r.taxRatePct ?? 8.5),
-    marketValue: Number(r.marketValue ?? 0),
+    monthlyRent: Number(getField(r, "monthlyRent", "monthlyrent") ?? 0),
+    monthlyCosts: Number(getField(r, "monthlyCosts", "monthlycosts") ?? 0),
+    monthlyMortgage: Number(getField(r, "monthlyMortgage", "monthlymortgage") ?? 0),
+    vacancyRatePct: Number(getField(r, "vacancyRatePct", "vacancyratepct") ?? 0),
+    taxRatePct: Number(getField(r, "taxRatePct", "taxratepct") ?? 8.5),
+    marketValue: Number(getField(r, "marketValue", "marketvalue") ?? 0),
   };
 }
-function mapSavingsFromRow(row: unknown): any {
+function mapSavingsToRow(householdId: string, account: AppState["savings"][number]) {
+  return {
+    id: account.id,
+    household_id: householdId,
+    bank: account.bank,
+    type: account.type,
+    balance: account.balance,
+    ratepct: account.ratePct,
+    lokataStartDate: account.lokataStartDate,
+    lokataDurationMonths: account.lokataDurationMonths,
+    lokataCapitalization: account.lokataCapitalization,
+  };
+}
+
+function mapSavingsFromRow(row: unknown): AppState["savings"][number] {
   const r = asRecord(row);
   return {
     id: String(r.id ?? ""),
     bank: String(r.bank ?? ""),
     type: String(r.type ?? "zwykłe"),
     balance: Number(r.balance ?? 0),
-    ratePct: Number(r.ratePct ?? 0),
-    lokataStartDate: r.lokataStartDate ? String(r.lokataStartDate) : undefined,
-    lokataDurationMonths: r.lokataDurationMonths ? Number(r.lokataDurationMonths) : undefined,
-    lokataCapitalization: r.lokataCapitalization ? String(r.lokataCapitalization) : undefined,
+    ratePct: Number(getField(r, "ratePct", "ratepct") ?? 0),
+    lokataStartDate: getField(r, "lokataStartDate", "lokatastartdate")
+      ? String(getField(r, "lokataStartDate", "lokatastartdate"))
+      : undefined,
+    lokataDurationMonths: getField(r, "lokataDurationMonths", "lokatadurationmonths")
+      ? Number(getField(r, "lokataDurationMonths", "lokatadurationmonths"))
+      : undefined,
+    lokataCapitalization: getField(r, "lokataCapitalization", "lokatacapitalization")
+      ? String(getField(r, "lokataCapitalization", "lokatacapitalization"))
+      : undefined,
   };
 }
 

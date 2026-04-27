@@ -1,11 +1,12 @@
 import type { AppState } from "./store";
 import { loadHouseholdState, saveHouseholdState } from "./repository";
 
-const MIGRATION_KEY = "placa-netto-cloud-migration-v1";
+const MIGRATION_KEY_PREFIX = "placa-netto-cloud-migration-v1";
 
 export async function migrateLocalToCloudOnce(householdId: string, localState: AppState) {
   if (typeof window === "undefined") return;
-  const marker = window.localStorage.getItem(MIGRATION_KEY);
+  const migrationKey = `${MIGRATION_KEY_PREFIX}:${householdId}`;
+  const marker = window.localStorage.getItem(migrationKey);
   if (marker === "done") return;
 
   const cloudState = await loadHouseholdState(householdId);
@@ -14,10 +15,13 @@ export async function migrateLocalToCloudOnce(householdId: string, localState: A
     (cloudState.expenses?.length ?? 0) > 0 ||
     (cloudState.investments?.length ?? 0) > 0 ||
     (cloudState.loans?.length ?? 0) > 0 ||
-    (cloudState.rentals?.length ?? 0) > 0;
+    (cloudState.rentals?.length ?? 0) > 0 ||
+    (cloudState.savings?.length ?? 0) > 0 ||
+    typeof cloudState.jointFiling === "boolean" ||
+    (cloudState.globalSettings && Object.keys(cloudState.globalSettings).length > 0);
 
   if (!hasCloudData) {
     await saveHouseholdState(householdId, localState);
   }
-  window.localStorage.setItem(MIGRATION_KEY, "done");
+  window.localStorage.setItem(migrationKey, "done");
 }
