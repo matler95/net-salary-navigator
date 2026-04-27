@@ -106,6 +106,10 @@ function LoginPage() {
           password,
         });
         if (error) {
+          const message = error.message.toLowerCase();
+          if (message.includes("too many requests") || message.includes("429")) {
+            setCooldownSeconds(60);
+          }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
           return;
         }
@@ -146,7 +150,7 @@ function LoginPage() {
         if (error) {
           const message = error.message.toLowerCase();
           if (message.includes("too many requests") || message.includes("429")) {
-            setCooldownSeconds(30);
+            setCooldownSeconds(60); // Increased from 30 to 60 seconds
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
           return;
@@ -237,6 +241,17 @@ function LoginPage() {
             ? "Zaloguj"
             : "Utwórz konto"}
         </Button>
+        {cooldownSeconds > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => setCooldownSeconds(0)}
+          >
+            Reset cooldown (dla testowania)
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -289,10 +304,10 @@ function translateAuthError(msg: string): string {
     return "Hasło jest za krótkie (minimum 6 znaków).";
   }
   if (m.includes("too many requests") || m.includes("429")) {
-    return "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.";
+    return "Zbyt wiele prób. Serwer tymczasowo blokuje rejestrację z tego adresu IP. Odśwież stronę, aby zresetować licznik i spróbuj ponownie za chwilę.";
   }
   if (m.includes("rate limit") || m.includes("too many requests")) {
-    return "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.";
+    return "Zbyt wiele prób. Serwer tymczasowo blokuje rejestrację z tego adresu IP. Odśwież stronę, aby zresetować licznik i spróbuj ponownie za chwilę.";
   }
   if (m.includes("network") || m.includes("fetch")) {
     return "Błąd sieci. Sprawdź połączenie z internetem.";
