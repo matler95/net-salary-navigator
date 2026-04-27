@@ -101,6 +101,12 @@ function LoginPage() {
     setLoading(true);
     setStatus(null);
 
+    const pendingInvite =
+      search.invite ??
+      (typeof window !== "undefined"
+        ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined
+        : undefined);
+
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
@@ -118,12 +124,6 @@ function LoginPage() {
         }
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          const pendingInvite =
-            search.invite ??
-            (typeof window !== "undefined"
-              ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined
-              : undefined);
-
           if (pendingInvite) {
             const accepted = await acceptInvite(pendingInvite, data.session);
             if (!accepted) {
@@ -146,16 +146,15 @@ function LoginPage() {
         });
         await router.navigate({ to: "/" });
       } else {
-        const signUpOptions = hasInvite && search.invite
-          ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
-          : undefined;
-        const { data: signUpData, error } = await supabase.auth.signUp(
-          {
-            email: email.trim(),
-            password,
-          },
-          signUpOptions,
-        );
+        const signUpPayload = {
+          email: email.trim(),
+          password,
+          options:
+            hasInvite && search.invite
+              ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
+              : undefined,
+        };
+        const { data: signUpData, error } = await supabase.auth.signUp(signUpPayload);
         if (error) {
           console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
@@ -166,7 +165,19 @@ function LoginPage() {
           return;
         }
         if (signUpData?.session) {
-          await initCloudSync(signUpData.session);
+          if (pendingInvite) {
+            const accepted = await acceptInvite(pendingInvite, signUpData.session);
+            if (!accepted) {
+              setStatus({
+                msg: "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że rejestrujesz się na ten sam email, na który wysłano zaproszenie.",
+                type: "error",
+              });
+              return;
+            }
+            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+          } else {
+            await initCloudSync(signUpData.session);
+          }
           await router.navigate({ to: "/" });
           return;
         }

@@ -150,7 +150,7 @@ export function SpousePanel({
   }, [annualBreakdown, globalSettings.pitThresholdAnnual]);
 
   return (
-    <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl shadow-(--shadow-card) border border-border overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/40">
         <div className="flex items-center gap-2 flex-1">
@@ -185,9 +185,8 @@ export function SpousePanel({
                 assignedUserId: value === "__unassigned" ? undefined : value,
               })
             }
-            className="mt-2"
           >
-            <SelectTrigger className="h-11">
+            <SelectTrigger className="h-11 mt-2">
               <SelectValue placeholder="Brak przypisania" />
             </SelectTrigger>
             <SelectContent>
@@ -563,7 +562,7 @@ export function SpousePanel({
 
         {/* Results */}
         <div className="order-first lg:order-last space-y-4">
-          <div className="bg-[image:var(--gradient-hero)] text-primary-foreground rounded-2xl p-6 relative overflow-hidden">
+          <div className="bg-(image:--gradient-hero) text-primary-foreground rounded-2xl p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/20 rounded-full blur-3xl" />
             <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/60 font-medium">
               Na rękę

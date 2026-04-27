@@ -30,7 +30,8 @@ export function AppShell() {
 
     const hasPendingInvite =
       typeof window !== "undefined" &&
-      Boolean(window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY));
+      (Boolean(window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY)) ||
+        new URLSearchParams(window.location.search).has("invite"));
     if (hasPendingInvite && loc.pathname.startsWith("/login")) {
       console.log("Pending invite detected, delaying cloud sync until invite acceptance.");
       return;
@@ -76,7 +77,7 @@ export function AppShell() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ACTIVE_HOUSEHOLD_KEY);
     }
-    await router.navigate({ to: "/login" });
+    await router.navigate({ to: "/login", search: { invite: undefined } });
     setSignOutInProgress(false);
   };
 
@@ -100,6 +101,7 @@ export function AppShell() {
           </p>
           <Link
             to="/login"
+            search={{ invite: undefined }}
             className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Przejdź do logowania
@@ -114,7 +116,7 @@ export function AppShell() {
       <header className="border-b border-border bg-background/85 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-[image:var(--gradient-accent)] flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-[var(--shadow-card)]">
+            <div className="w-9 h-9 rounded-xl bg-(image:--gradient-accent) flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-(--shadow-card)">
               ₧
             </div>
             <div className="hidden sm:block">
