@@ -20,17 +20,35 @@ export function AppShell() {
   const [signOutInProgress, setSignOutInProgress] = useState(false);
 
   useEffect(() => {
-    if (session) {
-      void initCloudSync(session);
+    if (!session) return;
 
-      const onFocus = () => {
-        console.log("Window focused, checking for cloud updates...");
+    void initCloudSync(session);
+
+    const onFocus = () => {
+      console.log("Window focused, checking for cloud updates...");
+      void syncFromCloud();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Tab visible, checking for cloud updates...");
         void syncFromCloud();
-      };
+      }
+    };
 
-      window.addEventListener("focus", onFocus);
-      return () => window.removeEventListener("focus", onFocus);
-    }
+    const poll = window.setInterval(() => {
+      console.log("Periodic cloud sync polling...");
+      void syncFromCloud();
+    }, 8000);
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(poll);
+    };
   }, [session]);
 
   const handleLogout = async () => {
