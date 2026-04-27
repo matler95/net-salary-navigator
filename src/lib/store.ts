@@ -335,9 +335,16 @@ export async function createInvite(email: string): Promise<string | null> {
     }
   }
 
-  if (!householdId) return null;
+  if (!householdId) {
+    throw new Error("Brak aktywnego gospodarstwa domowego dla zalogowanego użytkownika.");
+  }
   const invite = await createHouseholdInvite(householdId, email);
-  return invite?.token ? `${window.location.origin}/login?invite=${invite.token}` : null;
+  if (!invite?.token) {
+    throw new Error(
+      "Nie udało się zapisać zaproszenia w bazie. Sprawdź konfigurację polityk RLS tabeli household_invites.",
+    );
+  }
+  return `${window.location.origin}/login?invite=${invite.token}`;
 }
 
 export async function acceptInvite(token: string, session: Session): Promise<boolean> {

@@ -179,13 +179,31 @@ begin
     create policy household_insert on public.households for insert with check (auth.uid() is not null);
     
     drop policy if exists member_read on public.household_members;
-    create policy member_read on public.household_members for select using (public.is_household_member(household_id));
+    create policy member_read on public.household_members for select using (user_id = auth.uid() or public.is_household_member(household_id));
     
     drop policy if exists member_insert on public.household_members;
     create policy member_insert on public.household_members for insert with check (public.is_household_member(household_id) or user_id = auth.uid());
     
     drop policy if exists invites_access on public.household_invites;
-    create policy invites_access on public.household_invites for all using (public.is_household_member(household_id)) with check (public.is_household_member(household_id));
+    drop policy if exists invites_select on public.household_invites;
+    drop policy if exists invites_insert on public.household_invites;
+    drop policy if exists invites_update on public.household_invites;
+    drop policy if exists invites_delete on public.household_invites;
+    create policy invites_select on public.household_invites
+    for select using (
+      public.is_household_member(household_id)
+      or lower(email) = lower(coalesce(auth.jwt()->>'email', ''))
+    );
+    create policy invites_insert on public.household_invites
+    for insert with check (public.is_household_member(household_id));
+    create policy invites_update on public.household_invites
+    for update using (public.is_household_member(household_id))
+    with check (public.is_household_member(household_id));
+    create policy invites_delete on public.household_invites
+    for delete using (
+      public.is_household_member(household_id)
+      or lower(email) = lower(coalesce(auth.jwt()->>'email', ''))
+    );
     
     drop policy if exists spouses_access on public.spouses;
     create policy spouses_access on public.spouses for all using (public.is_household_member(household_id)) with check (public.is_household_member(household_id));

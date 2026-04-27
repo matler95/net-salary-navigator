@@ -171,7 +171,10 @@ export async function createHouseholdInvite(householdId: string, email: string) 
     })
     .select("id,household_id,email,token")
     .single()) as { data: InviteRow | null; error: any };
-  if (error || !data) return null;
+  if (error || !data) {
+    console.error("Error creating household invite:", error);
+    return null;
+  }
   return data;
 }
 
@@ -184,15 +187,34 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
     .eq("token", token)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle()) as { data: InviteRow | null; error: any };
-  if (inviteError || !invite?.household_id) return false;
+  if (inviteError || !invite?.household_id) {
+    console.error("Error loading invite by token:", inviteError);
+    return false;
+  }
+
+  const inviteEmail = invite.email.trim().toLowerCase();
+  const sessionEmail = (session.user.email ?? "").trim().toLowerCase();
+  if (!sessionEmail || inviteEmail !== sessionEmail) {
+    console.error("Invite email mismatch for current user.", { inviteEmail, sessionEmail });
+    return false;
+  }
 
   const { error: memberError } = await supabase.from("household_members").insert({
     household_id: invite.household_id,
     user_id: session.user.id,
   });
-  if (memberError && !memberError.message.toLowerCase().includes("duplicate")) return false;
+  if (memberError && !memberError.message.toLowerCase().includes("duplicate")) {
+    console.error("Error adding invited user to household:", memberError);
+    return false;
+  }
 
-  await supabase.from("household_invites").delete().eq("id", invite.id);
+  const { error: deleteInviteError } = await supabase
+    .from("household_invites")
+    .delete()
+    .eq("id", invite.id);
+  if (deleteInviteError) {
+    console.error("Error deleting accepted invite:", deleteInviteError);
+  }
   return true;
 }
 

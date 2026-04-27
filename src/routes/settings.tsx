@@ -60,6 +60,9 @@ function SettingsPage() {
         msg: "Zaproszenie utworzone. Skopiuj link poniżej i wyślij go zapraszanej osobie.",
         type: "success",
       });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Nie udało się utworzyć zaproszenia.";
+      setStatus({ msg, type: "error" });
     } finally {
       setLoading(false);
     }
