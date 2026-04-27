@@ -22,7 +22,7 @@ export default async function handler(req: any, res?: any) {
     try {
       const response = await server.fetch(webRequest);
       res.statusCode = response.status;
-      response.headers.forEach((value, key) => {
+      response.headers.forEach((value: string, key: string) => {
         res.setHeader(key, value);
       });
 
