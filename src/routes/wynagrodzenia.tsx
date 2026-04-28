@@ -42,14 +42,22 @@ function SalariesPage() {
   // Derive members from cached profiles (computed, no state)
   const members = useMemo(() => {
     const cached = getCachedMembers();
-    return cached.map((member) => ({
-      user_id: member.user_id,
-      role: member.role,
-      label:
-        member.user_id === session?.user.id
-          ? `Ty (${getMemberDisplayName(member)})`
-          : getMemberDisplayName(member),
-    }));
+
+    return cached
+      .slice() // prevent mutation
+      .sort((a, b) => {
+        const nameA = getMemberDisplayName(a);
+        const nameB = getMemberDisplayName(b);
+        return nameA.localeCompare(nameB, "pl", { sensitivity: "base" });
+      })
+      .map((member) => ({
+        user_id: member.user_id,
+        role: member.role,
+        label:
+          member.user_id === session?.user.id
+            ? `Ty (${getMemberDisplayName(member)})`
+            : getMemberDisplayName(member),
+      }));
   }, [session?.user.id]);
 
   // Household summary calculations
@@ -97,7 +105,7 @@ function SalariesPage() {
               <AlertDialogTitle>Zresetować dane?</AlertDialogTitle>
               <AlertDialogDescription>
                 Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki,
-                aktywa i ustawienia). 
+                aktywa i ustawienia).
                 Tej operacji nie można cofnąć.
               </AlertDialogDescription>
               <AlertDialogFooter>
