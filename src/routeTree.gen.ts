@@ -14,6 +14,7 @@ import { Route as WydatkiRouteImport } from './routes/wydatki'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KalkulatoryRouteImport } from './routes/kalkulatory'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as AktywaRouteImport } from './routes/aktywa'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -42,6 +43,11 @@ const KalkulatoryRoute = KalkulatoryRouteImport.update({
   path: '/kalkulatory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AktywaRoute = AktywaRouteImport.update({
   id: '/aktywa',
   path: '/aktywa',
@@ -56,6 +62,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/invite': typeof InviteRoute
   '/kalkulatory': typeof KalkulatoryRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/invite': typeof InviteRoute
   '/kalkulatory': typeof KalkulatoryRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/aktywa': typeof AktywaRoute
+  '/invite': typeof InviteRoute
   '/kalkulatory': typeof KalkulatoryRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/aktywa'
+    | '/invite'
     | '/kalkulatory'
     | '/login'
     | '/settings'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/aktywa'
+    | '/invite'
     | '/kalkulatory'
     | '/login'
     | '/settings'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/aktywa'
+    | '/invite'
     | '/kalkulatory'
     | '/login'
     | '/settings'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AktywaRoute: typeof AktywaRoute
+  InviteRoute: typeof InviteRoute
   KalkulatoryRoute: typeof KalkulatoryRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KalkulatoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/aktywa': {
       id: '/aktywa'
       path: '/aktywa'
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AktywaRoute: AktywaRoute,
+  InviteRoute: InviteRoute,
   KalkulatoryRoute: KalkulatoryRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,

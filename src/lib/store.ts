@@ -397,7 +397,7 @@ export async function createInvite(email: string): Promise<string | null> {
       "Nie udało się zapisać zaproszenia w bazie. Sprawdź konfigurację polityk RLS tabeli household_invites.",
     );
   }
-  return `${window.location.origin}/login?invite=${invite.token}`;
+  return `${window.location.origin}/invite?invite=${invite.token}`;
 }
 
 export async function acceptInvite(token: string, session: Session): Promise<boolean> {

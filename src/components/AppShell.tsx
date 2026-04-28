@@ -32,7 +32,10 @@ export function AppShell() {
       typeof window !== "undefined" &&
       (Boolean(window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY)) ||
         new URLSearchParams(window.location.search).has("invite"));
-    if (hasPendingInvite && loc.pathname.startsWith("/login")) {
+    if (
+      hasPendingInvite &&
+      (loc.pathname.startsWith("/login") || loc.pathname.startsWith("/invite"))
+    ) {
       console.log("Pending invite detected, delaying cloud sync until invite acceptance.");
       return;
     }

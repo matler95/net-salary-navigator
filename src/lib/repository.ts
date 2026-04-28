@@ -11,6 +11,14 @@ export type HouseholdContext = {
 type HouseholdRow = { id: string };
 type MembershipRow = { household_id: string; user_id: string; created_at?: string; role?: string };
 type InviteRow = { id: string; household_id: string; email: string; token: string; expires_at?: string };
+type InviteContext = {
+  household_id: string;
+  household_name: string;
+  email: string;
+  status: string;
+  expires_at: string;
+  is_valid: boolean;
+};
 
 let creatingHouseholdPromise: Promise<HouseholdContext | null> | null = null;
 
@@ -355,6 +363,22 @@ export async function createHouseholdInvite(householdId: string, email: string) 
     return null;
   }
   return data as InviteRow;
+}
+
+export async function loadInviteContext(token: string): Promise<InviteContext | null> {
+  const supabase = await getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc("get_invite_context", {
+    invite_token: token,
+  });
+
+  if (error || !data) {
+    console.error("Error loading invite context:", error);
+    return null;
+  }
+
+  return data as InviteContext;
 }
 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<string | null> {
