@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, TrendingUp, Wallet, Landmark } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   PieChart,
   Pie,
@@ -94,22 +96,22 @@ function Dashboard() {
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
-  
+
   // Advanced Net Salary calculations
   const currentMonthIdx = new Date().getMonth() + 1;
   const nextMonthIdx = currentMonthIdx === 12 ? 1 : currentMonthIdx + 1;
-  
-  const totalAnnualAvgNet = useMemo(() => 
+
+  const totalAnnualAvgNet = useMemo(() =>
     spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
     [spouses, globalSettings]
   );
-  
-  const totalCurrentMonthNet = useMemo(() => 
+
+  const totalCurrentMonthNet = useMemo(() =>
     spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx, globalSettings).net, 0),
     [spouses, currentMonthIdx, globalSettings]
   );
-  
-  const totalNextMonthNet = useMemo(() => 
+
+  const totalNextMonthNet = useMemo(() =>
     spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
     [spouses, nextMonthIdx, globalSettings]
   );
@@ -143,6 +145,22 @@ function Dashboard() {
   // Joint filing comparison
   const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
 
+  const thresholdDates = useMemo(() => {
+    return spouses.map((s) => {
+      const breakdown = calculateAnnualBreakdown(s.inputs, globalSettings);
+      let cumulative = 0;
+      let monthIndex = -1;
+      for (let i = 0; i < 12; i++) {
+        cumulative += breakdown[i].taxBase;
+        if (cumulative > 120000) {
+          monthIndex = i;
+          break;
+        }
+      }
+      return { id: s.id, name: s.name, monthIndex };
+    });
+  }, [spouses, globalSettings]);
+
   // Expense breakdown by category
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -168,32 +186,37 @@ function Dashboard() {
     });
   }, [spouses]);
 
-  // Cumulative Cashflow Chart Data
+  // Accumulation Chart Data (including existing assets)
+  const [includeSavings, setIncludeSavings] = useState(true);
+  const [includeInvestments, setIncludeInvestments] = useState(false);
+
   const cumulativeData = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
-    let cumulative = 0;
+    let cumulativeSurplus = 0;
 
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
-      
+
       const monthlyExpenses = expenses.reduce((sum, e) => {
-        if (isExpenseInMonth(e, month)) {
-          return sum + e.amount;
-        }
+        if (isExpenseInMonth(e, month)) return sum + e.amount;
         return sum;
       }, 0);
 
       const monthlyCashflow = monthlyNet + rentalNet - monthlyExpenses - monthlyLoanPmt;
-      cumulative += monthlyCashflow;
+      cumulativeSurplus += monthlyCashflow;
+
+      // Bonus: simple 0.5% monthly growth for stocks if included
+      const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
 
       return {
         month: monthLabel(month),
-        "Stan konta (skumulowany)": Math.round(cumulative),
-        "Cashflow miesięczny": Math.round(monthlyCashflow),
+        "Nadwyżka (cashflow)": Math.round(cumulativeSurplus),
+        "Konta bankowe": includeSavings ? totalSavings : 0,
+        "Inwestycje (giełda/krypto)": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
       };
     });
-  }, [spouses, expenses, rentalNet, monthlyLoanPmt]);
+  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments]);
 
   const [showBanner, setShowBanner] = useState(false);
 
@@ -237,7 +260,7 @@ function Dashboard() {
       </header>
 
       {/* Stats - Current Situation */}
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
         <StatCard
           label="Obecne netto"
           value={formatPLN(totalCurrentMonthNet)}
@@ -271,7 +294,7 @@ function Dashboard() {
       </section>
 
       {/* Stats - Annual Perspective */}
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
         <StatCard
           label="Średnie netto (rok)"
           value={formatPLN(totalAnnualAvgNet)}
@@ -331,17 +354,43 @@ function Dashboard() {
 
       {/* Cumulative Cashflow Chart */}
       <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-        <h2 className="font-display text-xl mb-1">Projekcja skumulowanych oszczędności</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="font-display text-xl mb-1">Projekcja skumulowanych oszczędności</h2>
+            <p className="text-sm text-muted-foreground">
+              Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)
+            </p>
+          </div>
+          <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-xl border border-border/50">
+            <div className="flex items-center gap-2">
+              <Switch id="inc-savings" checked={includeSavings} onCheckedChange={setIncludeSavings} />
+              <Label htmlFor="inc-savings" className="text-xs cursor-pointer flex items-center gap-1.5">
+                <Landmark className="w-3 h-3 text-success" /> Gotówka
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch id="inc-inv" checked={includeInvestments} onCheckedChange={setIncludeInvestments} />
+              <Label htmlFor="inc-inv" className="text-xs cursor-pointer flex items-center gap-1.5">
+                <TrendingUp className="w-3 h-3 text-blue-500" /> Giełda
+              </Label>
+            </div>
+          </div>
+        </div>
         <div className="h-80">
           <ResponsiveContainer>
             <AreaChart data={cumulativeData}>
               <defs>
-                <linearGradient id="colorCum" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="colorCashflow" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorInvestments" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
@@ -351,15 +400,34 @@ function Dashboard() {
                 formatter={(v: number) => formatPLN(v)}
                 contentStyle={{ fontSize: 12, borderRadius: 12, border: "none", boxShadow: "var(--shadow-card)" }}
               />
+              <Legend verticalAlign="top" height={36} />
               <Area
                 type="monotone"
-                dataKey="Stan konta (skumulowany)"
+                dataKey="Konta bankowe"
+                stackId="1"
+                stroke="oklch(0.62 0.13 145)"
+                fillOpacity={1}
+                fill="url(#colorSavings)"
+                strokeWidth={2}
+              />
+              <Area
+                type="monotone"
+                dataKey="Inwestycje (giełda/krypto)"
+                stackId="1"
+                stroke="oklch(0.55 0.1 250)"
+                fillOpacity={1}
+                fill="url(#colorInvestments)"
+                strokeWidth={2}
+              />
+              <Area
+                type="monotone"
+                dataKey="Nadwyżka (cashflow)"
+                stackId="1"
                 stroke="var(--accent)"
                 fillOpacity={1}
-                fill="url(#colorCum)"
+                fill="url(#colorCashflow)"
                 strokeWidth={3}
               />
-              <ReferenceLine y={0} stroke="oklch(0.5 0.01 0)" strokeDasharray="3 3" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -401,6 +469,24 @@ function Dashboard() {
                 ))}
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 border-t border-border pt-4">
+            {thresholdDates.map((td, idx) => (
+              <div key={td.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                  />
+                  <span className="font-medium">{td.name}</span>
+                </div>
+                <span className={td.monthIndex !== -1 ? "text-muted-foreground font-semibold" : "text-muted-foreground"}>
+                  {td.monthIndex === -1
+                    ? "Nie przekracza II progu"
+                    : `Wejdzie w II próg w: ${monthLabel(td.monthIndex + 1, true)}`}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 

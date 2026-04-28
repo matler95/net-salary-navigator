@@ -422,6 +422,11 @@ export function parseLocaleAmount(raw: string): number {
 }
 
 export function formatLocaleAmount(value: number, decimals: number = 2): string {
-  if (!Number.isFinite(value) || value === 0) return "";
-  return value.toFixed(decimals).replace(/\.00$/, "").replace(".", ",");
+  if (value === undefined || value === null || !Number.isFinite(value)) return "";
+  if (value === 0) return "0";
+  // Return the number formatted with up to 'decimals' fractional digits, 
+  // but removing trailing zeros and the decimal point if it's an integer.
+  const s = value.toFixed(decimals);
+  if (s.indexOf(".") === -1) return s;
+  return s.replace(/\.?0+$/, "").replace(".", ",");
 }

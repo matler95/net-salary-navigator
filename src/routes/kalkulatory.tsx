@@ -1,13 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Wallet } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
+import { calculateAnnualAverageNet, formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
+import { useAppState } from "@/lib/store";
 import { Separator } from "@/components/ui/separator";
 import {
   projectPortfolio,
   calculateRealEstate,
+  getExpenseMonthlyAverage,
+  monthlyPayment,
   type RealEstateScenario,
   type PortfolioInputs,
 } from "@/lib/finance";
@@ -95,6 +99,33 @@ function PortfolioCalculator() {
   const finalValue = last?.value ?? 0;
   const realValue = last?.realValue ?? 0;
   const totalGain = finalValue - totalContributed;
+
+  // BUDGET INTEGRATION
+  const spouses = useAppState((st) => st.spouses);
+  const expenses = useAppState((st) => st.expenses);
+  const loans = useAppState((st) => st.loans);
+  const globalSettings = useAppState((st) => st.globalSettings);
+
+  const budgetImpact = useMemo(() => {
+    const totalNetIncome = spouses.reduce(
+      (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
+      0
+    );
+    const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);
+    const existingLoanPayments = loans.reduce(
+      (sum, l) => sum + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
+      0
+    );
+
+    const currentDisposable = totalNetIncome - totalExpenses - existingLoanPayments;
+    const remainingAfterInvestment = currentDisposable - inputs.monthlyContribution;
+
+    return {
+      totalNetIncome,
+      currentDisposable,
+      remainingAfterInvestment,
+    };
+  }, [spouses, expenses, loans, globalSettings, inputs.monthlyContribution]);
 
   return (
     <div className="grid lg:grid-cols-[380px,1fr] gap-6">
@@ -225,6 +256,51 @@ function PortfolioCalculator() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* BUDGET IMPACT SECTION */}
+        <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-2xl p-6 border border-accent/20 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Wallet className="w-24 h-24 text-accent" />
+          </div>
+          
+          <h3 className="font-display text-xl mb-4 flex items-center gap-2 text-accent">
+            Wpływ na domowy budżet
+          </h3>
+          
+          <div className="grid sm:grid-cols-2 gap-6 relative z-10">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income po inwestycji</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-display font-bold">
+                  {formatPLN(budgetImpact.remainingAfterInvestment)}
+                </p>
+                <span className="text-xs font-bold text-destructive">
+                  (-{formatPLN(inputs.monthlyContribution)})
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Kwota, która zostaje na życie po odłożeniu na inwestycje.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Stopa oszczędności</p>
+              <p className="text-2xl font-display font-bold">
+                {budgetImpact.totalNetIncome > 0 
+                  ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(0) 
+                  : 0}%
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Procent dochodu netto przeznaczany na ten cel.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
+            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta wpłata 
+            stanowi {budgetImpact.totalNetIncome > 0 ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(1) : 0}% Twojego budżetu netto."
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -254,8 +330,37 @@ function RealEstateCalculator() {
   });
 
   const r = useMemo(() => calculateRealEstate(s), [s]);
-
   const cashflowPositive = r.monthlyCashflow >= 0;
+
+  // BUDGET INTEGRATION
+  const spouses = useAppState((st) => st.spouses);
+  const expenses = useAppState((st) => st.expenses);
+  const loans = useAppState((st) => st.loans);
+  const globalSettings = useAppState((st) => st.globalSettings);
+
+  const budgetImpact = useMemo(() => {
+    const totalNetIncome = spouses.reduce(
+      (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
+      0
+    );
+    const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);
+    const existingLoanPayments = loans.reduce(
+      (sum, l) => sum + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
+      0
+    );
+
+    const currentDisposable = totalNetIncome - totalExpenses - existingLoanPayments;
+    const newDisposable = currentDisposable + r.monthlyCashflow;
+    const totalDTI =
+      totalNetIncome > 0 ? ((existingLoanPayments + r.monthlyPmt) / totalNetIncome) * 100 : 0;
+
+    return {
+      totalNetIncome,
+      currentDisposable,
+      newDisposable,
+      totalDTI,
+    };
+  }, [spouses, expenses, loans, globalSettings, r.monthlyCashflow, r.monthlyPmt]);
 
   return (
     <div className="grid lg:grid-cols-[400px,1fr] gap-6">
@@ -622,6 +727,64 @@ function RealEstateCalculator() {
             </div>
           </div>
         </div>
+
+        {/* BUDGET IMPACT SECTION */}
+        <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-2xl p-6 border border-accent/20 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Wallet className="w-24 h-24 text-accent" />
+          </div>
+          
+          <h3 className="font-display text-xl mb-4 flex items-center gap-2 text-accent">
+            Wpływ na domowy budżet
+          </h3>
+          
+          <div className="grid sm:grid-cols-3 gap-6 relative z-10">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-display font-bold">
+                  {formatPLN(budgetImpact.newDisposable)}
+                </p>
+                <span className={`text-xs font-bold ${r.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}>
+                  ({r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)})
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Zostaje Ci "na rękę" po wszystkich wydatkach i kredytach.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Wskaźnik DTI</p>
+              <p className={`text-2xl font-display font-bold ${budgetImpact.totalDTI > 40 ? "text-destructive" : "text-foreground"}`}>
+                {budgetImpact.totalDTI.toFixed(1)}%
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Stosunek wszystkich rat do dochodów netto (bezpiecznie &lt;40%).
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Stopa oszczędności</p>
+              <p className="text-2xl font-display font-bold">
+                {budgetImpact.totalNetIncome > 0 
+                  ? ((budgetImpact.newDisposable / budgetImpact.totalNetIncome) * 100).toFixed(0) 
+                  : 0}%
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Procent dochodu, który możesz odkładać lub inwestować dalej.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
+            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja 
+            {r.monthlyCashflow >= 0 
+              ? ` zwiększa Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%` 
+              : ` pochłania ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}% Twojego budżetu`
+            }."
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -641,6 +804,15 @@ function NumField({
   onChange: (v: number) => void;
   hint?: string;
 }) {
+  const [localValue, setLocalValue] = useState<string>(formatLocaleAmount(value));
+
+  useEffect(() => {
+    const parsedLocal = parseLocaleAmount(localValue);
+    if (parsedLocal !== value) {
+      setLocalValue(formatLocaleAmount(value));
+    }
+  }, [value]);
+
   return (
     <div>
       <div className="flex items-center justify-between gap-1 mb-1">
@@ -652,8 +824,12 @@ function NumField({
       <Input
         type="text"
         inputMode="decimal"
-        value={value || ""}
-        onChange={(e) => onChange(parseLocaleAmount(e.target.value))}
+        value={localValue}
+        onChange={(e) => {
+          setLocalValue(e.target.value);
+          onChange(parseLocaleAmount(e.target.value));
+        }}
+        onBlur={() => setLocalValue(formatLocaleAmount(value))}
         className="h-10 font-mono tabular-nums text-right bg-muted/20 border-border focus:bg-background"
       />
     </div>

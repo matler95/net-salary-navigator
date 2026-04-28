@@ -99,7 +99,7 @@ export function AppShell() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ACTIVE_HOUSEHOLD_KEY);
     }
-    await router.navigate({ to: "/login", search: { invite: undefined } });
+    await router.navigate({ to: "/login", search: { invite: undefined, register: undefined } });
     setSignOutInProgress(false);
   };
 
@@ -123,7 +123,7 @@ export function AppShell() {
           </p>
           <Link
             to="/login"
-            search={{ invite: undefined }}
+            search={{ invite: undefined, register: undefined }}
             className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Przejdź do logowania
@@ -138,7 +138,7 @@ export function AppShell() {
       <header className="border-b border-border bg-background/85 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-(image:--gradient-accent) flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-(--shadow-card)">
+            <div className="w-9 h-9 rounded-xl bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-[var(--shadow-card)]">
               ₧
             </div>
             <div className="hidden sm:block">
@@ -175,7 +175,7 @@ export function AppShell() {
                     <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-accent shrink-0 border border-accent/20">
                       {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
                     </div>
-                    <span className="hidden md:block truncate max-w-30 font-medium">
+                    <span className="hidden md:block truncate max-w-32 font-medium">
                       {session?.user.user_metadata?.nickname?.trim() ||
                         session?.user.email?.split("@")[0] ||
                         ""}
@@ -204,7 +204,7 @@ export function AppShell() {
             </>
           ) : (
             <div className="text-xs text-muted-foreground shrink-0">
-              <Link to="/login" search={{ invite: undefined }} className="hover:text-foreground">
+              <Link to="/login" search={{ invite: undefined, register: undefined }} className="hover:text-foreground">
                 Zaloguj
               </Link>
             </div>

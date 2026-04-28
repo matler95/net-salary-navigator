@@ -42,6 +42,7 @@ import {
   Clock,
   Wallet,
   BarChart3,
+  Pencil,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -2085,27 +2086,30 @@ function SavingsSummaryView({
                       </div>
                     )}
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        const copy = { ...a };
-                        actions.removeSavings(a.id);
-                        toast(`Usunięto lokatę: ${a.bank}`, {
-                          action: {
-                            label: "Cofnij",
-                            onClick: () => {
-                              const { id, ...rest } = copy;
-                              actions.addSavings(rest as any);
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditSavingsDialog account={a} />
+                      <button
+                        onClick={() => {
+                          const copy = { ...a };
+                          actions.removeSavings(a.id);
+                          toast(`Usunięto lokatę: ${a.bank}`, {
+                            action: {
+                              label: "Cofnij",
+                              onClick: () => {
+                                const { id, ...rest } = copy;
+                                actions.addSavings(rest as any);
+                              },
                             },
-                          },
-                          duration: 5000,
-                        });
-                      }}
-                      className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
-                      aria-label={`Usuń lokatę: ${a.bank}`}
-                    >
-                      <Trash2 className="w-3 h-3" /> Usuń lokatę
-                    </button>
+                            duration: 5000,
+                          });
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                        aria-label={`Usuń lokatę: ${a.bank}`}
+                      >
+                        <Trash2 className="w-3 h-3" /> Usuń
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -2201,27 +2205,30 @@ function SavingsSummaryView({
                       </div>
                     )}
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        const copy = { ...a };
-                        actions.removeSavings(a.id);
-                        toast(`Usunięto konto: ${a.bank}`, {
-                          action: {
-                            label: "Cofnij",
-                            onClick: () => {
-                              const { id, ...rest } = copy;
-                              actions.addSavings(rest as any);
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <EditSavingsDialog account={a} />
+                      <button
+                        onClick={() => {
+                          const copy = { ...a };
+                          actions.removeSavings(a.id);
+                          toast(`Usunięto konto: ${a.bank}`, {
+                            action: {
+                              label: "Cofnij",
+                              onClick: () => {
+                                const { id, ...rest } = copy;
+                                actions.addSavings(rest as any);
+                              },
                             },
-                          },
-                          duration: 5000,
-                        });
-                      }}
-                      className="mt-2 text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label={`Usuń konto: ${a.bank}`}
-                    >
-                      <Trash2 className="w-3 h-3" /> Usuń konto
-                    </button>
+                            duration: 5000,
+                          });
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                        aria-label={`Usuń konto: ${a.bank}`}
+                      >
+                        <Trash2 className="w-3 h-3" /> Usuń
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -2357,27 +2364,30 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
           <p className="font-semibold text-sm">{account.bank}</p>
           <p className="text-[11px] text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
         </div>
-        <button
-          onClick={() => {
-            const copy = { ...account };
-            actions.removeSavings(account.id);
-            toast(`Usunięto lokatę: ${account.bank}`, {
-              action: {
-                label: "Cofnij",
-                onClick: () => {
-                  const { id, ...rest } = copy;
-                  actions.addSavings(rest as any);
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <EditSavingsDialog account={account} />
+          <button
+            onClick={() => {
+              const copy = { ...account };
+              actions.removeSavings(account.id);
+              toast(`Usunięto lokatę: ${account.bank}`, {
+                action: {
+                  label: "Cofnij",
+                  onClick: () => {
+                    const { id, ...rest } = copy;
+                    actions.addSavings(rest as any);
+                  },
                 },
-              },
-              duration: 5000,
-            });
-          }}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
-          aria-label={`Usuń lokatę: ${account.bank}`}
-          title="Usuń"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+                duration: 5000,
+              });
+            }}
+            className="text-muted-foreground hover:text-destructive p-1"
+            aria-label={`Usuń lokatę: ${account.bank}`}
+            title="Usuń"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-baseline gap-2">
@@ -2430,25 +2440,27 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
 /* ─── ADD SAVINGS DIALOG ──────────────────────────────────────────────── */
 function AddSavingsDialog() {
   const [open, setOpen] = useState(false);
-  const EMPTY: Omit<SavingsAccount, "id"> = {
+  const [draft, setDraft] = useState({
     bank: "",
-    type: "oszczędnościowe",
-    balance: 0,
-    ratePct: 0,
+    type: "oszczędnościowe" as SavingsAccount["type"],
+    balance: "" as string,
+    ratePct: "" as string,
     lokataStartDate: new Date().toISOString().slice(0, 10),
     lokataDurationMonths: 12,
-    lokataCapitalization: "na końcu",
-  };
-  const [draft, setDraft] = useState(EMPTY);
+    lokataCapitalization: "na końcu" as const,
+  });
+
+  const numBalance = parseLocaleAmount(draft.balance);
+  const numRate = parseLocaleAmount(draft.ratePct);
 
   const isLokata = draft.type === "lokata";
   const gross =
-    isLokata && draft.ratePct > 0 && draft.balance > 0 && (draft.lokataDurationMonths ?? 0) > 0
-      ? lokataGrossInterest(draft.balance, draft.ratePct, draft.lokataDurationMonths!)
+    isLokata && numRate > 0 && numBalance > 0 && (draft.lokataDurationMonths ?? 0) > 0
+      ? lokataGrossInterest(numBalance, numRate, draft.lokataDurationMonths!)
       : null;
   const net =
     gross !== null
-      ? lokataNetInterest(draft.balance, draft.ratePct, draft.lokataDurationMonths!)
+      ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!)
       : null;
 
   return (
@@ -2456,7 +2468,17 @@ function AddSavingsDialog() {
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
-        if (!v) setDraft(EMPTY);
+        if (!v) {
+          setDraft({
+            bank: "",
+            type: "oszczędnościowe",
+            balance: "",
+            ratePct: "",
+            lokataStartDate: new Date().toISOString().slice(0, 10),
+            lokataDurationMonths: 12,
+            lokataCapitalization: "na końcu",
+          });
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -2478,9 +2500,21 @@ function AddSavingsDialog() {
           className="grid gap-4 py-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!draft.bank.trim() || draft.balance <= 0) return;
-            actions.addSavings({ ...draft });
-            setDraft(EMPTY);
+            if (!draft.bank.trim() || numBalance <= 0) return;
+            actions.addSavings({ 
+              ...draft, 
+              balance: numBalance, 
+              ratePct: numRate 
+            } as any);
+            setDraft({
+              bank: "",
+              type: "oszczędnościowe",
+              balance: "",
+              ratePct: "",
+              lokataStartDate: new Date().toISOString().slice(0, 10),
+              lokataDurationMonths: 12,
+              lokataCapitalization: "na końcu",
+            });
             setOpen(false);
           }}
         >
@@ -2516,8 +2550,8 @@ function AddSavingsDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={formatLocaleAmount(draft.balance, 0)}
-              onChange={(e) => setDraft({ ...draft, balance: parseLocaleAmount(e.target.value) })}
+              value={draft.balance}
+              onChange={(e) => setDraft({ ...draft, balance: e.target.value })}
               placeholder="np. 10 000"
               className="col-span-3 font-mono tabular-nums h-10"
             />
@@ -2528,8 +2562,8 @@ function AddSavingsDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={formatLocaleAmount(draft.ratePct)}
-              onChange={(e) => setDraft({ ...draft, ratePct: parseLocaleAmount(e.target.value) })}
+              value={draft.ratePct}
+              onChange={(e) => setDraft({ ...draft, ratePct: e.target.value })}
               placeholder="np. 6.50"
               className="col-span-3 font-mono tabular-nums h-10"
             />
@@ -2600,7 +2634,7 @@ function AddSavingsDialog() {
                   <div className="flex justify-between font-semibold border-t pt-1.5">
                     <span>Wypłata netto</span>
                     <span className="font-mono text-emerald-500">
-                      {formatPLN(draft.balance + net)}
+                      {formatPLN(numBalance + net)}
                     </span>
                   </div>
                   {draft.lokataStartDate && draft.lokataDurationMonths && (
@@ -2617,8 +2651,161 @@ function AddSavingsDialog() {
           )}
 
           <DialogFooter>
-            <Button type="submit" disabled={!draft.bank.trim() || draft.balance <= 0}>
+            <Button type="submit" disabled={!draft.bank.trim() || numBalance <= 0}>
               {isLokata ? "Dodaj lokatę" : "Dodaj konto"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── EDIT SAVINGS DIALOG ──────────────────────────────────────────────── */
+function EditSavingsDialog({ account }: { account: SavingsAccount }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({
+    ...account,
+    balance: formatLocaleAmount(account.balance, 0),
+    ratePct: formatLocaleAmount(account.ratePct, 2),
+  });
+
+  useEffect(() => {
+    if (open) {
+      setDraft({
+        ...account,
+        balance: formatLocaleAmount(account.balance, 0),
+        ratePct: formatLocaleAmount(account.ratePct, 2),
+      });
+    }
+  }, [open, account]);
+
+  const numBalance = parseLocaleAmount(draft.balance);
+  const numRate = parseLocaleAmount(draft.ratePct);
+
+  const isLokata = draft.type === "lokata";
+  const gross =
+    isLokata && numRate > 0 && numBalance > 0 && (draft.lokataDurationMonths ?? 0) > 0
+      ? lokataGrossInterest(numBalance, numRate, draft.lokataDurationMonths!)
+      : null;
+  const net =
+    gross !== null
+      ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!)
+      : null;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          className="text-[11px] text-muted-foreground hover:text-accent flex items-center gap-1"
+          aria-label={`Edytuj: ${account.bank}`}
+        >
+          <Pencil className="w-3 h-3" /> Edytuj
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>Edytuj konto / lokatę</DialogTitle>
+          <DialogDescription>Zmień saldo lub inne parametry konta.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4 py-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draft.bank.trim()) return;
+            actions.updateSavings(account.id, {
+              ...draft,
+              balance: numBalance,
+              ratePct: numRate,
+            } as any);
+            setOpen(false);
+            toast.success("Zmiany zostały zapisane");
+          }}
+        >
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Bank</label>
+            <Input
+              value={draft.bank}
+              onChange={(e) => setDraft({ ...draft, bank: e.target.value })}
+              className="col-span-3 h-10"
+            />
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Saldo (PLN)</label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={draft.balance}
+              onChange={(e) => setDraft({ ...draft, balance: e.target.value })}
+              className="col-span-3 h-10 font-mono tabular-nums"
+            />
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Oprocent. %</label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={draft.ratePct}
+              onChange={(e) => setDraft({ ...draft, ratePct: e.target.value })}
+              className="col-span-3 h-10 font-mono tabular-nums"
+            />
+          </div>
+
+          {isLokata && (
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Data otwarcia</label>
+                <Input
+                  type="date"
+                  value={draft.lokataStartDate ?? ""}
+                  onChange={(e) => setDraft({ ...draft, lokataStartDate: e.target.value })}
+                  className="col-span-3 h-10"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Miesięcy</label>
+                <Select
+                  value={String(draft.lokataDurationMonths ?? 12)}
+                  onValueChange={(v) => setDraft({ ...draft, lokataDurationMonths: parseInt(v) })}
+                >
+                  <SelectTrigger className="col-span-3 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 6, 9, 12, 18, 24, 36].map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {m} {m === 1 ? "miesiąc" : m < 5 ? "miesiące" : "miesięcy"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {isLokata && gross !== null && net !== null && (
+            <div className="col-span-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Odsetki brutto:</span>
+                <span className="font-mono text-amber-600">+{formatPLN(gross)}</span>
+              </div>
+              <div className="flex justify-between font-bold border-t border-emerald-500/20 pt-1.5 mt-1">
+                <span>Do wypłaty netto:</span>
+                <span className="font-mono text-emerald-600">
+                  {formatPLN(numBalance + net)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Anuluj
+            </Button>
+            <Button type="submit" disabled={!draft.bank.trim()}>
+              Zapisz zmiany
             </Button>
           </DialogFooter>
         </form>
