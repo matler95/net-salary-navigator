@@ -49,6 +49,7 @@ function InvitePage() {
 
     loadInviteContext(token)
       .then((result) => {
+        console.log("Invite context result:", result);
         if (!result) {
           setStatus({ msg: "Nieprawidłowe lub wygasłe zaproszenie.", type: "error" });
           setInvite(null);

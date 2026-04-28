@@ -383,10 +383,12 @@ export async function loadInviteContext(token: string): Promise<InviteContext | 
   const supabase = await getSupabase();
   if (!supabase) return null;
 
+  console.log("Loading invite context for token:", token);
   const { data, error } = await supabase.rpc("get_invite_context", {
     invite_token: token,
   });
 
+  console.log("Invite context RPC result:", { data, error });
   if (error || !data) {
     console.error("Error loading invite context:", error);
     return null;
