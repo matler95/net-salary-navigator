@@ -26,9 +26,15 @@ create table if not exists public.household_invites (
   household_id uuid not null references public.households(id) on delete cascade,
   email text not null,
   token text not null unique,
+  status text not null default 'pending',
   expires_at timestamptz not null default (now() + interval '7 day'),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint household_invites_status_check check (status in ('pending', 'accepted', 'revoked'))
 );
+
+create unique index if not exists idx_invites_household_email_active
+  on public.household_invites(household_id, lower(email))
+  where status = 'pending';
 
 create table if not exists public.spouses (
   id text primary key,
@@ -187,8 +193,9 @@ begin
   values (v_household_id, auth.uid(), 'member')
   on conflict (household_id, user_id) do nothing;
 
-  -- Delete the invite
-  delete from public.household_invites where token = invite_token;
+  update public.household_invites
+  set status = 'accepted'
+  where token = invite_token;
 
   return v_household_id;
 end;

@@ -46,31 +46,68 @@ export async function loadHouseholdMembers(householdId: string): Promise<{ user_
   return data as { user_id: string; created_at: string; role: string }[];
 }
 
-export async function loadHouseholdInvites(householdId: string): Promise<{ id: string; email: string; expires_at: string }[]> {
+export async function loadHouseholdInvites(
+  householdId: string,
+  includeAll = false,
+): Promise<{ id: string; email: string; expires_at: string; status: string }[]> {
   const supabase = await getSupabase();
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("household_invites")
-    .select("id, email, expires_at")
+    .select("id, email, expires_at, status")
     .eq("household_id", householdId)
     .order("created_at", { ascending: false });
 
+  if (!includeAll) {
+    query = query.eq("status", "pending");
+  }
+
+  const { data, error } = await query;
   if (error || !data) {
     console.error("Error loading household invites:", error);
     return [];
   }
 
-  return data as { id: string; email: string; expires_at: string }[];
+  return data as { id: string; email: string; expires_at: string; status: string }[];
 }
 
 export async function revokeHouseholdInvite(inviteId: string): Promise<boolean> {
   const supabase = await getSupabase();
   if (!supabase) return false;
 
-  const { error } = await supabase.from("household_invites").delete().eq("id", inviteId);
+  const { error } = await supabase.rpc("revoke_invite", { invite_id: inviteId });
   if (error) {
     console.error("Error revoking invite:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function leaveHousehold(householdId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.rpc("leave_household", {
+    target_household_id: householdId,
+  });
+  if (error) {
+    console.error("Error leaving household:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function transferOwnership(householdId: string, newOwnerId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.rpc("transfer_ownership", {
+    target_household_id: householdId,
+    new_owner_id: newOwnerId,
+  });
+  if (error) {
+    console.error("Error transferring ownership:", error);
     return false;
   }
   return true;
@@ -259,21 +296,51 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
 export async function createHouseholdInvite(householdId: string, email: string) {
   const supabase = await getSupabase();
   if (!supabase) return null;
+
+  const normalizedEmail = email.trim().toLowerCase();
   const token = crypto.randomUUID();
-  const { data, error } = (await supabase
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: existingInvite } = await supabase
+    .from("household_invites")
+    .select("id, household_id, email, token, status, expires_at")
+    .eq("household_id", householdId)
+    .eq("email", normalizedEmail)
+    .eq("status", "pending")
+    .single();
+
+  if (existingInvite) {
+    const { data, error } = await supabase
+      .from("household_invites")
+      .update({ token, expires_at: expiresAt })
+      .eq("id", existingInvite.id)
+      .select("id, household_id, email, token")
+      .single();
+
+    if (error || !data) {
+      console.error("Error refreshing existing household invite:", error);
+      return null;
+    }
+    return data as InviteRow;
+  }
+
+  const { data, error } = await supabase
     .from("household_invites")
     .insert({
       household_id: householdId,
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       token,
+      status: "pending",
+      expires_at: expiresAt,
     })
     .select("id,household_id,email,token")
-    .single()) as { data: InviteRow | null; error: any };
+    .single();
+
   if (error || !data) {
     console.error("Error creating household invite:", error);
     return null;
   }
-  return data;
+  return data as InviteRow;
 }
 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<string | null> {
@@ -281,14 +348,14 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
   if (!supabase) return null;
 
   try {
-    const { data: householdId, error } = await supabase.rpc('accept_invite', {
+    const { data: householdId, error } = await supabase.rpc("accept_invite", {
       invite_token: token,
     });
     if (error) {
       console.error("Error accepting invite via RPC:", error);
       return null;
     }
-    return householdId;
+    return householdId as string | null;
   } catch (err) {
     console.error("Unexpected error accepting invite:", err);
     return null;

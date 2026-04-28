@@ -260,7 +260,7 @@ export function useAppState<T>(selector: (s: AppState) => T): T {
   return selector(full);
 }
 
-export async function initCloudSync(session: Session | null) {
+export async function initCloudSync(session: Session | null, preferredHouseholdId: string | null = null) {
   if (!session) {
     cloudSyncEnabled = false;
     activeHouseholdId = null;
@@ -279,10 +279,13 @@ export async function initCloudSync(session: Session | null) {
   if (syncInProgress) return;
   syncInProgress = true;
   try {
-    const preferredHouseholdId =
+    const persistedHouseholdId =
       typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_HOUSEHOLD_KEY) : null;
-    const household = await ensureHouseholdForSession(session, preferredHouseholdId);
-    // `return` inside try still triggers finally, so syncInProgress resets correctly
+    const household = await ensureHouseholdForSession(
+      session,
+      preferredHouseholdId ?? persistedHouseholdId,
+    );
+
     if (!household?.householdId) return;
     activeHouseholdId = household.householdId;
     if (typeof window !== "undefined") {
@@ -300,6 +303,7 @@ export async function initCloudSync(session: Session | null) {
       }
       return;
     }
+
     cloudSyncEnabled = true;
     await migrateLocalToCloudOnce(household.householdId, state);
     const cloudState = await loadHouseholdState(household.householdId);
@@ -399,12 +403,14 @@ export async function createInvite(email: string): Promise<string | null> {
 export async function acceptInvite(token: string, session: Session): Promise<boolean> {
   const householdId = await acceptHouseholdInvite(token, session);
   if (!householdId) return false;
+
   activeHouseholdId = householdId;
   cloudSyncEnabled = true;
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
   }
-  await initCloudSync(session);
+
+  await initCloudSync(session, householdId);
   return true;
 }
 

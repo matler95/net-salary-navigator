@@ -32,7 +32,9 @@ function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [members, setMembers] = useState<{ user_id: string; created_at: string; role: string }[]>([]);
-  const [pendingInvites, setPendingInvites] = useState<{ id: string; email: string; expires_at: string }[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<
+    { id: string; email: string; expires_at: string; status: string }[]
+  >([]);
   const [isOwner, setIsOwner] = useState(false);
   const { session } = useAuthSession();
 
@@ -41,7 +43,7 @@ function SettingsPage() {
     if (!householdId) return;
 
     const members = await loadHouseholdMembers(householdId);
-    const invites = await loadHouseholdInvites(householdId);
+    const invites = await loadHouseholdInvites(householdId, false);
 
     setMembers(members);
     setPendingInvites(invites);
@@ -303,7 +305,9 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
             </div>
             <div className="flex justify-between gap-3">
               <span>Oczekujące zaproszenia</span>
-              <strong className="text-foreground">{pendingInvites.length}</strong>
+              <strong className="text-foreground">
+                {pendingInvites.filter((invite) => invite.status === "pending").length}
+              </strong>
             </div>
             {session?.user.id && (
               <div className="flex justify-between gap-3">
@@ -366,9 +370,14 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <li key={invite.id} className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium text-foreground">{invite.email}</p>
-                  <p className="text-xs text-muted-foreground">Ważne do: {new Date(invite.expires_at).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {invite.status === "pending" ? "Ważne do:" : "Status:"}{" "}
+                    {invite.status === "pending"
+                      ? new Date(invite.expires_at).toLocaleString()
+                      : invite.status}
+                  </p>
                 </div>
-                {isOwner ? (
+                {isOwner && invite.status === "pending" ? (
                   <Button size="sm" variant="outline" onClick={() => void handleRevokeInvite(invite.id)} disabled={loading}>
                     Unieważnij
                   </Button>
