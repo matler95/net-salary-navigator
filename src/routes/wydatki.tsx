@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type Expense } from "@/lib/store";
-import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import {
   getExpenseAnnualTotal,
   getExpenseMonthlyAverage,
@@ -465,8 +465,8 @@ function AddExpenseDialog() {
                     setAmountInput(e.target.value);
                     setAmount(parseLocaleAmount(e.target.value));
                   }}
-                  onBlur={() => setAmountInput(formatAmountInput(amount))}
-                  min={0}
+                  onBlur={() => setAmountInput(formatLocaleAmount(amount))}
+                  placeholder="0"
                   className="mt-1 h-10 font-mono tabular-nums"
                 />
               </div>
@@ -525,10 +525,11 @@ function ExpenseRow({ expense }: { expense: Expense }) {
       <Input
         type="text"
         inputMode="decimal"
-        value={formatAmountInput(expense.amount)}
+        value={formatLocaleAmount(expense.amount)}
         onChange={(e) =>
           actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
         }
+        placeholder="0"
         className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
       />
       <Select
@@ -629,7 +630,3 @@ function ExpenseRow({ expense }: { expense: Expense }) {
   );
 }
 
-function formatAmountInput(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "";
-  return value.toFixed(2).replace(/\.00$/, "").replace(".", ",");
-}

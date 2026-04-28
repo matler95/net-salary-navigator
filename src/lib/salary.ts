@@ -417,5 +417,11 @@ export function formatPLN2(n: number): string {
 
 export function parseLocaleAmount(raw: string): number {
   const normalized = raw.replace(/\s/g, "").replace(",", ".");
-  return parseFloat(normalized) || 0;
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+export function formatLocaleAmount(value: number, decimals: number = 2): string {
+  if (!Number.isFinite(value) || value === 0) return "";
+  return value.toFixed(decimals).replace(/\.00$/, "").replace(".", ",");
 }

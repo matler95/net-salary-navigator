@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import {
-  calculateSalary,
-  calculateAnnualBreakdown,
-  formatPLN,
-  formatPLN2,
-  type SalaryInputs,
+import { 
+  calculateSalary, 
+  calculateAnnualBreakdown, 
+  formatPLN, 
+  formatPLN2, 
+  parseLocaleAmount,
+  formatLocaleAmount,
+  type SalaryInputs 
 } from "@/lib/salary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMemo, useState, useEffect } from "react";
 
 function NumberField({
   label,
@@ -37,6 +39,27 @@ function NumberField({
   hint?: string;
   step?: number;
 }) {
+  const [localValue, setLocalValue] = useState<string>(formatLocaleAmount(value));
+
+  // Sync localValue when value prop changes externally (e.g. from state sync or other inputs)
+  useEffect(() => {
+    const parsedLocal = parseLocaleAmount(localValue);
+    if (parsedLocal !== value) {
+      setLocalValue(formatLocaleAmount(value));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const parsed = parseLocaleAmount(raw);
+    onChange(parsed);
+  };
+
+  const handleBlur = () => {
+    setLocalValue(formatLocaleAmount(value));
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
@@ -44,12 +67,12 @@ function NumberField({
       </Label>
       <div className="relative">
         <Input
-          type="number"
+          type="text"
           inputMode="decimal"
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          step={step}
-          min={0}
+          value={localValue}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder="0"
           className="pr-12 font-mono tabular-nums text-base h-11"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -345,12 +368,10 @@ export function SpousePanel({
                   Dni WHF
                 </Label>
                 <Input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  value={spouse.inputs.whfDays ?? 0}
-                  onChange={(e) => set("whfDays", parseFloat(e.target.value) || 0)}
-                  min={0}
-                  step={1}
+                  value={formatLocaleAmount(spouse.inputs.whfDays ?? 0, 0)}
+                  onChange={(e) => set("whfDays", parseLocaleAmount(e.target.value))}
                   className="font-mono text-base h-11 w-full"
                 />
               </div>
@@ -360,12 +381,10 @@ export function SpousePanel({
                 </Label>
                 <div className="relative">
                   <Input
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    value={spouse.inputs.whfDailyRate ?? 0}
-                    onChange={(e) => set("whfDailyRate", parseFloat(e.target.value) || 0)}
-                    min={0}
-                    step={1}
+                    value={formatLocaleAmount(spouse.inputs.whfDailyRate ?? 0, 0)}
+                    onChange={(e) => set("whfDailyRate", parseLocaleAmount(e.target.value))}
                     className="font-mono text-base h-11 w-full pr-12"
                     placeholder="0"
                   />

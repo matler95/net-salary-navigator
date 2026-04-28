@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { actions, useAppState } from "@/lib/store";
 import { Separator } from "@/components/ui/separator";
-import { formatPLN } from "@/lib/salary";
+import { formatPLN, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -457,11 +457,12 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <Label htmlFor="avg-salary">Prognozowane przeciętne wynagrodzenie (miesięczne)</Label>
               <Input
                 id="avg-salary"
-                type="number"
-                value={globalSettings.avgSalaryForecast}
+                type="text"
+                inputMode="decimal"
+                value={formatLocaleAmount(globalSettings.avgSalaryForecast, 0)}
                 onChange={(e) =>
                   actions.updateGlobalSettings({
-                    avgSalaryForecast: parseFloat(e.target.value) || 0,
+                    avgSalaryForecast: parseLocaleAmount(e.target.value),
                   })
                 }
                 className="font-mono"
@@ -481,11 +482,12 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <Label htmlFor="pit-threshold">II próg podatkowy (roczny)</Label>
               <Input
                 id="pit-threshold"
-                type="number"
-                value={globalSettings.pitThresholdAnnual}
+                type="text"
+                inputMode="decimal"
+                value={formatLocaleAmount(globalSettings.pitThresholdAnnual, 0)}
                 onChange={(e) =>
                   actions.updateGlobalSettings({
-                    pitThresholdAnnual: parseFloat(e.target.value) || 0,
+                    pitThresholdAnnual: parseLocaleAmount(e.target.value),
                   })
                 }
                 className="font-mono"
@@ -501,10 +503,11 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <div className="relative">
                 <Input
                   id="pit-rate-1"
-                  type="number"
-                  value={globalSettings.pitFirstRate}
+                  type="text"
+                  inputMode="decimal"
+                  value={formatLocaleAmount(globalSettings.pitFirstRate)}
                   onChange={(e) =>
-                    actions.updateGlobalSettings({ pitFirstRate: parseFloat(e.target.value) || 0 })
+                    actions.updateGlobalSettings({ pitFirstRate: parseLocaleAmount(e.target.value) })
                   }
                   className="pr-8 font-mono"
                 />
@@ -518,10 +521,11 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <div className="relative">
                 <Input
                   id="pit-rate-2"
-                  type="number"
-                  value={globalSettings.pitSecondRate}
+                  type="text"
+                  inputMode="decimal"
+                  value={formatLocaleAmount(globalSettings.pitSecondRate)}
                   onChange={(e) =>
-                    actions.updateGlobalSettings({ pitSecondRate: parseFloat(e.target.value) || 0 })
+                    actions.updateGlobalSettings({ pitSecondRate: parseLocaleAmount(e.target.value) })
                   }
                   className="pr-8 font-mono"
                 />
@@ -534,11 +538,12 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               <Label htmlFor="tax-free">Kwota wolna (roczna)</Label>
               <Input
                 id="tax-free"
-                type="number"
-                value={globalSettings.taxFreeAmountAnnual}
+                type="text"
+                inputMode="decimal"
+                value={formatLocaleAmount(globalSettings.taxFreeAmountAnnual, 0)}
                 onChange={(e) =>
                   actions.updateGlobalSettings({
-                    taxFreeAmountAnnual: parseFloat(e.target.value) || 0,
+                    taxFreeAmountAnnual: parseLocaleAmount(e.target.value),
                   })
                 }
                 className="font-mono"

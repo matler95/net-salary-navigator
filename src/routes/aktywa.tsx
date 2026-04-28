@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
-import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
@@ -340,9 +340,9 @@ function InvestmentsSection() {
                   </td>
                   <td className="px-4 py-2 hidden sm:table-cell">
                     <Input
-                      type="number"
-                      step="0.0001"
-                      value={i.volume ?? ""}
+                      type="text"
+                      inputMode="decimal"
+                      value={formatLocaleAmount(i.volume ?? 0, 4)}
                       onChange={(e) =>
                         actions.updateInvestment(i.id, {
                           volume: parseLocaleAmount(e.target.value),
@@ -936,7 +936,7 @@ function AddInvestmentDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={draft.volume || ""}
+              value={formatLocaleAmount(draft.volume, 4)}
               onChange={(e) => setDraft({ ...draft, volume: parseLocaleAmount(e.target.value) })}
               placeholder="np. 10"
               className="col-span-3 font-mono tabular-nums h-10"
@@ -1000,6 +1000,7 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
               inputMode="decimal"
               value={addedVolume}
               onChange={(e) => setAddedVolume(e.target.value)}
+              onBlur={() => setAddedVolume(formatLocaleAmount(parseLocaleAmount(addedVolume), 4))}
               className="col-span-3 font-mono h-10"
               autoFocus
             />
@@ -1011,6 +1012,7 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
               inputMode="decimal"
               value={buyPrice}
               onChange={(e) => setBuyPrice(e.target.value)}
+              onBlur={() => setBuyPrice(formatLocaleAmount(parseLocaleAmount(buyPrice), 4))}
               className="col-span-3 font-mono h-10"
             />
           </div>
@@ -2514,7 +2516,7 @@ function AddSavingsDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={draft.balance || ""}
+              value={formatLocaleAmount(draft.balance, 0)}
               onChange={(e) => setDraft({ ...draft, balance: parseLocaleAmount(e.target.value) })}
               placeholder="np. 10 000"
               className="col-span-3 font-mono tabular-nums h-10"
@@ -2526,7 +2528,7 @@ function AddSavingsDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={draft.ratePct || ""}
+              value={formatLocaleAmount(draft.ratePct)}
               onChange={(e) => setDraft({ ...draft, ratePct: parseLocaleAmount(e.target.value) })}
               placeholder="np. 6.50"
               className="col-span-3 font-mono tabular-nums h-10"
