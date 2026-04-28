@@ -37,3 +37,5 @@ salary_data.csv
 salary.csv
 package-lock.json
 .env
+query_results.json
+query_results_pinpoint.json

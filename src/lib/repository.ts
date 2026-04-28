@@ -12,6 +12,8 @@ type HouseholdRow = { id: string };
 type MembershipRow = { household_id: string; user_id: string; created_at?: string; role?: string };
 type InviteRow = { id: string; household_id: string; email: string; token: string; expires_at?: string };
 
+let creatingHouseholdPromise: Promise<HouseholdContext | null> | null = null;
+
 export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
   const supabase = await getSupabase();
   if (!supabase) return false;
@@ -158,49 +160,61 @@ export async function ensureHouseholdForSession(
     return { householdId: membershipsList[0].household_id, userId };
   }
 
-  const { data: householdId, error: householdError } = await supabase.rpc("create_household", {
-    household_name: "Moje gospodarstwo",
-  });
-  
-  if (!householdError && householdId) {
-    const { error: ensureMemberError } = await supabase.from("household_members").insert({
-      household_id: householdId,
+  if (creatingHouseholdPromise) {
+    return creatingHouseholdPromise;
+  }
+
+  creatingHouseholdPromise = (async () => {
+    const { data: householdId, error: householdError } = await supabase.rpc("create_household", {
+      household_name: "Moje gospodarstwo",
+    });
+
+    if (!householdError && householdId) {
+      return { householdId, userId };
+    }
+
+    console.error("Error creating household via RPC, trying fallback:", householdError);
+
+    const { data: existingMembership, error: existingMembershipError } = await supabase
+      .from("household_members")
+      .select("household_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .single();
+
+    if (!existingMembershipError && existingMembership?.household_id) {
+      return { householdId: existingMembership.household_id, userId };
+    }
+
+    const { data: created, error: insertHouseholdError } = (await supabase
+      .from("households")
+      .insert({ name: "Moje gospodarstwo" })
+      .select("id")
+      .single()) as { data: HouseholdRow | null; error: any };
+
+    if (insertHouseholdError || !created?.id) {
+      console.error("Fallback household creation failed:", insertHouseholdError);
+      return null;
+    }
+
+    const fallbackHouseholdId = created.id;
+    const { error: insertMemberError } = await supabase.from("household_members").insert({
+      household_id: fallbackHouseholdId,
       user_id: userId,
       role: "owner",
     });
-    if (ensureMemberError && !String(ensureMemberError.message ?? "").toLowerCase().includes("duplicate")) {
-      console.error("Error ensuring owner membership after create_household RPC:", ensureMemberError);
+
+    if (insertMemberError && !String(insertMemberError.message ?? "").toLowerCase().includes("duplicate")) {
+      console.error("Fallback membership creation failed:", insertMemberError);
+      return null;
     }
-    return { householdId, userId };
-  }
 
-  console.error("Error creating household via RPC, trying fallback:", householdError);
+    return { householdId: fallbackHouseholdId, userId };
+  })();
 
-  // Fallback for environments where RPC function was not created yet.
-  const { data: created, error: insertHouseholdError } = (await supabase
-    .from("households")
-    .insert({ name: "Moje gospodarstwo" })
-    .select("id")
-    .single()) as { data: HouseholdRow | null; error: any };
-
-  if (insertHouseholdError || !created?.id) {
-    console.error("Fallback household creation failed:", insertHouseholdError);
-    return null;
-  }
-
-  const fallbackHouseholdId = created.id;
-  const { error: insertMemberError } = await supabase.from("household_members").insert({
-    household_id: fallbackHouseholdId,
-    user_id: userId,
-    role: "owner",
-  });
-
-  if (insertMemberError && !String(insertMemberError.message ?? "").toLowerCase().includes("duplicate")) {
-    console.error("Fallback membership creation failed:", insertMemberError);
-    return null;
-  }
-
-  return { householdId: fallbackHouseholdId, userId };
+  const result = await creatingHouseholdPromise;
+  creatingHouseholdPromise = null;
+  return result;
 }
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
