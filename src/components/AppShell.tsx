@@ -94,7 +94,7 @@ export function AppShell() {
     );
   }
 
-  if (!isAuthenticated && loc.pathname !== "/login") {
+  if (!isAuthenticated && loc.pathname !== "/login" && loc.pathname !== "/invite") {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-xl rounded-3xl border border-border bg-card p-8 shadow-lg">
