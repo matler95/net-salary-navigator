@@ -402,9 +402,12 @@ export async function loadInviteContext(token: string): Promise<InviteContext | 
   return inviteData as InviteContext;
 }
 
-export async function acceptHouseholdInvite(token: string, session: Session): Promise<string | null> {
+export async function acceptHouseholdInvite(
+  token: string,
+  session: Session,
+): Promise<{ householdId: string | null; error?: string }> {
   const supabase = await getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { householdId: null, error: "Supabase client not available." };
 
   try {
     const { data: householdId, error } = await supabase.rpc("accept_invite", {
@@ -412,12 +415,15 @@ export async function acceptHouseholdInvite(token: string, session: Session): Pr
     });
     if (error) {
       console.error("Error accepting invite via RPC:", error);
-      return null;
+      return { householdId: null, error: error.message ?? "Nieznany błąd zaproszenia." };
     }
-    return householdId as string | null;
+    return { householdId: householdId as string | null };
   } catch (err) {
     console.error("Unexpected error accepting invite:", err);
-    return null;
+    return {
+      householdId: null,
+      error: err instanceof Error ? err.message : "Nieznany błąd serwera.",
+    };
   }
 }
 

@@ -74,15 +74,17 @@ function InvitePage() {
       await updateUserMetadata({ nickname: nickname.trim() });
     }
 
-    const accepted = await acceptInvite(token, session);
-    if (accepted) {
+    const { success, error } = await acceptInvite(token, session);
+    if (success) {
       toast.success(`Dołączono do gospodarstwa ${invite?.household_name ?? "gospodarstwa"}`);
       await router.navigate({ to: "/" });
       return;
     }
 
     setStatus({
-      msg: "Nie udało się dołączyć do gospodarstwa. Upewnij się, że używasz właściwego konta e-mail.",
+      msg:
+        error ??
+        "Nie udało się dołączyć do gospodarstwa. Upewnij się, że używasz właściwego konta e-mail.",
       type: "error",
     });
     setAccepting(false);

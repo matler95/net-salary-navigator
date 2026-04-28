@@ -86,8 +86,8 @@ function LoginPage() {
         (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined : undefined);
 
       if (pendingInvite) {
-        const accepted = await acceptInvite(pendingInvite, session);
-        if (!cancelled && accepted) {
+        const result = await acceptInvite(pendingInvite, session);
+        if (!cancelled && result.success) {
           if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
           await router.navigate({ to: "/" });
           return;
@@ -168,10 +168,12 @@ function LoginPage() {
         const { data } = await supabase.auth.getSession();
         if (data.session) {
           if (pendingInvite) {
-            const accepted = await acceptInvite(pendingInvite, data.session);
-            if (!accepted) {
+            const result = await acceptInvite(pendingInvite, data.session);
+            if (!result.success) {
               setStatus({
-                msg: "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że logujesz się na ten sam email, na który wysłano zaproszenie.",
+                msg:
+                  result.error ||
+                  "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że logujesz się na ten sam email, na który wysłano zaproszenie.",
                 type: "error",
               });
               return;
@@ -219,10 +221,12 @@ function LoginPage() {
         }
         if (signUpData?.session) {
           if (pendingInvite) {
-            const accepted = await acceptInvite(pendingInvite, signUpData.session);
-            if (!accepted) {
+            const result = await acceptInvite(pendingInvite, signUpData.session);
+            if (!result.success) {
               setStatus({
-                msg: "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że rejestrujesz się na ten sam email, na który wysłano zaproszenie.",
+                msg:
+                  result.error ||
+                  "Nie udało się dołączyć do gospodarstwa z linku. Upewnij się, że rejestrujesz się na ten sam email, na który wysłano zaproszenie.",
                 type: "error",
               });
               return;

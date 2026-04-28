@@ -405,9 +405,11 @@ export async function createInvite(email: string): Promise<string | null> {
   return `${window.location.origin}/invite?invite=${invite.token}`;
 }
 
-export async function acceptInvite(token: string, session: Session): Promise<boolean> {
-  const householdId = await acceptHouseholdInvite(token, session);
-  if (!householdId) return false;
+export async function acceptInvite(token: string, session: Session): Promise<{ success: boolean; error?: string }> {
+  const { householdId, error } = await acceptHouseholdInvite(token, session);
+  if (!householdId) {
+    return { success: false, error };
+  }
 
   activeHouseholdId = householdId;
   cloudSyncEnabled = true;
@@ -416,7 +418,7 @@ export async function acceptInvite(token: string, session: Session): Promise<boo
   }
 
   await initCloudSync(session, householdId);
-  return true;
+  return { success: true };
 }
 
 let lastCloudSyncTime = 0;
