@@ -366,6 +366,9 @@ function AddExpenseDialog() {
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Dodaj wydatek</DialogTitle>
+          <DialogDescription>
+            Wprowadź dane nowego wydatku. Możesz wybrać kategorię, częstotliwość i konkretne miesiące płatności.
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -591,6 +594,9 @@ function ExpenseRow({ expense }: { expense: Expense }) {
               <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
                   <DialogTitle>Miesiące płatności</DialogTitle>
+                  <DialogDescription>
+                    Wybierz miesiące, w których ten wydatek jest opłacany.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
                   <MonthSelector

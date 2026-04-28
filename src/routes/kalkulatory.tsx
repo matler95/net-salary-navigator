@@ -686,8 +686,12 @@ function RealEstateCalculator() {
               <div className="flex justify-between items-center pt-1">
                 <span className="font-bold">Łączny zysk (netto)</span>
                 <div className="text-right">
-                  <p className="font-display text-2xl text-success">{formatPLN(r.totalReturn)}</p>
-                  <p className="text-xs text-muted-foreground">+{r.totalReturnPct.toFixed(0)}% zwrotu z kapitału</p>
+                  <p className={`font-display text-2xl ${r.totalReturn >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatPLN(r.totalReturn)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.totalReturnPct >= 0 ? "+" : ""}{r.totalReturnPct.toFixed(0)}% {r.totalReturnPct >= 0 ? "zwrotu" : "straty"} z kapitału
+                  </p>
                 </div>
               </div>
             </div>

@@ -1189,25 +1189,19 @@ function LoanCard({
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Field label="Kapitał">
-          <Input
-            type="text"
-            inputMode="decimal"
+          <LocalNumInput
             value={loan.principal}
-            onChange={(e) =>
-              actions.updateLoan(loan.id, { principal: parseLocaleAmount(e.target.value) })
-            }
+            onChange={(v) => actions.updateLoan(loan.id, { principal: v })}
             className="h-10 font-mono tabular-nums"
+            decimals={0}
           />
         </Field>
         <Field label="Oproc. %">
-          <Input
-            type="text"
-            inputMode="decimal"
+          <LocalNumInput
             value={loan.annualRatePct}
-            onChange={(e) =>
-              actions.updateLoan(loan.id, { annualRatePct: parseLocaleAmount(e.target.value) })
-            }
+            onChange={(v) => actions.updateLoan(loan.id, { annualRatePct: v })}
             className="h-10 font-mono tabular-nums"
+            decimals={2}
           />
         </Field>
         <Field label="Pozostałe m-ce">
@@ -1221,14 +1215,11 @@ function LoanCard({
           />
         </Field>
         <Field label="Nadpłata / m-c">
-          <Input
-            type="text"
-            inputMode="decimal"
-            value={overpay || ""}
-            onChange={(e) =>
-              actions.updateLoan(loan.id, { monthlyOverpayment: parseLocaleAmount(e.target.value) })
-            }
+          <LocalNumInput
+            value={overpay}
+            onChange={(v) => actions.updateLoan(loan.id, { monthlyOverpayment: v })}
             className="h-10 font-mono tabular-nums"
+            decimals={0}
           />
         </Field>
         <Field label="Dzień płatności">
@@ -1428,42 +1419,27 @@ function RentalsSection() {
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <Field label="Czynsz / m-c">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                    <LocalNumInput
                       value={r.monthlyRent}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          monthlyRent: parseLocaleAmount(e.target.value),
-                        })
-                      }
+                      onChange={(v) => actions.updateRental(r.id, { monthlyRent: v })}
                       className="h-10 font-mono tabular-nums"
+                      decimals={0}
                     />
                   </Field>
                   <Field label="Koszty / m-c">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                    <LocalNumInput
                       value={r.monthlyCosts}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          monthlyCosts: parseLocaleAmount(e.target.value),
-                        })
-                      }
+                      onChange={(v) => actions.updateRental(r.id, { monthlyCosts: v })}
                       className="h-10 font-mono tabular-nums"
+                      decimals={0}
                     />
                   </Field>
-                  <Field label="Rata / m-c">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
+                  <Field label="Rata kredytu / m-c">
+                    <LocalNumInput
                       value={r.monthlyMortgage}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          monthlyMortgage: parseLocaleAmount(e.target.value),
-                        })
-                      }
+                      onChange={(v) => actions.updateRental(r.id, { monthlyMortgage: v })}
                       className="h-10 font-mono tabular-nums"
+                      decimals={0}
                     />
                   </Field>
                   <Field label="Wartość">
@@ -1563,6 +1539,44 @@ function Field({
   );
 }
 
+function LocalNumInput({
+  value,
+  onChange,
+  className = "",
+  placeholder = "",
+  decimals = 2,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+  placeholder?: string;
+  decimals?: number;
+}) {
+  const [localValue, setLocalValue] = useState<string>(formatLocaleAmount(value, decimals));
+
+  useEffect(() => {
+    const parsedLocal = parseLocaleAmount(localValue);
+    if (parsedLocal !== value) {
+      setLocalValue(formatLocaleAmount(value, decimals));
+    }
+  }, [value, decimals]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={localValue}
+      onChange={(e) => {
+        setLocalValue(e.target.value);
+        onChange(parseLocaleAmount(e.target.value));
+      }}
+      onBlur={() => setLocalValue(formatLocaleAmount(value, decimals))}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+}
+
 function AddLoanDialog() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({
@@ -1618,26 +1632,21 @@ function AddLoanDialog() {
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Kapitał</label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={draft.principal || ""}
-              onChange={(e) => setDraft({ ...draft, principal: parseLocaleAmount(e.target.value) })}
+            <LocalNumInput
+              value={draft.principal}
+              onChange={(v) => setDraft({ ...draft, principal: v })}
               placeholder="np. 400000"
               className="col-span-3 font-mono tabular-nums h-10"
-              autoFocus
+              decimals={0}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Oproc. (%)</label>
-            <Input
-              type="text"
-              inputMode="decimal"
+            <LocalNumInput
               value={draft.annualRatePct}
-              onChange={(e) =>
-                setDraft({ ...draft, annualRatePct: parseLocaleAmount(e.target.value) })
-              }
+              onChange={(v) => setDraft({ ...draft, annualRatePct: v })}
               className="col-span-3 font-mono tabular-nums h-10"
+              decimals={2}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -1655,14 +1664,11 @@ function AddLoanDialog() {
             <label className="text-right text-sm font-medium text-muted-foreground">
               Nadpłata
             </label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={draft.monthlyOverpayment || ""}
-              onChange={(e) =>
-                setDraft({ ...draft, monthlyOverpayment: parseLocaleAmount(e.target.value) })
-              }
+            <LocalNumInput
+              value={draft.monthlyOverpayment}
+              onChange={(v) => setDraft({ ...draft, monthlyOverpayment: v })}
               className="col-span-3 font-mono tabular-nums h-10"
+              decimals={0}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -1748,23 +1754,20 @@ function AddRentalDialog() {
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium text-success">Czynsz</label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={draft.monthlyRent || ""}
-              onChange={(e) => setDraft({ ...draft, monthlyRent: parseLocaleAmount(e.target.value) })}
+            <LocalNumInput
+              value={draft.monthlyRent}
+              onChange={(v) => setDraft({ ...draft, monthlyRent: v })}
               className="col-span-3 font-mono tabular-nums h-10"
-              autoFocus
+              decimals={0}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Wartość</label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={draft.marketValue || ""}
-              onChange={(e) => setDraft({ ...draft, marketValue: parseLocaleAmount(e.target.value) })}
+            <LocalNumInput
+              value={draft.marketValue}
+              onChange={(v) => setDraft({ ...draft, marketValue: v })}
               className="col-span-3 font-mono tabular-nums h-10"
+              decimals={0}
             />
           </div>
           <DialogFooter>

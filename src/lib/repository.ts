@@ -548,7 +548,16 @@ function mapSpouseFromRow(row: unknown): Spouse {
   };
 }
 function mapExpenseToRow(householdId: string, x: Expense) {
-  return { ...x, household_id: householdId };
+  return { 
+    id: x.id,
+    household_id: householdId,
+    category: x.category,
+    label: x.label,
+    amount: x.amount,
+    frequency: x.frequency,
+    month: x.month,
+    months: x.months,
+  };
 }
 function mapExpenseFromRow(row: unknown): Expense {
   const r = asRecord(row);
@@ -559,6 +568,7 @@ function mapExpenseFromRow(row: unknown): Expense {
     amount: Number(r.amount ?? 0),
     frequency: String(r.frequency ?? "monthly") as Expense["frequency"],
     month: r.month ? Number(r.month) : undefined,
+    months: Array.isArray(r.months) ? (r.months as number[]) : undefined,
   };
 }
 function mapInvestmentToRow(householdId: string, x: Investment) {
