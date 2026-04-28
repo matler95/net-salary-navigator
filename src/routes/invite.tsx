@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
@@ -32,6 +32,8 @@ function InvitePage() {
   const [invite, setInvite] = useState<InviteContext | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState<{ msg: string; type: "error" | "info" | "success" } | null>(null);
 
   useEffect(() => {
@@ -78,6 +80,61 @@ function InvitePage() {
       type: "error",
     });
     setAccepting(false);
+  }
+
+  async function handleRegister(e: FormEvent) {
+    e.preventDefault();
+    if (!invite || !token) return;
+    setRegistering(true);
+    setStatus(null);
+
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setStatus({ msg: "Brak konfiguracji Supabase.", type: "error" });
+      setRegistering(false);
+      return;
+    }
+
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email: invite.email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/invite?invite=${encodeURIComponent(token)}`,
+      },
+    });
+
+    if (error) {
+      const message = error.message.toLowerCase();
+      if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
+        await router.navigate({ to: "/login", search: { invite: token } });
+        return;
+      }
+      setStatus({ msg: error.message, type: "error" });
+      setRegistering(false);
+      return;
+    }
+
+    if (signUpData?.session) {
+      const accepted = await acceptInvite(token, signUpData.session);
+      if (!accepted) {
+        setStatus({
+          msg: "Nie udało się dołączyć do gospodarstwa. Spróbuj zalogować się na ten sam email.",
+          type: "error",
+        });
+        setRegistering(false);
+        return;
+      }
+      if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+      toast.success(`Dołączono do gospodarstwa ${invite.household_name}`);
+      await router.navigate({ to: "/" });
+      return;
+    }
+
+    setStatus({
+      msg: "Konto zostało utworzone. Jeżeli w projekcie wymagana jest weryfikacja email, sprawdź skrzynkę i wróć do aplikacji.",
+      type: "success",
+    });
+    setRegistering(false);
   }
 
   async function handleLogoutAndContinue() {
@@ -168,27 +225,40 @@ function InvitePage() {
               <Button onClick={handleAccept} disabled={accepting || !invite?.is_valid}>
                 {accepting ? "Dołączanie…" : `Dołącz do ${householdName}`}
               </Button>
-            ) : (
-              <div className="space-y-4">
+            ) : invite?.is_valid ? (
+              <div className="space-y-6">
                 <p className="text-sm text-muted-foreground">
-                  Aby dołączyć do gospodarstwa, zaloguj się lub zarejestruj jako {inviteEmail}.
+                  Aby dołączyć do gospodarstwa, ustal tylko hasło dla konta <strong>{inviteEmail}</strong>.
+                  Adres email jest już zablokowany na podstawie zaproszenia.
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <form className="space-y-4" onSubmit={(e) => void handleRegister(e)}>
+                  <Input id="invite-email" type="email" value={inviteEmail} disabled />
+                  <Input
+                    id="invite-password"
+                    type="password"
+                    placeholder="Nowe hasło"
+                    value={password}
+                    disabled={registering}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <Button type="submit" disabled={registering || !password.trim()}>
+                    {registering ? "Tworzenie konta…" : "Utwórz konto i dołącz"}
+                  </Button>
+                </form>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>Masz już konto? Zaloguj się, aby dokończyć proces dołączenia do gospodarstwa.</p>
                   <Link
                     to="/login"
                     search={{ invite: token }}
-                    className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    className="inline-flex items-center justify-center rounded-full bg-background border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Zaloguj się
                   </Link>
-                  <Link
-                    to="/login"
-                    search={{ invite: token }}
-                    className="inline-flex items-center justify-center rounded-full border border-border bg-background px-6 py-3 text-sm font-medium text-foreground hover:bg-muted"
-                  >
-                    Zarejestruj się
-                  </Link>
                 </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border bg-muted p-6 text-sm text-foreground">
+                Nie można obsłużyć tego zaproszenia. Skontaktuj się z osobą, która je wysłała, lub spróbuj ponownie później.
               </div>
             )}
           </div>

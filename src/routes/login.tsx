@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getSupabase } from "@/lib/supabase";
 import { acceptInvite, initCloudSync } from "@/lib/store";
+import { loadInviteContext } from "@/lib/repository";
 import { useAuthSession } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,20 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
   validateSearch: (search: Record<string, unknown>) => ({
     invite: typeof search.invite === "string" && search.invite ? search.invite : undefined,
+    register: typeof search.register === "string" && search.register === "1" ? "1" : undefined,
   }),
 });
 
 const PENDING_INVITE_KEY = "placa-netto-pending-invite-token";
+
+type InviteContext = {
+  household_id: string;
+  household_name: string;
+  email: string;
+  status: string;
+  expires_at: string;
+  is_valid: boolean;
+};
 
 function LoginPage() {
   const router = useRouter();
@@ -22,18 +33,44 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "register">(() =>
-    typeof window !== "undefined" && search.invite ? "register" : "login",
+    typeof window !== "undefined" && search.register ? "register" : "login",
   );
   const [status, setStatus] = useState<{ msg: string; type: "error" | "success" | "info" } | null>(
     null,
   );
   const [loading, setLoading] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [inviteContext, setInviteContext] = useState<InviteContext | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const hasInvite = useMemo(() => !!search.invite, [search.invite]);
+  const inviteEmail = inviteContext?.email ?? "";
 
   useEffect(() => {
     if (!search.invite || typeof window === "undefined") return;
     window.localStorage.setItem(PENDING_INVITE_KEY, search.invite);
+  }, [search.invite]);
+
+  useEffect(() => {
+    if (!search.invite) return;
+    setInviteLoading(true);
+    setInviteError(null);
+
+    loadInviteContext(search.invite)
+      .then((context) => {
+        if (!context || !context.is_valid) {
+          setInviteError("Nieprawidłowe lub wygasłe zaproszenie.");
+          setInviteContext(null);
+          return;
+        }
+        setInviteContext(context);
+        setEmail(context.email);
+      })
+      .catch((error) => {
+        console.error("Error loading invite context:", error);
+        setInviteError("Nie udało się zweryfikować zaproszenia.");
+      })
+      .finally(() => setInviteLoading(false));
   }, [search.invite]);
 
   // Handle already-authenticated users and pending invite acceptance.
@@ -79,7 +116,7 @@ function LoginPage() {
     return null;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (cooldownSeconds > 0) {
       setStatus({ msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`, type: "error" });
@@ -161,6 +198,14 @@ function LoginPage() {
         if (error) {
           console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
+          if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
+            setMode("login");
+            setStatus({
+              msg: "Konto już istnieje. Zaloguj się, aby dokończyć dołączenie do gospodarstwa.",
+              type: "info",
+            });
+            return;
+          }
           if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
             setCooldownSeconds(60);
           }
@@ -232,10 +277,22 @@ function LoginPage() {
       {hasInvite && (
         <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground">
           <p className="font-semibold">Zaproszenie do gospodarstwa wykryte</p>
-          <p className="mt-2">
-            Aby dołączyć, użyj tego samego adresu email, na który wysłano zaproszenie.
-            Jeśli już masz konto, zaloguj się. Jeśli nie, zarejestruj się tym samym adresem.
-          </p>
+          {inviteLoading ? (
+            <p className="mt-2">Ładowanie szczegółów zaproszenia…</p>
+          ) : (
+            <>
+              <p className="mt-2">
+                Użyj tego samego adresu email, na który wysłano zaproszenie.
+                Jeśli już masz konto, zaloguj się, aby dołączyć do gospodarstwa.
+                Jeśli nie masz konta, utwórz je tym adresem — wystarczy podać hasło.
+              </p>
+              {inviteContext?.household_name ? (
+                <p className="mt-2 text-sm text-foreground/80">
+                  Zaproszenie do gospodarstwa: <strong>{inviteContext.household_name}</strong>
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       )}
       <form
@@ -249,9 +306,14 @@ function LoginPage() {
           placeholder="email"
           value={email}
           autoComplete="email"
-          disabled={loading}
+          disabled={loading || (hasInvite && !!inviteEmail)}
           onChange={(e) => setEmail(e.target.value)}
         />
+        {hasInvite && inviteEmail && (
+          <p className="text-xs text-muted-foreground">
+            Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego adresu.
+          </p>
+        )}
         <Input
           id="login-password"
           type="password"
