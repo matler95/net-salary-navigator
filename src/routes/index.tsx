@@ -1,60 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
-import { X, TrendingUp, Wallet, Landmark } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { X, TrendingUp, Wallet, Landmark, ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ReferenceLine,
-  CartesianGrid,
-  Legend,
-  Area,
-  AreaChart,
+  PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
+  LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, CartesianGrid, Legend, Area, AreaChart,
 } from "recharts";
 import { useAppState } from "@/lib/store";
 import {
-  calculateSalary,
-  calculateAnnualAverageNet,
-  calculateAnnualBreakdown,
-  calculateSalaryForMonth,
-  computeJointFiling,
-  formatPLN,
-  formatPLN2,
+  calculateSalary, calculateAnnualAverageNet, calculateAnnualBreakdown,
+  calculateSalaryForMonth, computeJointFiling, formatPLN, formatPLN2,
 } from "@/lib/salary";
 import {
-  rentalCashflow,
-  monthlyPayment,
-  getExpenseAnnualTotal,
-  getExpenseMonthlyAverage,
-  isExpenseInMonth,
+  rentalCashflow, monthlyPayment, getExpenseAnnualTotal,
+  getExpenseMonthlyAverage, isExpenseInMonth,
 } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Pulpit — Płaca.netto" },
-      {
-        name: "description",
-        content: "Pulpit budżetu gospodarstwa: dochody, wydatki, aktywa, II próg podatkowy.",
-      },
-    ],
-  }),
-  component: Dashboard,
-});
+export const Route = createFileRoute("/")(
+  {
+    head: () => ({
+      meta: [
+        { title: "Przegląd — Saldeo" },
+        { name: "description", content: "Pulpit budżetu gospodarstwa: dochody, wydatki, aktywa, II próg podatkowy." },
+      ],
+    }),
+    component: Dashboard,
+  }
+);
 
-const COLORS = ["#c84026", "#e08a3c", "#5b8c5a", "#3a5e8c", "#7a4e8c", "#8c7a4e", "#4e8c8c"];
+const COLORS = [
+  "oklch(0.56 0.14 175)", "oklch(0.74 0.13 75)", "oklch(0.58 0.14 148)",
+  "oklch(0.55 0.10 250)", "oklch(0.60 0.14 300)", "oklch(0.58 0.20 25)", "oklch(0.65 0.12 220)",
+];
 
 import { StatCard } from "@/components/ui/stat-card";
 
@@ -70,80 +50,63 @@ function Dashboard() {
   const { rates } = useDailyFxRates();
   const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
+  const [monthOffset, setMonthOffset] = useState(0);
+  const selectedMonthIdx = ((new Date().getMonth() + monthOffset) % 12 + 12) % 12 + 1;
+
   const breakdowns = useMemo(
     () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs, 0, globalSettings) })),
     [spouses, globalSettings],
   );
 
-  const totalHouseholdNet = spouses.reduce(
-    (sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings),
-    0,
-  );
+  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
   const totalExpenses = expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
   const totalInvestments = investments.reduce(
-    (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
-    0,
+    (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates), 0,
   );
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
   const monthlyLoanPmt = loans.reduce(
-    (s, l) =>
-      s +
-      monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
-      (l.monthlyOverpayment ?? 0),
-    0,
+    (s, l) => s + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) + (l.monthlyOverpayment ?? 0), 0,
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
 
-  // Advanced Net Salary calculations
   const currentMonthIdx = new Date().getMonth() + 1;
   const nextMonthIdx = currentMonthIdx === 12 ? 1 : currentMonthIdx + 1;
 
-  const totalAnnualAvgNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
-    [spouses, globalSettings]
+  const totalAnnualAvgNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    [spouses, globalSettings],
   );
 
-  const totalCurrentMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx, globalSettings).net, 0),
-    [spouses, currentMonthIdx, globalSettings]
+  const totalSelectedMonthNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net, 0),
+    [spouses, selectedMonthIdx, globalSettings],
   );
 
-  const totalNextMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
-    [spouses, nextMonthIdx, globalSettings]
+  const totalCurrentMonthNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx, globalSettings).net, 0),
+    [spouses, currentMonthIdx, globalSettings],
   );
 
-  const getExpensesForMonth = (mIdx: number) => {
-    return expenses.reduce((sum, e) => {
-      if (isExpenseInMonth(e, mIdx)) {
-        return sum + e.amount;
-      }
-      // If it's a regular frequency but no specific months are set, 
-      // we might want to show average as a fallback to avoid "hidden" costs,
-      // but the user asked for "correct mirroring". 
-      // For now, if isExpenseInMonth is false, we return 0.
-      return sum;
-    }, 0);
-  };
+  const totalNextMonthNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
+    [spouses, nextMonthIdx, globalSettings],
+  );
+
+  const getExpensesForMonth = (mIdx: number) =>
+    expenses.reduce((sum, e) => (isExpenseInMonth(e, mIdx) ? sum + e.amount : sum), 0);
 
   const annualAvgCashflow = totalAnnualAvgNet + rentalNet - totalExpenses - monthlyLoanPmt;
+  const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - getExpensesForMonth(selectedMonthIdx) - monthlyLoanPmt;
   const currentMonthCashflow = totalCurrentMonthNet + rentalNet - getExpensesForMonth(currentMonthIdx) - monthlyLoanPmt;
   const nextMonthCashflow = totalNextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
 
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
   const isCompletelyEmpty =
-    spouses.length === 0 &&
-    expenses.length === 0 &&
-    investments.length === 0 &&
-    loans.length === 0 &&
-    rentals.length === 0 &&
-    savings.length === 0;
-
-  // Joint filing comparison
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
+    spouses.length === 0 && expenses.length === 0 && investments.length === 0 &&
+    loans.length === 0 && rentals.length === 0 && savings.length === 0;
 
   const thresholdDates = useMemo(() => {
     return spouses.map((s) => {
@@ -152,63 +115,44 @@ function Dashboard() {
       let monthIndex = -1;
       for (let i = 0; i < 12; i++) {
         cumulative += breakdown[i].taxBase;
-        if (cumulative > 120000) {
-          monthIndex = i;
-          break;
-        }
+        if (cumulative > 120000) { monthIndex = i; break; }
       }
       return { id: s.id, name: s.name, monthIndex };
     });
   }, [spouses, globalSettings]);
 
-  // Expense breakdown by category
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    expenses.forEach((e) =>
-      map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)),
-    );
+    expenses.forEach((e) => map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)));
     return Array.from(map, ([name, value]) => ({ name, value }));
   }, [expenses]);
 
   const projection = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
-
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const point: Record<string, number | string> = { month: monthLabel(month) };
       spouses.forEach((spouse, sIdx) => {
-        const cumulative = annualBreakdowns[sIdx]
-          .slice(0, month)
-          .reduce((sum: number, m: any) => sum + m.taxBase, 0);
+        const cumulative = annualBreakdowns[sIdx].slice(0, month).reduce((sum: number, m: any) => sum + m.taxBase, 0);
         point[spouse.name] = Math.round(cumulative);
       });
       return point;
     });
-  }, [spouses]);
+  }, [spouses, globalSettings]);
 
-  // Accumulation Chart Data (including existing assets)
   const [includeSavings, setIncludeSavings] = useState(true);
   const [includeInvestments, setIncludeInvestments] = useState(false);
 
   const cumulativeData = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
     let cumulativeSurplus = 0;
-
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
-
-      const monthlyExpenses = expenses.reduce((sum, e) => {
-        if (isExpenseInMonth(e, month)) return sum + e.amount;
-        return sum;
-      }, 0);
-
+      const monthlyExpenses = expenses.reduce((sum, e) => (isExpenseInMonth(e, month) ? sum + e.amount : sum), 0);
       const monthlyCashflow = monthlyNet + rentalNet - monthlyExpenses - monthlyLoanPmt;
       cumulativeSurplus += monthlyCashflow;
-
-      // Bonus: simple 0.5% monthly growth for stocks if included
       const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
-
       return {
         month: monthLabel(month),
         "Suma nadwyżek": Math.round(cumulativeSurplus),
@@ -216,150 +160,140 @@ function Dashboard() {
         "Inwestycje (giełda/krypto)": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
       };
     });
-  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments]);
+  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments, globalSettings]);
 
   const [showBanner, setShowBanner] = useState(false);
+  useEffect(() => { setShowBanner(isCompletelyEmpty); }, [isCompletelyEmpty]);
 
-  useEffect(() => {
-    if (isCompletelyEmpty) {
-      setShowBanner(true);
-      return;
-    }
-    setShowBanner(false);
-  }, [isCompletelyEmpty]);
+  const isPositive = selectedMonthCashflow >= 0;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       {showBanner && (
-        <div className="bg-accent/10 border border-accent/20 rounded-2xl p-4 flex items-start sm:items-center justify-between gap-4">
+        <div className="bg-accent/8 border border-accent/20 rounded-2xl p-4 flex items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-semibold text-accent mb-1">Witaj w Płaca.netto!</h3>
+            <h3 className="font-semibold text-accent mb-1">Witaj w Saldeo!</h3>
             <p className="text-sm text-muted-foreground">
-              Zacznij od dodania osoby w <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Wynagrodzenia</Link>, potem uzupełnij <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link> i <Link to="/aktywa" className="text-accent underline hover:text-accent/80">Aktywa</Link>.
+              Zacznij od dodania osoby w{" "}
+              <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Zarobkach</Link>,
+              potem uzupełnij{" "}
+              <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link> i{" "}
+              <Link to="/aktywa" className="text-accent underline hover:text-accent/80">Majątek</Link>.
             </p>
           </div>
-          <button
-            onClick={() => {
-              setShowBanner(false);
-            }}
-            className="text-muted-foreground hover:text-foreground shrink-0 p-1"
-            aria-label="Zamknij"
-          >
+          <button onClick={() => setShowBanner(false)} className="text-muted-foreground hover:text-foreground shrink-0 p-1" aria-label="Zamknij">
             <X className="w-5 h-5" />
           </button>
         </div>
       )}
 
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Pulpit gospodarstwa
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          {greeting()}, <span className="italic text-accent">jak idą finanse?</span>
-        </h1>
-      </header>
+      {/* ── Hero Section ── */}
+      <section className="relative rounded-[1.5rem] overflow-hidden bg-gradient-to-br from-accent/12 via-accent/4 to-transparent border border-accent/15 px-6 py-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-accent/8 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-1">
+            {greeting()} · {monthLabel(selectedMonthIdx, true)}
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl mb-1">
+            Saldo miesiąca:{" "}
+            <span className={`italic ${isPositive ? "text-success" : "text-destructive"}`}>
+              {formatPLN(selectedMonthCashflow)}
+            </span>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Netto {formatPLN(totalSelectedMonthNet)} · Wydatki {formatPLN(getExpensesForMonth(selectedMonthIdx) + monthlyLoanPmt)}
+          </p>
+
+          {/* Month Navigator */}
+          <div className="flex items-center gap-3 mt-5">
+            <button
+              onClick={() => setMonthOffset((o) => o - 1)}
+              className="w-8 h-8 rounded-full border border-border bg-card/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-colors shadow-[var(--shadow-card)]"
+              aria-label="Poprzedni miesiąc"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-medium min-w-[7rem] text-center">
+              {monthLabel(selectedMonthIdx, true)} {monthOffset !== 0 && <span className="text-muted-foreground text-xs">{monthOffset > 0 ? `+${monthOffset}` : monthOffset}</span>}
+            </span>
+            <button
+              onClick={() => setMonthOffset((o) => o + 1)}
+              className="w-8 h-8 rounded-full border border-border bg-card/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-colors shadow-[var(--shadow-card)]"
+              aria-label="Następny miesiąc"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {monthOffset !== 0 && (
+              <button
+                onClick={() => setMonthOffset(0)}
+                className="text-xs text-muted-foreground hover:text-accent transition-colors underline"
+              >
+                Wróć do bieżącego
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Stats - Current Situation */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
-          label="Obecne netto"
+          label="Netto (ten miesiąc)"
           value={formatPLN(totalCurrentMonthNet)}
-          sub={
-            <div className="flex justify-between gap-2">
-              <span>{monthLabel(nextMonthIdx, true)}:</span>
-              <span>{formatPLN(totalNextMonthNet)}</span>
-            </div>
-          }
+          rawValue={totalCurrentMonthNet}
+          sub={<div className="flex justify-between gap-2"><span>{monthLabel(nextMonthIdx, true)}:</span><span>{formatPLN(totalNextMonthNet)}</span></div>}
           tone="success"
+          icon={TrendingUp}
         />
         <StatCard
-          label={currentMonthCashflow >= 0 ? "Nadwyżka (obecnie)" : "Deficyt (obecnie)"}
+          label={currentMonthCashflow >= 0 ? "Nadwyżka (teraz)" : "Deficyt (teraz)"}
           value={formatPLN(currentMonthCashflow)}
-          sub={
-            <div className="flex justify-between gap-2">
-              <span>{monthLabel(nextMonthIdx, true)}:</span>
-              <span className={nextMonthCashflow >= 0 ? "text-success" : "text-destructive"}>
-                {formatPLN(nextMonthCashflow)}
-              </span>
-            </div>
-          }
+          rawValue={currentMonthCashflow}
+          sub={<div className="flex justify-between gap-2"><span>{monthLabel(nextMonthIdx, true)}:</span><span className={nextMonthCashflow >= 0 ? "text-success" : "text-destructive"}>{formatPLN(nextMonthCashflow)}</span></div>}
           tone={currentMonthCashflow >= 0 ? "success" : "destructive"}
+          icon={Wallet}
         />
         <StatCard
-          label="Wydatki"
+          label="Wydatki łącznie"
           value={formatPLN(totalExpenses + monthlyLoanPmt)}
+          rawValue={totalExpenses + monthlyLoanPmt}
           sub={`w tym kredyty ${formatPLN(monthlyLoanPmt)}`}
           tone="destructive"
         />
       </section>
 
       {/* Stats - Annual Perspective */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           label="Średnie netto (rok)"
           value={formatPLN(totalAnnualAvgNet)}
+          rawValue={totalAnnualAvgNet}
           sub="Średnia z 12 m-cy"
           tone="success"
+          icon={TrendingUp}
         />
         <StatCard
           label={annualAvgCashflow >= 0 ? "Średnia nadwyżka" : "Średni deficyt"}
           value={formatPLN(annualAvgCashflow)}
+          rawValue={annualAvgCashflow}
           sub="Dla planowania budżetu"
           tone={annualAvgCashflow >= 0 ? "success" : "destructive"}
         />
         <StatCard
           label="Majątek netto"
           value={formatPLN(netWorth)}
+          rawValue={netWorth}
           sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)}`}
+          icon={Landmark}
         />
       </section>
 
-      {/* Joint vs individual filing */}
-      {/* {joint && (
-        <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-          <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-            <div>
-              <h2 className="font-display text-2xl">Wspólne vs indywidualne rozliczenie</h2>
-              <p className="text-sm text-muted-foreground">
-                Roczny PIT (po uwzględnieniu kwoty wolnej 30 000 zł / osoba)
-              </p>
-            </div>
-            <div
-              className={`text-right ${joint.savings > 0 ? "text-success" : "text-muted-foreground"}`}
-            >
-              <p className="text-xs uppercase tracking-wider font-medium">Oszczędność</p>
-              <p className="font-display text-2xl tabular-nums">{formatPLN(joint.savings)}</p>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="bg-muted/40 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Indywidualnie
-              </p>
-              <p className="font-display text-2xl mt-1 tabular-nums">
-                {formatPLN(joint.individualAnnualPit)}
-              </p>
-            </div>
-            <div
-              className={`rounded-xl p-4 ${joint.savings > 0 ? "bg-success/10 border border-success/30" : "bg-muted/40"}`}
-            >
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Wspólnie</p>
-              <p className="font-display text-2xl mt-1 tabular-nums">
-                {formatPLN(joint.jointAnnualPit)}
-              </p>
-            </div>
-          </div>
-        </section>
-      )} */}
-
       {/* Cumulative Cashflow Chart */}
-      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-warm)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="font-display text-xl mb-1">Projekcja skumulowanych oszczędności</h2>
-            <p className="text-sm text-muted-foreground">
-              Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)
-            </p>
+            <p className="text-sm text-muted-foreground">Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)</p>
           </div>
           <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-xl border border-border/50">
             <div className="flex items-center gap-2">
@@ -371,7 +305,7 @@ function Dashboard() {
             <div className="flex items-center gap-2">
               <Switch id="inc-inv" checked={includeInvestments} onCheckedChange={setIncludeInvestments} />
               <Label htmlFor="inc-inv" className="text-xs cursor-pointer flex items-center gap-1.5">
-                <TrendingUp className="w-3 h-3 text-blue-500" /> Giełda
+                <TrendingUp className="w-3 h-3 text-accent" /> Giełda
               </Label>
             </div>
           </div>
@@ -381,53 +315,26 @@ function Dashboard() {
             <AreaChart data={cumulativeData}>
               <defs>
                 <linearGradient id="colorCashflow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="oklch(0.56 0.14 175)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="oklch(0.56 0.14 175)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="oklch(0.58 0.14 148)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="oklch(0.58 0.14 148)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorInvestments" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.91 0.012 90)" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-              <Tooltip
-                formatter={(v: number) => formatPLN(v)}
-                contentStyle={{ fontSize: 12, borderRadius: 12, border: "none", boxShadow: "var(--shadow-card)" }}
-              />
+              <Tooltip formatter={(v: number) => formatPLN(v)} contentStyle={{ fontSize: 12, borderRadius: 12, border: "none", boxShadow: "var(--shadow-warm)" }} />
               <Legend verticalAlign="top" height={36} />
-              <Area
-                type="monotone"
-                dataKey="Konta bankowe"
-                stackId="1"
-                stroke="oklch(0.62 0.13 145)"
-                fillOpacity={1}
-                fill="url(#colorSavings)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="Inwestycje (giełda/krypto)"
-                stackId="1"
-                stroke="oklch(0.55 0.1 250)"
-                fillOpacity={1}
-                fill="url(#colorInvestments)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="Suma nadwyżek"
-                stackId="1"
-                stroke="var(--accent)"
-                fillOpacity={1}
-                fill="url(#colorCashflow)"
-                strokeWidth={3}
-              />
+              <Area type="monotone" dataKey="Konta bankowe" stackId="1" stroke="oklch(0.58 0.14 148)" fillOpacity={1} fill="url(#colorSavings)" strokeWidth={2} />
+              <Area type="monotone" dataKey="Inwestycje (giełda/krypto)" stackId="1" stroke="oklch(0.55 0.1 250)" fillOpacity={1} fill="url(#colorInvestments)" strokeWidth={2} />
+              <Area type="monotone" dataKey="Suma nadwyżek" stackId="1" stroke="oklch(0.56 0.14 175)" fillOpacity={1} fill="url(#colorCashflow)" strokeWidth={3} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -435,37 +342,20 @@ function Dashboard() {
 
       {/* Charts */}
       <section className="grid lg:grid-cols-2 gap-6">
-        {/* Threshold progression */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-warm)]">
           <h2 className="font-display text-xl mb-1">Postęp do II progu podatkowego</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Skumulowana roczna podstawa opodatkowania
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">Skumulowana roczna podstawa opodatkowania</p>
           <div className="h-64">
             <ResponsiveContainer>
               <BarChart data={projection}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.91 0.012 90)" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v: number) => formatPLN(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                />
+                <Tooltip formatter={(v: number) => formatPLN(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "none", boxShadow: "var(--shadow-warm)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <ReferenceLine
-                  y={120000}
-                  stroke="#c84026"
-                  strokeDasharray="4 4"
-                  label={{ value: "II próg 120k", fontSize: 10, fill: "#c84026" }}
-                />
+                <ReferenceLine y={120000} stroke="oklch(0.58 0.20 25)" strokeDasharray="4 4" label={{ value: "II próg 120k", fontSize: 10, fill: "oklch(0.58 0.20 25)" }} />
                 {breakdowns.map(({ spouse }, idx) => (
-                  <Bar
-                    key={spouse.id}
-                    dataKey={spouse.name}
-                    stackId={undefined}
-                    fill={COLORS[idx % COLORS.length]}
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar key={spouse.id} dataKey={spouse.name} stackId={undefined} fill={COLORS[idx % COLORS.length]} radius={[6, 6, 0, 0]} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -474,50 +364,32 @@ function Dashboard() {
             {thresholdDates.map((td, idx) => (
               <div key={td.id} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                  />
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                   <span className="font-medium">{td.name}</span>
                 </div>
-                <span className={td.monthIndex !== -1 ? "text-muted-foreground font-semibold" : "text-muted-foreground"}>
-                  {td.monthIndex === -1
-                    ? "Nie przekracza II progu"
-                    : `Wejdzie w II próg w: ${monthLabel(td.monthIndex + 1, true)}`}
+                <span className="text-muted-foreground">
+                  {td.monthIndex === -1 ? "Nie przekracza II progu" : `Wejście w II próg: ${monthLabel(td.monthIndex + 1, true)}`}
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Expense breakdown */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-warm)]">
           <h2 className="font-display text-xl mb-1">Struktura wydatków</h2>
           <p className="text-sm text-muted-foreground mb-4">Suma: {formatPLN2(totalExpenses)}</p>
           {byCategory.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">
-              Brak wydatków — dodaj w zakładce Wydatki
-            </p>
+            <p className="text-sm text-muted-foreground py-12 text-center">Brak wydatków — dodaj w zakładce Wydatki</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie
-                    data={byCategory}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
+                  <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={3}>
                     {byCategory.map((_, idx) => (
-                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} stroke="transparent" />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(v: number) => formatPLN(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  />
+                  <Tooltip formatter={(v: number) => formatPLN(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "none", boxShadow: "var(--shadow-warm)" }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -528,62 +400,32 @@ function Dashboard() {
 
       {/* Quick links */}
       <section className="grid sm:grid-cols-3 gap-4">
-        <QuickCard
-          to="/wynagrodzenia"
-          title="Wynagrodzenia"
-          desc={`${spouses.length} ${spouses.length === 1 ? "osoba" : "osoby"} · wspólne rozliczenie ${jointFiling ? "wł." : "wył."}`}
-        />
-        <QuickCard
-          to="/wydatki"
-          title="Wydatki"
-          desc={`${expenses.length} pozycji · ${formatPLN(totalExpenses)}/m-c`}
-        />
-        <QuickCard
-          to="/aktywa"
-          title="Aktywa & długi"
-          desc={`${investments.length + rentals.length + savings.length} aktywów · ${loans.length} kredytów`}
-        />
+        <QuickCard to="/wynagrodzenia" title="Zarobki" desc={`${spouses.length} ${spouses.length === 1 ? "osoba" : "osoby"} · wspólne rozliczenie ${jointFiling ? "wł." : "wył."}`} />
+        <QuickCard to="/wydatki" title="Wydatki" desc={`${expenses.length} pozycji · ${formatPLN(totalExpenses)}/m-c`} />
+        <QuickCard to="/aktywa" title="Majątek" desc={`${investments.length + rentals.length + savings.length} aktywów · ${loans.length} kredytów`} />
       </section>
     </main>
   );
 }
 
-function QuickCard({
-  to,
-  title,
-  desc,
-}: {
-  to: "/wynagrodzenia" | "/wydatki" | "/aktywa";
-  title: string;
-  desc: string;
-}) {
+function QuickCard({ to, title, desc }: { to: "/wynagrodzenia" | "/wydatki" | "/aktywa"; title: string; desc: string }) {
   return (
     <Link
       to={to}
-      className="group bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] hover:border-accent/50 transition-colors block"
+      className="group bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-warm)] hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-[var(--shadow-warm),0_0_0_1px_var(--color-accent)/20] transition-all block"
     >
-      <p className="font-display text-lg group-hover:text-accent transition-colors">{title} →</p>
-      <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="font-display text-lg group-hover:text-accent transition-colors">{title}</p>
+        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-accent transition-colors" />
+      </div>
+      <p className="text-sm text-muted-foreground">{desc}</p>
     </Link>
   );
 }
 
 function monthLabel(m: number, full = false) {
   const short = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
-  const long = [
-    "Styczeń",
-    "Luty",
-    "Marzec",
-    "Kwiecień",
-    "Maj",
-    "Czerwiec",
-    "Lipiec",
-    "Sierpień",
-    "Wrzesień",
-    "Październik",
-    "Listopad",
-    "Grudzień",
-  ];
+  const long = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
   return (full ? long : short)[m - 1];
 }
 

@@ -21,7 +21,7 @@ import {
 export const Route = createFileRoute("/wynagrodzenia")({
   head: () => ({
     meta: [
-      { title: "Wynagrodzenia — Płaca.netto" },
+      { title: "Zarobki — Saldeo" },
       {
         name: "description",
         content:
@@ -69,10 +69,10 @@ function SalariesPage() {
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="flex-1">
           <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-            Wynagrodzenia
+            Zarobki
           </p>
           <h1 className="font-display text-4xl sm:text-5xl">
-            Brutto → <span className="italic text-accent">netto</span>
+            Ile zostaje <span className="italic text-accent">w kieszeni?</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
             Pełne polskie zasady 2025: ZUS, zdrowotna, PIT (oba progi), KUP standardowe i autorskie
@@ -140,22 +140,23 @@ function SalariesPage() {
       )}
 
       {spouses.length === 2 && (
-        <div className="bg-muted/40 rounded-2xl p-6 border border-border flex flex-wrap items-center justify-between gap-6 shadow-sm mt-8">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
-              Łączne netto gospodarstwa (średnia roczna)
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-accent to-accent/70 p-6 text-accent-foreground flex flex-wrap items-center justify-between gap-6 shadow-[var(--shadow-warm)] mt-8">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative">
+            <p className="text-xs text-accent-foreground/70 uppercase tracking-wider font-semibold mb-1">
+              Łączne netto gospodarstwa / miesiąc
             </p>
-            <p className="font-display text-4xl tabular-nums text-accent">
+            <p className="font-display text-4xl tabular-nums">
               {formatPLN(totalHouseholdNet)}
             </p>
           </div>
           {jointFiling && joint && joint.savings > 0 && (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground font-semibold mb-1">
+            <div className="text-right relative">
+              <p className="text-xs text-accent-foreground/70 font-semibold mb-1">
                 Zysk z rozliczenia wspólnego
               </p>
-              <p className="text-2xl font-bold text-success tabular-nums">
-                +{formatPLN(joint.savings)} <span className="text-sm font-normal">/ rok</span>
+              <p className="text-2xl font-bold tabular-nums">
+                +{formatPLN(joint.savings)} <span className="text-sm font-normal opacity-80">/ rok</span>
               </p>
             </div>
           )}

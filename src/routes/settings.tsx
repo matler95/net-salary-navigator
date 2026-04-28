@@ -19,6 +19,12 @@ import { Separator } from "@/components/ui/separator";
 import { formatPLN, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 
 export const Route = createFileRoute("/settings")({
+  head: () => ({
+    meta: [
+      { title: "Ustawienia — Saldeo" },
+      { name: "description", content: "Zarządzaj gospodarstwem domowym, zaproszeniami i parametrami podatkowymi." },
+    ],
+  }),
   component: SettingsPage,
 });
 
@@ -98,7 +104,7 @@ function SettingsPage() {
       <main className="max-w-2xl mx-auto px-4 py-10">
         <p className="text-sm text-muted-foreground">
           Zaloguj się, aby zarządzać udostępnianiem.{" "}
-          <Link to="/login" search={{ invite: undefined }}>
+          <Link to="/login" search={{ invite: undefined, register: undefined }}>
             Przejdź do logowania
           </Link>
         </p>
@@ -144,10 +150,10 @@ function SettingsPage() {
 
   function buildMailtoLink() {
     if (!inviteRecipient || !inviteLink) return "";
-    const subject = "Zaproszenie do Net Salary Navigator";
+    const subject = "Zaproszenie do Saldeo";
     const body = `Cześć,
 
-Zostałeś zaproszony do wspólnego gospodarstwa w aplikacji Net Salary Navigator.
+Zostałeś zaproszony do wspólnego gospodarstwa w aplikacji Saldeo — Twoje finanse, po ludzku.
 Kliknij ten link, aby dołączyć:
 
 ${inviteLink}
@@ -166,7 +172,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
     if (!inviteLink || !shareSupported) return;
     try {
       await navigator.share({
-        title: "Zaproszenie do Net Salary Navigator",
+        title: "Zaproszenie do Saldeo",
         text: "Dołącz do wspólnego gospodarstwa:",
         url: inviteLink,
       });
@@ -239,11 +245,14 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-      <h1 className="font-display text-3xl">Ustawienia i udostępnianie</h1>
-      <p className="text-sm text-muted-foreground">
-        Wygeneruj zaproszenie do wspólnego gospodarstwa (pełny dostęp edycji).
-      </p>
+    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <header className="mb-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">Konto</p>
+        <h1 className="font-display text-4xl">Ustawienia</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Zarządzaj gospodarstwem, zaproszeniami i parametrami podatkowymi.
+        </p>
+      </header>
       <form
         className="bg-card border border-border rounded-2xl p-5 space-y-3"
         onSubmit={(e) => void handleCreateInvite(e)}

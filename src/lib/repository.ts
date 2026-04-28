@@ -672,12 +672,14 @@ function mapSavingsFromRow(row: unknown): AppState["savings"][number] {
   return {
     id: String(r.id ?? ""),
     bank: String(r.bank ?? ""),
-    type: String(r.type ?? "zwykłe"),
+    type: (String(r.type ?? "zwykłe")) as import("@/lib/store").SavingsAccountType,
     balance: Number(r.balance ?? 0),
     ratePct: Number(r.rate_pct ?? 0),
     lokataStartDate: r.lokata_start_date ? String(r.lokata_start_date) : undefined,
     lokataDurationMonths: r.lokata_duration_months ? Number(r.lokata_duration_months) : undefined,
-    lokataCapitalization: r.lokata_capitalization ? String(r.lokata_capitalization) : undefined,
+    lokataCapitalization: r.lokata_capitalization
+      ? (String(r.lokata_capitalization) as "miesięczna" | "kwartalna" | "roczna" | "na końcu")
+      : undefined,
   };
 }
 

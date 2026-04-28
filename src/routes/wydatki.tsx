@@ -20,6 +20,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -32,7 +33,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/wydatki")({
   head: () => ({
     meta: [
-      { title: "Wydatki — Płaca.netto" },
+      { title: "Wydatki — Saldeo" },
       {
         name: "description",
         content:
@@ -104,7 +105,7 @@ function ExpensesPage() {
           </p>
           <h1 className="font-display text-4xl sm:text-5xl">
             <span className="italic text-accent tabular-nums">{formatPLN(monthlyTotal)}</span>{" "}
-            <span className="text-muted-foreground text-2xl sm:text-3xl">/ m-c</span>
+            <span className="text-muted-foreground text-2xl sm:text-3xl font-sans font-normal">miesięcznie</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             Rocznie: <span className="font-mono tabular-nums">{formatPLN(annualTotal)}</span>

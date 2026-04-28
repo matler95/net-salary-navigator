@@ -36,7 +36,7 @@ import { StatCard } from "@/components/ui/stat-card";
 export const Route = createFileRoute("/kalkulatory")({
   head: () => ({
     meta: [
-      { title: "Kalkulatory — Płaca.netto" },
+      { title: "Kalkulatory — Saldeo" },
       {
         name: "description",
         content:

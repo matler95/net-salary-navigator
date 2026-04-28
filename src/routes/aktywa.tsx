@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
 import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
-import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
   formatCurrencyAmount,
@@ -72,7 +71,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
     meta: [
-      { title: "Aktywa & długi — Płaca.netto" },
+      { title: "Majątek — Saldeo" },
       {
         name: "description",
         content:
@@ -102,42 +101,68 @@ function AssetsPage() {
   const netWorth = totalAssets - totalLoans;
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
 
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const [activeTab, setActiveTab] = useState<'oszczednosci'|'inwestycje'|'kredyty'|'wynajem'>('oszczednosci');
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Aktywa, długi i wynajem
+          Majątek
         </p>
         <h1 className="font-display text-4xl sm:text-5xl">
-          Co masz <span className="italic text-accent">i co jest twoje</span>
+          Twój <span className="italic text-accent">majątek</span>
         </h1>
-        <div className="flex flex-wrap gap-2 mt-4 text-sm sticky top-0 z-10 bg-background/80 backdrop-blur-md py-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
-          <button onClick={() => scrollTo('oszczednosci')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Oszczędności</button>
-          <button onClick={() => scrollTo('inwestycje')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Inwestycje</button>
-          <button onClick={() => scrollTo('kredyty')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Kredyty</button>
-          <button onClick={() => scrollTo('wynajem')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Nieruchomości</button>
-        </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} />
-        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="destructive" />
-        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} />
-        <StatCard 
-          label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"} 
-          value={formatPLN(rentalNet)} 
-          tone={rentalNet > 0 ? "success" : "default"} 
-        />
+      {/* Net Worth Hero */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-accent/10 via-accent/4 to-transparent border border-accent/15 p-6">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-accent/8 rounded-full blur-3xl pointer-events-none" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 relative">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Aktywa razem</p>
+            <p className="font-display text-2xl tabular-nums">{formatPLN(totalAssets)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Zobowiązania</p>
+            <p className="font-display text-2xl tabular-nums text-destructive">{formatPLN(totalLoans)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Majątek netto</p>
+            <p className={`font-display text-2xl tabular-nums ${netWorth >= 0 ? 'text-success' : 'text-destructive'}`}>{formatPLN(netWorth)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">{rentalNet >= 0 ? 'Zysk z wynajmu' : 'Strata z wynajmu'}</p>
+            <p className={`font-display text-2xl tabular-nums ${rentalNet > 0 ? 'text-success' : 'text-muted-foreground'}`}>{formatPLN(rentalNet)}</p>
+          </div>
+        </div>
       </div>
 
-      <div id="oszczednosci" className="scroll-mt-6"><SavingsSection /></div>
-      <div id="inwestycje" className="scroll-mt-6"><InvestmentsSection /></div>
-      <div id="kredyty" className="scroll-mt-6"><LoansSection /></div>
-      <div id="wynajem" className="scroll-mt-6"><RentalsSection /></div>
+      {/* Tab Navigation */}
+      <div className="flex gap-1 bg-muted/40 p-1 rounded-2xl border border-border w-full overflow-x-auto">
+        {[
+          { id: 'oszczednosci', label: 'Oszczędności' },
+          { id: 'inwestycje', label: 'Inwestycje' },
+          { id: 'kredyty', label: 'Kredyty' },
+          { id: 'wynajem', label: 'Nieruchomości' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            className={`flex-1 min-w-fit px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-card text-foreground shadow-[var(--shadow-card)]'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'oszczednosci' && <SavingsSection />}
+      {activeTab === 'inwestycje' && <InvestmentsSection />}
+      {activeTab === 'kredyty' && <LoansSection />}
+      {activeTab === 'wynajem' && <RentalsSection />}
     </main>
   );
 }
