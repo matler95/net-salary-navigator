@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   calculateSalary,
   calculateAnnualBreakdown,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function NumberField({
@@ -126,9 +126,31 @@ export function SpousePanel({
   memberOptions?: { user_id: string; label: string }[];
 }) {
   const globalSettings = useAppState((s) => s.globalSettings);
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
+
+  // Filter members based on current name input
+  const filteredMembers = useMemo(() => {
+    if (!memberOptions) return [];
+    const searchTerm = spouse.name.toLowerCase();
+    return memberOptions.filter((m) =>
+      m.label.toLowerCase().includes(searchTerm)
+    );
+  }, [spouse.name, memberOptions]);
+
+  const handleMemberSelect = (memberId: string, memberLabel: string) => {
+    actions.updateSpouse(spouse.id, {
+      name: memberLabel,
+      assignedUserId: memberId,
+    });
+    setShowMemberDropdown(false);
+  };
+
+  const handleClearAssignment = () => {
+    actions.updateSpouse(spouse.id, { assignedUserId: undefined });
+  };
 
   // Threshold progression
   const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs, globalSettings), [spouse.inputs, globalSettings]);
@@ -151,61 +173,69 @@ export function SpousePanel({
 
   return (
     <div className="bg-card rounded-2xl shadow-(--shadow-card) border border-border overflow-hidden">
-      {/* Header */}
+      {/* Header with combined name/member field */}
       <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/40">
-        <div className="flex items-center gap-2 flex-1">
-          <Input
-            value={spouse.name}
-            onChange={(e) => actions.updateSpouse(spouse.id, { name: e.target.value })}
-            placeholder="Wpisz imię lub nazwę"
-            className="font-display text-lg h-9 px-3 py-2 bg-white/50 dark:bg-black/20 border border-transparent rounded-md hover:border-border focus:border-accent focus:bg-background transition-all focus-visible:ring-1 focus-visible:ring-accent shadow-none max-w-xs"
-          />
-          <span className="text-xs text-muted-foreground">— edytuj</span>
+        <div className="flex-1 relative">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <Input
+                value={spouse.name}
+                onChange={(e) => {
+                  actions.updateSpouse(spouse.id, { name: e.target.value });
+                  setShowMemberDropdown(true);
+                }}
+                onFocus={() => memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)}
+                placeholder="Wpisz imię lub wybierz członka"
+                className="font-display text-lg h-9 px-3 py-2 bg-white/50 dark:bg-black/20 border border-transparent rounded-md hover:border-border focus:border-accent focus:bg-background transition-all focus-visible:ring-1 focus-visible:ring-accent shadow-none w-full"
+              />
+              {spouse.assignedUserId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAssignment}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  title="Wyczyść przypisanie"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+              {/* Dropdown with member options */}
+              {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50">
+                  {filteredMembers.map((member) => (
+                    <button
+                      key={member.user_id}
+                      type="button"
+                      onClick={() => handleMemberSelect(member.user_id, member.label)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
+                        spouse.assignedUserId === member.user_id ? "bg-muted font-medium" : ""
+                      }`}
+                    >
+                      {member.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {spouse.assignedUserId
+              ? "Przypisane do członka · wpisz aby zmienić"
+              : "Wybierz członka z listy lub wpisz dowolną nazwę"}
+          </p>
         </div>
         {canDelete && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => actions.removeSpouse(spouse.id)}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive shrink-0"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
-      {memberOptions && memberOptions.length > 0 ? (
-        <div className="px-5 pb-5 sm:px-6 sm:pb-6 border-b border-border bg-muted/40">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-            Przypisany użytkownik
-          </Label>
-          <Select
-            value={spouse.assignedUserId}
-            onValueChange={(value) => {
-              const newAssignedId = value === "__unassigned" ? undefined : value;
-              actions.updateSpouse(spouse.id, { assignedUserId: newAssignedId });
-              // Auto-populate name from member if it's still the default
-              const isDefaultName =
-                /^Małżonek\s+\d+$/.test(spouse.name.trim()) || !spouse.name.trim();
-              if (isDefaultName && newAssignedId && memberOptions) {
-                const member = memberOptions.find((m) => m.user_id === newAssignedId);
-                if (member?.label) actions.updateSpouse(spouse.id, { name: member.label });
-              }
-            }}
-          >
-            <SelectTrigger className="h-11 mt-2">
-              <SelectValue placeholder="Brak przypisania" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__unassigned">Brak przypisania</SelectItem>
-              {memberOptions.map((member) => (
-                <SelectItem key={member.user_id} value={member.user_id}>
-                  {member.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
 
       <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-6">
         {/* Inputs */}
