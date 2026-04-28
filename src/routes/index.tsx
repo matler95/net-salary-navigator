@@ -29,7 +29,13 @@ import {
   formatPLN,
   formatPLN2,
 } from "@/lib/salary";
-import { rentalCashflow, monthlyPayment, toMonthly, toAnnual } from "@/lib/finance";
+import {
+  rentalCashflow,
+  monthlyPayment,
+  getExpenseAnnualTotal,
+  getExpenseMonthlyAverage,
+  isExpenseInMonth,
+} from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
 
@@ -72,7 +78,7 @@ function Dashboard() {
     0,
   );
   const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + toAnnual(e.amount, e.frequency) / 12, 0);
+  const totalExpenses = expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
   const totalInvestments = investments.reduce(
     (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
@@ -110,10 +116,14 @@ function Dashboard() {
 
   const getExpensesForMonth = (mIdx: number) => {
     return expenses.reduce((sum, e) => {
-      if (e.frequency === "oneoff" || e.frequency === "annual") {
-        return sum + (e.month === mIdx ? e.amount : 0);
+      if (isExpenseInMonth(e, mIdx)) {
+        return sum + e.amount;
       }
-      return sum + toMonthly(e.amount, e.frequency);
+      // If it's a regular frequency but no specific months are set, 
+      // we might want to show average as a fallback to avoid "hidden" costs,
+      // but the user asked for "correct mirroring". 
+      // For now, if isExpenseInMonth is false, we return 0.
+      return sum;
     }, 0);
   };
 
@@ -137,7 +147,7 @@ function Dashboard() {
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     expenses.forEach((e) =>
-      map.set(e.category, (map.get(e.category) || 0) + toMonthly(e.amount, e.frequency)),
+      map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)),
     );
     return Array.from(map, ([name, value]) => ({ name, value }));
   }, [expenses]);
@@ -168,10 +178,10 @@ function Dashboard() {
       const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
       
       const monthlyExpenses = expenses.reduce((sum, e) => {
-        if (e.frequency === "oneoff" || e.frequency === "annual") {
-          return sum + (e.month === month ? e.amount : 0);
+        if (isExpenseInMonth(e, month)) {
+          return sum + e.amount;
         }
-        return sum + toMonthly(e.amount, e.frequency);
+        return sum;
       }, 0);
 
       const monthlyCashflow = monthlyNet + rentalNet - monthlyExpenses - monthlyLoanPmt;

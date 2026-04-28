@@ -158,6 +158,42 @@ export function toAnnual(amount: number, frequency: Frequency): number {
   }
 }
 
+export interface BaseExpense {
+  amount: number;
+  frequency: Frequency;
+  month?: number;
+  months?: number[];
+}
+
+/** Get total annual cost for an expense, prioritizing specific months if set. */
+export function getExpenseAnnualTotal(e: BaseExpense): number {
+  if (e.months && e.months.length > 0) {
+    return e.amount * e.months.length;
+  }
+  return toAnnual(e.amount, e.frequency);
+}
+
+/** Get average monthly cost. */
+export function getExpenseMonthlyAverage(e: BaseExpense): number {
+  if (e.frequency === "oneoff") return 0;
+  return getExpenseAnnualTotal(e) / 12;
+}
+
+/** Check if an expense occurs in a given month (1-12). */
+export function isExpenseInMonth(e: BaseExpense, mIdx: number): boolean {
+  if (e.months && e.months.length > 0) {
+    return e.months.includes(mIdx);
+  }
+  if (e.frequency === "monthly") return true;
+  if (e.frequency === "oneoff" || e.frequency === "annual") {
+    return e.month === mIdx;
+  }
+  // For other frequencies, if no specific months are set, we might not know.
+  // But typically they should have specific months now.
+  // Fallback to false or average? For cashflow views, we need specific months.
+  return false;
+}
+
 /* ============================================================
    Investment portfolio projection
 ============================================================ */

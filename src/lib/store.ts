@@ -44,7 +44,8 @@ export type Expense = {
   label: string;
   amount: number; // amount per occurrence
   frequency: Frequency; // monthly | quarterly | semiannual | annual | oneoff
-  month?: number; // 1-12, used for oneoff and annual planning
+  month?: number; // legacy/single month (1-12)
+  months?: number[]; // list of months (1-12) when the payment occurs
 };
 
 export type Investment = {
