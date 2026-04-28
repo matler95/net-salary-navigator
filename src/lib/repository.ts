@@ -394,7 +394,12 @@ export async function loadInviteContext(token: string): Promise<InviteContext | 
     return null;
   }
 
-  return data as InviteContext;
+  const inviteData = Array.isArray(data) ? data[0] : data;
+  if (!inviteData) {
+    return null;
+  }
+
+  return inviteData as InviteContext;
 }
 
 export async function acceptHouseholdInvite(token: string, session: Session): Promise<string | null> {
