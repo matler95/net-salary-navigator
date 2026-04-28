@@ -12,10 +12,12 @@ import {
   acceptHouseholdInvite,
   createHouseholdInvite,
   ensureHouseholdForSession,
-  loadHouseholdMembers,
+  getMemberDisplayName,
+  loadHouseholdMemberProfiles,
   loadHouseholdState,
   saveHouseholdState,
   verifyHouseholdMembership,
+  type MemberProfile,
 } from "./repository";
 import { migrateLocalToCloudOnce } from "./migration";
 import { getSupabase } from "./supabase";
@@ -148,12 +150,29 @@ let syncInProgress = false;   // guards syncFromCloud
 let initInProgress = false;   // guards initCloudSync (separate to avoid blocking acceptInvite)
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
-let cachedMemberIds: Set<string> = new Set();
+let cachedMembers: MemberProfile[] = [];
+let cachedHouseholdName: string | null = null;
 let memberCacheUnsubscribe: (() => void) | null = null;
 
-export function getCachedMemberIds(): Set<string> {
-  return cachedMemberIds;
+// Build a Set of user IDs from cached members for FK validation
+function buildMemberIdSet(members: MemberProfile[]): Set<string> {
+  return new Set(members.map(m => m.user_id));
 }
+
+export function getCachedMembers(): MemberProfile[] {
+  return cachedMembers;
+}
+
+export function getCachedHouseholdName(): string | null {
+  return cachedHouseholdName;
+}
+
+export function getCachedMemberIds(): Set<string> {
+  return buildMemberIdSet(cachedMembers);
+}
+
+// Re-export for convenience
+export { getMemberDisplayName } from "./repository";
 
 // Debounced version of syncFromCloud to prevent rapid calls from realtime subscriptions
 const debouncedSyncFromCloud = debounce(syncFromCloud, 500);
@@ -234,7 +253,8 @@ export function clearAppState(): void {
   activeHouseholdId = null;
   syncInProgress = false;
   initInProgress = false;
-  cachedMemberIds = new Set();
+  cachedMembers = [];
+  cachedHouseholdName = null;
   if (memberCacheUnsubscribe) {
     memberCacheUnsubscribe();
     memberCacheUnsubscribe = null;
@@ -325,12 +345,11 @@ export async function initCloudSync(
 
     cloudSyncEnabled = true;
 
-    // Load household members once and cache them for FK validation on saves.
+    // Load household member profiles and cache them for FK validation and display
     try {
-      const members = await loadHouseholdMembers(household.householdId);
-      cachedMemberIds = new Set(members.map((m) => m.user_id));
+      cachedMembers = await loadHouseholdMemberProfiles(household.householdId);
     } catch {
-      cachedMemberIds = new Set();
+      cachedMembers = [];
     }
 
     // Refresh the member cache whenever membership changes (invite accepted, member removed).
@@ -339,8 +358,7 @@ export async function initCloudSync(
       const onMetaChange = async () => {
         if (!activeHouseholdId) return;
         try {
-          const updated = await loadHouseholdMembers(activeHouseholdId);
-          cachedMemberIds = new Set(updated.map((m) => m.user_id));
+          cachedMembers = await loadHouseholdMemberProfiles(activeHouseholdId);
         } catch { /* ignore */ }
       };
       window.addEventListener("household:meta-change", onMetaChange);
@@ -352,12 +370,13 @@ export async function initCloudSync(
     // invite — never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
       try {
-        await migrateLocalToCloudOnce(household.householdId, state, cachedMemberIds);
+        await migrateLocalToCloudOnce(household.householdId, state, buildMemberIdSet(cachedMembers));
       } catch (err) {
         console.error("initCloudSync: migration failed, continuing to load cloud state:", err);
       }
     }
     const cloudState = await loadHouseholdState(household.householdId);
+    cachedHouseholdName = cloudState.householdName ?? null;
     state = {
       ...state,
       spouses: cloudState.spouses?.length ? cloudState.spouses : state.spouses,
@@ -668,7 +687,7 @@ function scheduleCloudSync() {
     }
     try {
       console.log("Starting cloud sync...");
-      await saveHouseholdState(activeHouseholdId, state, cachedMemberIds);
+      await saveHouseholdState(activeHouseholdId, state, buildMemberIdSet(cachedMembers));
       console.log("Cloud sync completed successfully");
       syncTimer = null;
     } catch (error) {

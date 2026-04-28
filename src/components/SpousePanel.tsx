@@ -180,11 +180,17 @@ export function SpousePanel({
           </Label>
           <Select
             value={spouse.assignedUserId}
-            onValueChange={(value) =>
-              actions.updateSpouse(spouse.id, {
-                assignedUserId: value === "__unassigned" ? undefined : value,
-              })
-            }
+            onValueChange={(value) => {
+              const newAssignedId = value === "__unassigned" ? undefined : value;
+              actions.updateSpouse(spouse.id, { assignedUserId: newAssignedId });
+              // Auto-populate name from member if it's still the default
+              const isDefaultName =
+                /^Małżonek\s+\d+$/.test(spouse.name.trim()) || !spouse.name.trim();
+              if (isDefaultName && newAssignedId && memberOptions) {
+                const member = memberOptions.find((m) => m.user_id === newAssignedId);
+                if (member?.label) actions.updateSpouse(spouse.id, { name: member.label });
+              }
+            }}
           >
             <SelectTrigger className="h-11 mt-2">
               <SelectValue placeholder="Brak przypisania" />

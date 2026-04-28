@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
-import { createInvite, getActiveHouseholdId } from "@/lib/store";
+import { createInvite, getCachedHouseholdName, getCachedMembers, getMemberDisplayName, getActiveHouseholdId } from "@/lib/store";
 import {
   loadHouseholdInvites,
-  loadHouseholdMembers,
+  loadHouseholdMemberProfiles,
   removeHouseholdMember,
   revokeHouseholdInvite,
+  updateHouseholdName,
+  type MemberProfile,
 } from "@/lib/repository";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,7 +34,9 @@ function SettingsPage() {
   );
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [members, setMembers] = useState<{ user_id: string; created_at: string; role: string }[]>([]);
+  const [householdName, setHouseholdName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
   const [pendingInvites, setPendingInvites] = useState<
     { id: string; email: string; expires_at: string; status: string }[]
   >([]);
@@ -42,13 +47,35 @@ function SettingsPage() {
     const householdId = getActiveHouseholdId();
     if (!householdId) return;
 
-    const members = await loadHouseholdMembers(householdId);
+    const memberProfiles = await loadHouseholdMemberProfiles(householdId);
     const invites = await loadHouseholdInvites(householdId, false);
 
-    setMembers(members);
+    setMembers(memberProfiles);
     setPendingInvites(invites);
-    setIsOwner(members.some((member) => member.user_id === session?.user.id && member.role === "owner"));
+    setIsOwner(memberProfiles.some((member) => member.user_id === session?.user.id && member.role === "owner"));
   }
+
+  async function handleSaveName() {
+    if (!householdName.trim()) {
+      setStatus({ msg: "Nazwa gospodarstwa nie może być pusta.", type: "error" });
+      return;
+    }
+    const householdId = getActiveHouseholdId();
+    if (!householdId) return;
+    
+    const success = await updateHouseholdName(householdId, householdName.trim());
+    if (success) {
+      setEditingName(false);
+      setStatus({ msg: "Nazwa gospodarstwa została zmieniona.", type: "success" });
+    } else {
+      setStatus({ msg: "Nie udało się zmienić nazwy gospodarstwa.", type: "error" });
+    }
+  }
+
+  useEffect(() => {
+    const cached = getCachedHouseholdName();
+    setHouseholdName(cached ?? "");
+  }, []);
 
   useEffect(() => {
     void refreshHouseholdInfo();
@@ -295,6 +322,28 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
             Stan gospodarstwa
           </p>
+          <div className="flex items-center gap-2 mb-3">
+            {editingName ? (
+              <input
+                value={householdName}
+                onChange={(e) => setHouseholdName(e.target.value)}
+                onBlur={handleSaveName}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                autoFocus
+                className="text-base font-semibold px-2 py-1 border border-border rounded-md bg-background"
+              />
+            ) : (
+              <h3 className="text-base font-semibold">{householdName}</h3>
+            )}
+            {isOwner && (
+              <button
+                onClick={() => setEditingName(!editingName)}
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           <p className="text-sm text-foreground mb-3">
             Gospodarstwo domowe jest współdzielone między członków. Zmiany w danych są synchronizowane dla wszystkich.
           </p>
@@ -337,11 +386,11 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
           {members.length > 0 ? (
             <ul className="space-y-2 text-sm text-muted-foreground">
-              {members.map((member, index) => (
+              {members.map((member) => (
                 <li key={member.user_id} className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-medium text-foreground">Członek {index + 1}</p>
-                    <p className="text-xs text-muted-foreground">Rola: {member.role}</p>
+                    <p className="font-medium text-foreground">{getMemberDisplayName(member)}</p>
+                    <p className="text-xs text-muted-foreground">{member.email} · {member.role}</p>
                     {session?.user.id === member.user_id && (
                       <p className="text-xs text-muted-foreground">(Twoje konto)</p>
                     )}

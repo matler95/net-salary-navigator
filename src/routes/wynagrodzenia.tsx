@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { actions, useAppState } from "@/lib/store";
+import { actions, getCachedMembers, getMemberDisplayName, useAppState } from "@/lib/store";
 import { SpousePanel } from "@/components/SpousePanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw } from "lucide-react";
 import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
-import { loadHouseholdMembers } from "@/lib/repository";
 import { getActiveHouseholdId } from "@/lib/store";
 import { useAuthSession } from "@/lib/auth";
 import {
@@ -38,31 +37,20 @@ function SalariesPage() {
   const jointFiling = useAppState((s) => s.jointFiling);
   const globalSettings = useAppState((s) => s.globalSettings);
   const { session } = useAuthSession();
-  const [members, setMembers] = useState<{ user_id: string; role: string; label: string }[]>([]);
   const householdId = getActiveHouseholdId();
 
-  useEffect(() => {
-    const loadMembers = async () => {
-      if (!session?.user.id || !householdId) {
-        setMembers([]);
-        return;
-      }
-      const loaded = await loadHouseholdMembers(householdId);
-      setMembers(
-        loaded.map((member, index) => ({
-          ...member,
-          label:
-            member.user_id === session.user.id
-              ? "Ty"
-              : member.role === "owner"
-              ? `Właściciel (${member.user_id.slice(0, 8)})`
-              : `Członek ${index + 1} (${member.user_id.slice(0, 8)})`,
-        })),
-      );
-    };
-
-    void loadMembers();
-  }, [session, householdId]);
+  // Derive members from cached profiles (computed, no state)
+  const members = useMemo(() => {
+    const cached = getCachedMembers();
+    return cached.map((member) => ({
+      user_id: member.user_id,
+      role: member.role,
+      label:
+        member.user_id === session?.user.id
+          ? `Ty (${getMemberDisplayName(member)})`
+          : getMemberDisplayName(member),
+    }));
+  }, [session?.user.id]);
 
   // Household summary calculations
   const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);

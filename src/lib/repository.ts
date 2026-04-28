@@ -20,6 +20,13 @@ type InviteContext = {
   is_valid: boolean;
 };
 
+export type MemberProfile = {
+  user_id: string;
+  email: string;
+  nickname: string | null;
+  role: string;
+};
+
 let creatingHouseholdPromise: Promise<HouseholdContext | null> | null = null;
 
 export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
@@ -54,6 +61,26 @@ export async function loadHouseholdMembers(householdId: string): Promise<{ user_
   }
 
   return data as { user_id: string; created_at: string; role: string }[];
+}
+
+export async function loadHouseholdMemberProfiles(householdId: string): Promise<MemberProfile[]> {
+  const supabase = await getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase.rpc("get_household_member_profiles", {
+    target_household: householdId,
+  });
+
+  if (error || !data) {
+    console.error("Error loading household member profiles:", error);
+    return [];
+  }
+
+  return data as MemberProfile[];
+}
+
+export function getMemberDisplayName(profile: MemberProfile): string {
+  return profile.nickname?.trim() || profile.email.split("@")[0] || profile.email;
 }
 
 export async function loadHouseholdInvites(
@@ -134,6 +161,18 @@ export async function removeHouseholdMember(householdId: string, userId: string)
     .eq("user_id", userId);
   if (error) {
     console.error("Error removing household member:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateHouseholdName(householdId: string, name: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.from("households").update({ name }).eq("id", householdId);
+  if (error) {
+    console.error("Error updating household name:", error);
     return false;
   }
   return true;
@@ -243,7 +282,11 @@ export async function updateUserMetadata(data: Record<string, unknown>): Promise
   return true;
 }
 
-export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
+export type HouseholdStateWithMeta = Partial<AppState> & {
+  householdName?: string;
+};
+
+export async function loadHouseholdState(householdId: string): Promise<HouseholdStateWithMeta> {
   console.log(`Loading household state for: ${householdId}`);
   const supabase = await getSupabase();
   if (!supabase) return {};
@@ -255,7 +298,7 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
     supabase.from("loans").select("*").eq("household_id", householdId),
     supabase.from("rentals").select("*").eq("household_id", householdId),
     supabase.from("savings").select("*").eq("household_id", householdId),
-    supabase.from("households").select("joint_filing, global_settings").eq("id", householdId).single(),
+    supabase.from("households").select("name, joint_filing, global_settings").eq("id", householdId).single(),
   ]);
 
   const [spouses, expenses, investments, loans, rentals, savings, household] = results;
@@ -276,6 +319,7 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
     savings: (savings.data ?? []).map(mapSavingsFromRow),
     jointFiling: !!household.data?.joint_filing,
     globalSettings: household.data?.global_settings as any,
+    householdName: household.data?.name as string | undefined,
   };
 }
 

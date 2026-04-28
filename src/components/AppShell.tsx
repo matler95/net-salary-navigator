@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
   clearAppState,
+  getCachedHouseholdName,
   initCloudSync,
   syncFromCloud,
   ACTIVE_HOUSEHOLD_KEY,
@@ -26,6 +27,7 @@ export function AppShell() {
   const { session, isAuthenticated, loading } = useAuthSession();
   const [signOutInProgress, setSignOutInProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [householdName, setHouseholdName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -43,6 +45,7 @@ export function AppShell() {
     }
 
     void initCloudSync(session);
+    setHouseholdName(getCachedHouseholdName());
 
     const onFocus = () => {
       void syncFromCloud();
@@ -54,12 +57,18 @@ export function AppShell() {
       }
     };
 
+    const onMetaChange = () => {
+      setHouseholdName(getCachedHouseholdName());
+    };
+
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("household:meta-change", onMetaChange);
 
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("household:meta-change", onMetaChange);
     };
   }, [session, loc.pathname]);
 
@@ -126,7 +135,7 @@ export function AppShell() {
             <div className="hidden sm:block">
               <p className="font-display text-lg leading-tight">Płaca.netto</p>
               <p className="text-xs text-muted-foreground leading-tight">
-                Bud&#380;et gospodarstwa &middot; PL 2025
+                {householdName ?? "Płaca.netto"} · PL 2025
               </p>
             </div>
           </Link>
@@ -152,6 +161,14 @@ export function AppShell() {
                 })}
               </nav>
               <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                {isAuthenticated && (
+                  <span className="hidden sm:block truncate max-w-30" title={session?.user.email}>
+                    {session?.user.user_metadata?.nickname?.trim() ||
+                      session?.user.email?.split("@")[0] ||
+                      session?.user.email ||
+                      ""}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => void handleRefresh()}
