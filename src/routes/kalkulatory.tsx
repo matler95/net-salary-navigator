@@ -547,7 +547,7 @@ function RealEstateCalculator() {
             sub={s.mortgageInsuranceMonthly > 0 ? `+ ${s.mortgageInsuranceMonthly} zł ubezp.` : `Kredyt: ${formatPLN(r.loanAmount)}`}
           />
           <StatCard
-            label="Cashflow netto"
+            label={r.monthlyCashflow >= 0 ? "Zysk na czysto" : "Strata miesięczna"}
             value={formatPLN2(r.monthlyCashflow)}
             sub={cashflowPositive ? "Po wszystkich kosztach ✓" : "Wymaga dopłaty"}
             tone={cashflowPositive ? "success" : "destructive"}
@@ -574,7 +574,7 @@ function RealEstateCalculator() {
 
         {/* Cashflow & equity chart */}
         <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-          <h3 className="font-display text-lg mb-1">Skumulowany cashflow vs kapitał własny</h3>
+          <h3 className="font-display text-lg mb-1">Skumulowany wynik vs kapitał własny</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wartość mieszkania rośnie, kredyt maleje — kapitał własny to różnica.
           </p>
@@ -602,7 +602,7 @@ function RealEstateCalculator() {
                 <Line
                   type="monotone"
                   dataKey="cumulativeCashflow"
-                  name="Skumulowany cashflow"
+                  name={r.totalCashflow >= 0 ? "Skumulowany zysk" : "Skumulowana strata"}
                   stroke="oklch(0.55 0.18 30)"
                   strokeWidth={2}
                   dot={false}
@@ -623,7 +623,7 @@ function RealEstateCalculator() {
 
         {/* Annual cashflow bar */}
         <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-          <h3 className="font-display text-lg mb-1">Roczny cashflow</h3>
+          <h3 className="font-display text-lg mb-1">Roczny wynik (zysk / strata)</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Po kosztach, racie i podatku. Czynsz rośnie {s.rentGrowthPct}% rocznie.
           </p>
@@ -639,7 +639,7 @@ function RealEstateCalculator() {
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
                 <ReferenceLine y={0} stroke="#888" />
-                <Bar dataKey="cashflow" name="Cashflow roczny" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="cashflow" name="Wynik roczny" radius={[4, 4, 0, 0]}>
                   {r.yearly.map((y, i) => (
                     <Cell
                       key={i}
@@ -665,7 +665,7 @@ function RealEstateCalculator() {
                 <span className="font-mono font-semibold">{formatPLN(r.totalUpfront)}</span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className="text-muted-foreground">Skumulowany cashflow</span>
+                <span className="text-muted-foreground">{r.totalCashflow >= 0 ? "Skumulowany zysk" : "Skumulowana strata"}</span>
                 <span className={`font-mono font-semibold ${r.totalCashflow >= 0 ? "text-success" : "text-destructive"}`}>
                   {r.totalCashflow >= 0 ? "+" : ""}{formatPLN(r.totalCashflow)}
                 </span>

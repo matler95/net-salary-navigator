@@ -127,7 +127,11 @@ function AssetsPage() {
         <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} />
         <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="destructive" />
         <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} />
-        <StatCard label="Cashflow z wynajmu" value={formatPLN(rentalNet)} tone={rentalNet > 0 ? "success" : "default"} />
+        <StatCard 
+          label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"} 
+          value={formatPLN(rentalNet)} 
+          tone={rentalNet > 0 ? "success" : "default"} 
+        />
       </div>
 
       <div id="oszczednosci" className="scroll-mt-6"><SavingsSection /></div>
@@ -1369,10 +1373,9 @@ function RentalsSection() {
           <h2 className="font-display text-2xl">Mieszkania na wynajem</h2>
           <AddRentalDialog />
         </div>
-        <p className="text-sm text-muted-foreground">
-          {rentals.length} {rentals.length === 1 ? "mieszkanie" : "mieszkań"} · wartość{" "}
-          {formatPLN(totalValue)} · cashflow {formatPLN(totalCashflow)}/m-c
-        </p>
+        <div className="flex items-center gap-2 text-muted-foreground mt-1">
+          {formatPLN(totalValue)} · {totalCashflow >= 0 ? "zysk" : "strata"} {formatPLN(totalCashflow)}/m-c
+        </div>
       </div>
 
       {rentals.length === 0 ? (
@@ -1491,10 +1494,8 @@ function RentalsSection() {
                   }`}
                 >
                   <div>
-                    <p className="text-xs text-muted-foreground">Cashflow / m-c</p>
-                    <p
-                      className={`font-mono tabular-nums text-sm font-semibold ${cf.cashflow >= 0 ? "text-success" : "text-destructive"}`}
-                    >
+                    <p className="text-xs text-muted-foreground">{cf.cashflow >= 0 ? "Zysk" : "Strata"} / m-c</p>
+                    <p className={`font-mono tabular-nums text-sm font-semibold ${cf.cashflow >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatPLN2(cf.cashflow)}
                     </p>
                   </div>

@@ -211,7 +211,7 @@ function Dashboard() {
 
       return {
         month: monthLabel(month),
-        "Nadwyżka (cashflow)": Math.round(cumulativeSurplus),
+        "Suma nadwyżek": Math.round(cumulativeSurplus),
         "Konta bankowe": includeSavings ? totalSavings : 0,
         "Inwestycje (giełda/krypto)": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
       };
@@ -273,7 +273,7 @@ function Dashboard() {
           tone="success"
         />
         <StatCard
-          label="Obecny cashflow"
+          label={currentMonthCashflow >= 0 ? "Nadwyżka (obecnie)" : "Deficyt (obecnie)"}
           value={formatPLN(currentMonthCashflow)}
           sub={
             <div className="flex justify-between gap-2">
@@ -302,7 +302,7 @@ function Dashboard() {
           tone="success"
         />
         <StatCard
-          label="Średni cashflow (rok)"
+          label={annualAvgCashflow >= 0 ? "Średnia nadwyżka" : "Średni deficyt"}
           value={formatPLN(annualAvgCashflow)}
           sub="Dla planowania budżetu"
           tone={annualAvgCashflow >= 0 ? "success" : "destructive"}
@@ -421,7 +421,7 @@ function Dashboard() {
               />
               <Area
                 type="monotone"
-                dataKey="Nadwyżka (cashflow)"
+                dataKey="Suma nadwyżek"
                 stackId="1"
                 stroke="var(--accent)"
                 fillOpacity={1}
