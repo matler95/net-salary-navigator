@@ -260,7 +260,11 @@ export function useAppState<T>(selector: (s: AppState) => T): T {
   return selector(full);
 }
 
-export async function initCloudSync(session: Session | null, preferredHouseholdId: string | null = null) {
+export async function initCloudSync(
+  session: Session | null,
+  preferredHouseholdId: string | null = null,
+  preferredHouseholdName: string | null = null,
+) {
   if (!session) {
     cloudSyncEnabled = false;
     activeHouseholdId = null;
@@ -284,6 +288,7 @@ export async function initCloudSync(session: Session | null, preferredHouseholdI
     const household = await ensureHouseholdForSession(
       session,
       preferredHouseholdId ?? persistedHouseholdId,
+      preferredHouseholdName ?? undefined,
     );
 
     if (!household?.householdId) return;

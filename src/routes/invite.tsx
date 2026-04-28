@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
 import { useAuthSession } from "@/lib/auth";
 import { acceptInvite, PENDING_INVITE_TOKEN_KEY } from "@/lib/store";
-import { loadInviteContext } from "@/lib/repository";
+import { loadInviteContext, updateUserMetadata } from "@/lib/repository";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -34,6 +34,7 @@ function InvitePage() {
   const [accepting, setAccepting] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [password, setPassword] = useState("");
+  const [nickname, setNickname] = useState("");
   const [status, setStatus] = useState<{ msg: string; type: "error" | "info" | "success" } | null>(null);
 
   useEffect(() => {
@@ -68,6 +69,10 @@ function InvitePage() {
     setAccepting(true);
     setStatus(null);
 
+    if (nickname.trim()) {
+      await updateUserMetadata({ nickname: nickname.trim() });
+    }
+
     const accepted = await acceptInvite(token, session);
     if (accepted) {
       toast.success(`Dołączono do gospodarstwa ${invite?.household_name ?? "gospodarstwa"}`);
@@ -99,6 +104,7 @@ function InvitePage() {
       email: invite.email,
       password,
       options: {
+        data: nickname ? { nickname } : undefined,
         emailRedirectTo: `${window.location.origin}/invite?invite=${encodeURIComponent(token)}`,
       },
     });
@@ -222,9 +228,19 @@ function InvitePage() {
             {alreadyJoined ? (
               <Button onClick={() => router.navigate({ to: "/" })}>Przejdź do pulpitu</Button>
             ) : isAuthenticated && !wrongAccount ? (
-              <Button onClick={handleAccept} disabled={accepting || !invite?.is_valid}>
-                {accepting ? "Dołączanie…" : `Dołącz do ${householdName}`}
-              </Button>
+              <div className="space-y-4">
+                <Input
+                  id="accept-nickname"
+                  type="text"
+                  placeholder="Twoja ksywka (opcjonalnie)"
+                  value={nickname}
+                  disabled={accepting}
+                  onChange={(e) => setNickname(e.target.value)}
+                />
+                <Button onClick={handleAccept} disabled={accepting || !invite?.is_valid}>
+                  {accepting ? "Dołączanie…" : `Dołącz do ${householdName}`}
+                </Button>
+              </div>
             ) : invite?.is_valid ? (
               <div className="space-y-6">
                 <p className="text-sm text-muted-foreground">

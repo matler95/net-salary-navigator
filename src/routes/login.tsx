@@ -32,6 +32,8 @@ function LoginPage() {
   const search = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [householdName, setHouseholdName] = useState("Moje gospodarstwo");
+  const [nickname, setNickname] = useState("");
   const [mode, setMode] = useState<"login" | "register">(() =>
     typeof window !== "undefined" && search.register ? "register" : "login",
   );
@@ -113,6 +115,7 @@ function LoginPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) return "Nieprawidłowy format email.";
     if (!password) return "Podaj hasło.";
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków.";
+    if (mode === "register" && !hasInvite && !householdName.trim()) return "Podaj nazwę gospodarstwa.";
     return null;
   }
 
@@ -189,10 +192,12 @@ function LoginPage() {
         const signUpPayload = {
           email: email.trim(),
           password,
-          options:
-            hasInvite && search.invite
+          options: {
+            data: nickname ? { nickname } : undefined,
+            ...(hasInvite && search.invite
               ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
-              : undefined,
+              : {}),
+          },
         };
         const { data: signUpData, error } = await supabase.auth.signUp(signUpPayload);
         if (error) {
@@ -224,7 +229,7 @@ function LoginPage() {
             }
             if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
           } else {
-            await initCloudSync(signUpData.session);
+            await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
           }
           await router.navigate({ to: "/" });
           return;
@@ -323,6 +328,26 @@ function LoginPage() {
           disabled={loading}
           onChange={(e) => setPassword(e.target.value)}
         />
+        {mode === "register" && !hasInvite ? (
+          <Input
+            id="household-name"
+            type="text"
+            placeholder="Nazwa gospodarstwa"
+            value={householdName}
+            disabled={loading}
+            onChange={(e) => setHouseholdName(e.target.value)}
+          />
+        ) : null}
+        {mode === "register" ? (
+          <Input
+            id="nickname"
+            type="text"
+            placeholder="Twoja ksywka"
+            value={nickname}
+            disabled={loading}
+            onChange={(e) => setNickname(e.target.value)}
+          />
+        ) : null}
         <Button type="submit" className="w-full" disabled={loading || cooldownSeconds > 0}>
           {loading
             ? "Proszę czekać…"

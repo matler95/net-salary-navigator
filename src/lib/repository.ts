@@ -142,7 +142,9 @@ export async function removeHouseholdMember(householdId: string, userId: string)
 export async function ensureHouseholdForSession(
   session: Session,
   preferredHouseholdId?: string | null,
+  householdName?: string | null,
 ): Promise<HouseholdContext | null> {
+  const name = householdName?.trim() || "Moje gospodarstwo";
   const supabase = await getSupabase();
   if (!supabase) return null;
   const userId = session.user.id;
@@ -174,7 +176,7 @@ export async function ensureHouseholdForSession(
 
   creatingHouseholdPromise = (async () => {
     const { data: householdId, error: householdError } = await supabase.rpc("create_household", {
-      household_name: "Moje gospodarstwo",
+      household_name: name,
     });
 
     if (!householdError && householdId) {
@@ -196,7 +198,7 @@ export async function ensureHouseholdForSession(
 
     const { data: created, error: insertHouseholdError } = (await supabase
       .from("households")
-      .insert({ name: "Moje gospodarstwo" })
+      .insert({ name })
       .select("id")
       .single()) as { data: HouseholdRow | null; error: any };
 
@@ -223,6 +225,18 @@ export async function ensureHouseholdForSession(
   const result = await creatingHouseholdPromise;
   creatingHouseholdPromise = null;
   return result;
+}
+
+export async function updateUserMetadata(data: Record<string, unknown>): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.auth.updateUser({ data });
+  if (error) {
+    console.error("Error updating user metadata:", error);
+    return false;
+  }
+  return true;
 }
 
 export async function loadHouseholdState(householdId: string): Promise<Partial<AppState>> {
