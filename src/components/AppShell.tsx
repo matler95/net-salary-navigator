@@ -8,7 +8,12 @@ import {
   PieChart, 
   Calculator, 
   Settings,
-  User 
+  User,
+  ChevronLeft,
+  ChevronRight,
+  Leaf,
+  LogOut,
+  Menu
 } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
@@ -22,10 +27,10 @@ import {
 import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
-  { to: "/", label: "Pulpit", icon: LayoutDashboard },
-  { to: "/wynagrodzenia", label: "Wynagrodzenia", icon: Banknote },
+  { to: "/", label: "Przegląd", icon: LayoutDashboard },
+  { to: "/wynagrodzenia", label: "Zarobki", icon: Banknote },
   { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
-  { to: "/aktywa", label: "Aktywa", icon: PieChart },
+  { to: "/aktywa", label: "Majątek", icon: PieChart },
   { to: "/kalkulatory", label: "Kalkulatory", icon: Calculator },
   { to: "/settings", label: "Ustawienia", icon: Settings },
 ] as const;
@@ -37,6 +42,12 @@ export function AppShell() {
   const [signOutInProgress, setSignOutInProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [householdName, setHouseholdName] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("saldeo_sidebar_collapsed") === "true";
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (!session) return;
@@ -81,6 +92,14 @@ export function AppShell() {
     };
   }, [session, loc.pathname]);
 
+  const toggleSidebar = () => {
+    const newState = !sidebarCollapsed;
+    setSidebarCollapsed(newState);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("saldeo_sidebar_collapsed", String(newState));
+    }
+  };
+
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -106,7 +125,7 @@ export function AppShell() {
   if (loading) {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <div className="rounded-2xl border border-border bg-card p-6 text-center animate-in fade-in zoom-in duration-300">
           <p className="text-sm text-muted-foreground">Ładowanie sesji użytkownika…</p>
         </div>
       </main>
@@ -116,15 +135,18 @@ export function AppShell() {
   if (!isAuthenticated && loc.pathname !== "/login" && loc.pathname !== "/invite") {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-xl rounded-3xl border border-border bg-card p-8 shadow-lg">
-          <h1 className="text-3xl font-display mb-4">Zaloguj się, aby kontynuować</h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            Twoje dane są bezpieczne — aby zobaczyć swój pulpit i gospodarstwo domowe, musisz zalogować się ponownie.
+        <div className="w-full max-w-xl rounded-[2rem] border border-border bg-card p-8 shadow-warm animate-in slide-in-from-bottom-4 duration-500">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground mb-6 shadow-md">
+            <Leaf className="w-7 h-7" />
+          </div>
+          <h1 className="text-3xl font-display italic font-semibold mb-4 tracking-tight">Zaloguj się, aby kontynuować</h1>
+          <p className="mb-8 text-muted-foreground leading-relaxed">
+            Twoje finanse są bezpieczne. Aby zobaczyć swój pulpit i zarządzać budżetem, zaloguj się do swojego konta.
           </p>
           <Link
             to="/login"
             search={{ invite: undefined, register: undefined }}
-            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-2xl bg-primary px-8 py-4 text-sm font-semibold text-primary-foreground transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-primary/20"
           >
             Przejdź do logowania
           </Link>
@@ -134,90 +156,149 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/85 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-6">
-          <Link to="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-[var(--shadow-card)]">
-              ₧
-            </div>
-            <div className="hidden sm:block">
-              <p className="font-display text-lg leading-tight">Płaca.netto</p>
-              <p className="text-xs text-muted-foreground leading-tight">
-                {householdName ?? "Płaca.netto"} · PL 2025
-              </p>
-            </div>
-          </Link>
-
-          {isAuthenticated ? (
-            <>
-              <nav className="hidden md:flex items-center gap-1">
-                {NAV.map((n) => {
-                  const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
-                  return (
-                    <Link
-                      key={n.to}
-                      to={n.to}
-                      className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                        active
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {n.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                {isAuthenticated && (
-                  <div className="flex items-center gap-2" title={session?.user.email}>
-                    <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-accent shrink-0 border border-accent/20">
-                      {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
-                    </div>
-                    <span className="hidden md:block truncate max-w-32 font-medium">
-                      {session?.user.user_metadata?.nickname?.trim() ||
-                        session?.user.email?.split("@")[0] ||
-                        ""}
-                    </span>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void handleRefresh()}
-                  disabled={refreshing}
-                  title="Odśwież dane"
-                  aria-label="Odśwież dane"
-                  className="hover:text-foreground transition-colors p-1.5"
-                >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={signOutInProgress}
-                  className="hover:text-foreground p-1.5"
-                >
-                  {signOutInProgress ? "Wylogowywanie…" : "Wyloguj"}
-                </button>
+    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+      {/* Sidebar for Desktop */}
+      {isAuthenticated && (
+        <aside 
+          className={`hidden md:flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out ${
+            sidebarCollapsed ? "w-20" : "w-64"
+          } shrink-0 sticky top-0 h-screen z-30`}
+        >
+          <div className="p-6 flex items-center justify-between overflow-hidden">
+            <Link to="/" className="flex items-center gap-3 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground shadow-md shrink-0">
+                <Leaf className="w-5 h-5" />
               </div>
-            </>
-          ) : (
-            <div className="text-xs text-muted-foreground shrink-0">
-              <Link to="/login" search={{ invite: undefined, register: undefined }} className="hover:text-foreground">
-                Zaloguj
-              </Link>
+              {!sidebarCollapsed && (
+                <span className="font-display italic font-semibold text-xl tracking-tight animate-in fade-in slide-in-from-left-2 duration-300">
+                  Saldeo
+                </span>
+              )}
+            </Link>
+            <button 
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              aria-label={sidebarCollapsed ? "Rozwiń pasek" : "Zwiń pasek"}
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            {NAV.map((n) => {
+              const Icon = n.icon;
+              const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
+              return (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                    active 
+                      ? "bg-accent text-accent-foreground shadow-md" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 shrink-0 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
+                  {!sidebarCollapsed && (
+                    <span className="font-medium text-sm truncate animate-in fade-in duration-300">
+                      {n.label}
+                    </span>
+                  )}
+                  {sidebarCollapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-foreground text-background text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                      {n.label}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="p-3 border-t border-border space-y-1">
+            <div className={`flex items-center gap-3 px-3 py-2 rounded-xl bg-accent-soft/30 mb-2 ${sidebarCollapsed ? "justify-center" : ""}`}>
+              <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent shrink-0 border border-accent/20">
+                {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
+              </div>
+              {!sidebarCollapsed && (
+                <div className="min-w-0 flex-1 animate-in fade-in duration-300">
+                  <p className="text-xs font-semibold truncate leading-none mb-1">
+                    {session?.user.user_metadata?.nickname?.trim() || session?.user.email?.split("@")[0]}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate leading-none">
+                    {householdName ?? "Gospodarstwo"}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+            
+            <button
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
+              title="Odśwież dane"
+            >
+              <RefreshCw className={`w-4 h-4 shrink-0 ${refreshing ? "animate-spin" : ""}`} />
+              {!sidebarCollapsed && <span className="text-xs font-medium">Odśwież dane</span>}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              disabled={signOutInProgress}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-destructive hover:bg-destructive/10 transition-all ${sidebarCollapsed ? "justify-center" : ""}`}
+              title="Wyloguj"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!sidebarCollapsed && <span className="text-xs font-medium">{signOutInProgress ? "Wychodzę…" : "Wyloguj"}</span>}
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile Header */}
+      <header className="md:hidden border-b border-border bg-background/85 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground shadow-sm">
+              <Leaf className="w-4 h-4" />
+            </div>
+            <span className="font-display italic font-semibold text-lg tracking-tight">Saldeo</span>
+          </Link>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="p-2 rounded-full hover:bg-muted text-muted-foreground"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent border border-accent/20">
+              {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="pb-24 md:pb-0">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 pb-24 md:pb-0">
+          <Outlet />
+        </main>
+        
+        <footer className="border-t border-border mt-auto">
+          <div className="max-w-7xl mx-auto px-6 py-8 text-xs text-muted-foreground flex flex-col sm:flex-row justify-between gap-4 items-center">
+            <p>© 2025 Saldeo · Twoje finanse, po ludzku.</p>
+            <div className="flex items-center gap-4">
+              <span>Stawki ZUS/PIT 2025</span>
+              <span className="w-1 h-1 rounded-full bg-border" />
+              <span>Cloud Sync</span>
+            </div>
+          </div>
+        </footer>
+      </div>
 
+      {/* Mobile Bottom Nav */}
       {isAuthenticated && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-1 pt-2 pb-[calc(env(safe-area-inset-bottom)+6px)] flex items-center justify-around shadow-[0_-4px_16px_rgba(0,0,0,0.1)]">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+8px)] flex items-center justify-around shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">
           {NAV.map((n) => {
             const Icon = n.icon;
             const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
@@ -225,26 +306,24 @@ export function AppShell() {
               <Link
                 key={n.to}
                 to={n.to}
-                className={`flex flex-col items-center gap-1 flex-1 min-w-0 px-1 py-1 rounded-xl transition-all duration-200 active:scale-90 ${
+                className={`flex flex-col items-center gap-1.5 flex-1 min-w-0 py-1 rounded-2xl transition-all duration-200 active:scale-90 ${
                   active
                     ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground"
                 }`}
               >
-                <Icon className={`w-5 h-5 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
-                <span className="text-[8px] font-bold uppercase tracking-tighter truncate w-full text-center">{n.label}</span>
+                <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-accent/10" : ""}`}>
+                  <Icon className={`w-6 h-6 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
+                </div>
+                <span className={`text-[10px] font-semibold tracking-tight truncate w-full text-center ${active ? "text-accent" : "text-muted-foreground"}`}>
+                  {n.label}
+                </span>
               </Link>
             );
           })}
         </nav>
       )}
-
-      <footer className="border-t border-border mt-12 pb-20 md:pb-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-xs text-muted-foreground">
-          Wartości orientacyjne. Stawki ZUS/PIT na 2025. Dane lokalne i synchronizacja cloud
-          (Supabase).
-        </div>
-      </footer>
     </div>
   );
 }
+

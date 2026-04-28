@@ -26,11 +26,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Płaca.netto — Budżet gospodarstwa PL 2025" },
+      { title: "Saldeo — Twoje finanse, po ludzku" },
       {
         name: "description",
         content:
-          "Kompleksowy budżet domowy: kalkulator UoP z PPK, autorskimi KUP, benefitami, wydatki, kredyty, mieszkania na wynajem.",
+          "Saldeo — Twój inteligentny budżet domowy. Planuj zarobki, kontroluj wydatki i buduj majątek, po ludzku.",
       },
     ],
     links: [
@@ -38,7 +38,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
       },
       { rel: "stylesheet", href: appCss },
     ],

@@ -107,40 +107,79 @@ function AssetsPage() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Aktywa, długi i wynajem
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          Co masz <span className="italic text-accent">i co jest twoje</span>
-        </h1>
-        <div className="flex flex-wrap gap-2 mt-4 text-sm sticky top-0 z-10 bg-background/80 backdrop-blur-md py-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
-          <button onClick={() => scrollTo('oszczednosci')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Oszczędności</button>
-          <button onClick={() => scrollTo('inwestycje')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Inwestycje</button>
-          <button onClick={() => scrollTo('kredyty')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Kredyty</button>
-          <button onClick={() => scrollTo('wynajem')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Nieruchomości</button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+      {/* Page Header */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
+                Portfel Inwestycyjny
+             </div>
+             <div className="w-1 h-1 rounded-full bg-border" />
+             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <BarChart3 className="w-3.5 h-3.5" />
+                Aktualizowane na bieżąco
+             </div>
+          </div>
+          <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight">
+            Twój <span className="italic text-accent decoration-accent/30 underline underline-offset-8">majątek</span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+            Śledź oszczędności, inwestycje i nieruchomości w jednym miejscu. 
+            Automatycznie przeliczamy kursy walut i wyceny giełdowe.
+          </p>
+        </div>
+
+        {/* Sub-navigation */}
+        <div className="flex flex-wrap items-center gap-2 bg-card border border-border p-1.5 rounded-[1.5rem] shadow-sm">
+          <button onClick={() => scrollTo('oszczednosci')} className="hover:bg-accent-soft hover:text-accent text-muted-foreground px-4 py-2 rounded-xl transition-all text-sm font-semibold">Oszczędności</button>
+          <button onClick={() => scrollTo('inwestycje')} className="hover:bg-accent-soft hover:text-accent text-muted-foreground px-4 py-2 rounded-xl transition-all text-sm font-semibold">Inwestycje</button>
+          <button onClick={() => scrollTo('kredyty')} className="hover:bg-accent-soft hover:text-accent text-muted-foreground px-4 py-2 rounded-xl transition-all text-sm font-semibold">Kredyty</button>
+          <button onClick={() => scrollTo('wynajem')} className="hover:bg-accent-soft hover:text-accent text-muted-foreground px-4 py-2 rounded-xl transition-all text-sm font-semibold">Nieruchomości</button>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} />
-        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="destructive" />
-        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"} 
-          value={formatPLN(rentalNet)} 
+          label="Aktywa razem" 
+          value={totalAssets} 
+          icon={<Wallet className="w-5 h-5" />}
+          description="Suma wszystkich aktywów"
+        />
+        <StatCard 
+          label="Zobowiązania" 
+          value={totalLoans} 
+          tone="destructive" 
+          icon={<ArrowRight className="w-5 h-5 rotate-45" />}
+          description="Kredyty i długi"
+        />
+        <StatCard 
+          label="Majątek netto" 
+          value={netWorth} 
+          tone={netWorth >= 0 ? "success" : "destructive"} 
+          icon={<BarChart3 className="w-5 h-5" />}
+          description="Aktywa minus długi"
+        />
+        <StatCard 
+          label="Z wynajmu" 
+          value={rentalNet} 
           tone={rentalNet > 0 ? "success" : "default"} 
+          icon={<Zap className="w-5 h-5" />}
+          description="Miesięczny cashflow"
         />
       </div>
 
-      <div id="oszczednosci" className="scroll-mt-6"><SavingsSection /></div>
-      <div id="inwestycje" className="scroll-mt-6"><InvestmentsSection /></div>
-      <div id="kredyty" className="scroll-mt-6"><LoansSection /></div>
-      <div id="wynajem" className="scroll-mt-6"><RentalsSection /></div>
-    </main>
+      <div className="space-y-24 pb-20">
+        <div id="oszczednosci" className="scroll-mt-12"><SavingsSection /></div>
+        <div id="inwestycje" className="scroll-mt-12"><InvestmentsSection /></div>
+        <div id="kredyty" className="scroll-mt-12"><LoansSection /></div>
+        <div id="wynajem" className="scroll-mt-12"><RentalsSection /></div>
+      </div>
+    </div>
   );
 }
+
 
 /* ─── PALETTE ─────────────────────────────────────────────────────────── */
 const CHART_COLORS = [
@@ -217,7 +256,7 @@ function InvestmentsSection() {
   const { prices: tickerPrices, loading: tickerLoading } = useDailyTickerPrices(
     investments.map((i) => i.ticker ?? ""),
   );
-  const [view, setView] = useState<"list" | "summary">("list");
+  const [view, setView] = useState<"list" | "summary">("summary");
 
   const effectiveCurrency = (i: (typeof investments)[number]) => {
     const ticker = (i.ticker ?? "").trim().toLowerCase();
@@ -233,49 +272,38 @@ function InvestmentsSection() {
   const total = investmentValues.reduce((s, i) => s + i.valuePLN, 0);
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Inwestycje</h2>
-          <AddInvestmentDialog />
-        </div>
-        <div className="flex items-center gap-3">
-          {investments.length > 0 && (
-            <div className="flex rounded-lg border border-border overflow-hidden text-xs">
-              <button
-                onClick={() => setView("list")}
-                className={`px-2.5 py-1 transition-colors ${view === "list" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >
-                Lista
-              </button>
-              <button
-                onClick={() => setView("summary")}
-                className={`px-2.5 py-1 transition-colors ${view === "summary" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >
-                Podsumowanie
-              </button>
-            </div>
-          )}
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">
-              Łącznie {formatPLN(total)}
-              {fxLoading || tickerLoading ? " · aktualizacja..." : ""}
-            </p>
-            <div className="flex gap-1 justify-end mt-0.5">
-              {!!rates.asOf && (
-                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                  Kursy FX z: {rates.asOf}
-                </span>
-              )}
-              {!!tickerPrices.asOf && (
-                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                  Ticker z: {tickerPrices.asOf}
-                </span>
-              )}
-            </div>
+    <section className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                <BarChart3 className="w-5 h-5" />
+             </div>
+             <h2 className="font-display text-3xl font-semibold">Inwestycje</h2>
+             <AddInvestmentDialog />
           </div>
+          <p className="text-muted-foreground text-sm pl-[3.25rem]">
+            ETF, Akcje i Kryptowaluty · {formatPLN(total)}
+            {fxLoading || tickerLoading ? " · aktualizacja..." : ""}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4 bg-card border border-border p-1 rounded-2xl shadow-sm">
+           <button
+             onClick={() => setView("summary")}
+             className={`px-4 py-2 rounded-xl transition-all text-sm font-semibold ${view === "summary" ? "bg-accent text-white shadow-md shadow-accent/20" : "text-muted-foreground hover:bg-muted"}`}
+           >
+             Podsumowanie
+           </button>
+           <button
+             onClick={() => setView("list")}
+             className={`px-4 py-2 rounded-xl transition-all text-sm font-semibold ${view === "list" ? "bg-accent text-white shadow-md shadow-accent/20" : "text-muted-foreground hover:bg-muted"}`}
+           >
+             Lista
+           </button>
         </div>
       </div>
+
 
       {/* ── IMPROVED SUMMARY VIEW ── */}
       {view === "summary" && investments.length > 0 && (
@@ -288,7 +316,8 @@ function InvestmentsSection() {
       )}
 
       {view === "list" && investments.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-card rounded-[2rem] border border-border shadow-warm overflow-hidden">
+
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
               <tr>
@@ -425,13 +454,25 @@ function InvestmentsSection() {
           </table>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
-        Kursy walut: NBP (PLN/EUR/USD/GBP), odświeżane raz dziennie. Ticker: kurs bieżący via Yahoo
-        Finance, cache dobowy.
-      </p>
+      {/* Data Source Info */}
+      <div className="flex flex-wrap gap-4 pt-4">
+        {!!rates.asOf && (
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Kursy NBP: {rates.asOf}
+          </div>
+        )}
+        {!!tickerPrices.asOf && (
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            Giełda: {tickerPrices.asOf}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
+
 
 /* ── INVESTMENTS SUMMARY VIEW (redesigned) ──────────────────────────── */
 function InvestmentsSummaryView({
@@ -519,53 +560,57 @@ function InvestmentsSummaryView({
   return (
     <div className="space-y-4">
       {/* Top KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-            <BarChart3 className="w-3 h-3" /> Wartość portfela
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <BarChart3 className="w-3.5 h-3.5" /> Wartość portfela
           </p>
-          <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(total)}</p>
+          <p className="text-3xl font-bold tabular-nums font-display text-accent">{formatPLN(total)}</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> Wpłaty / m-c
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5" /> Wpłaty / m-c
           </p>
-          <p className="text-2xl font-bold tabular-nums font-display">
+          <p className="text-3xl font-bold tabular-nums font-display">
             {monthlyContribTotal > 0 ? formatPLN(monthlyContribTotal) : "—"}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
             Pozycji razem
           </p>
-          <p className="text-2xl font-bold font-display">{investmentValues.length}</p>
+          <p className="text-3xl font-bold font-display">{investmentValues.length}</p>
           {unvalued > 0 && (
-            <p className="text-[11px] text-warning-foreground mt-0.5">{unvalued} bez wyceny</p>
+            <p className="text-[10px] font-bold text-warning-foreground uppercase mt-2">{unvalued} bez wyceny</p>
           )}
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
-            Największa pozycja
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm overflow-hidden">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+            Lider portfela
           </p>
           {sorted[0] ? (
-            <>
-              <p className="text-sm font-semibold truncate">{sorted[0].label}</p>
-              <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                {formatPLN(sorted[0].valuePLN)} ·{" "}
-                {total > 0 ? ((sorted[0].valuePLN / total) * 100).toFixed(1) : 0}%
+            <div className="space-y-1">
+              <p className="text-sm font-bold truncate text-foreground">{sorted[0].label}</p>
+              <p className="text-[10px] font-bold text-accent uppercase tracking-tighter">
+                {formatPLN(sorted[0].valuePLN)} · {total > 0 ? ((sorted[0].valuePLN / total) * 100).toFixed(1) : 0}%
               </p>
-            </>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">—</p>
           )}
         </div>
       </div>
 
+
       {/* Donut chart + breakdowns */}
-      <div className="grid lg:grid-cols-[1fr,1fr] gap-4">
+      <div className="grid lg:grid-cols-[1.2fr,1fr] gap-8">
         {/* Donut allocation chart */}
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
-          <p className="text-sm font-semibold mb-4">Alokacja portfela</p>
+        <div className="bg-card rounded-[2rem] border border-border shadow-warm p-8">
+          <h3 className="text-lg font-semibold mb-8 flex items-center gap-2">
+             Alokacja portfela
+             <div className="h-px flex-1 bg-border/50" />
+          </h3>
+
           {total > 0 ? (
             <div className="flex items-center gap-4">
               <div className="w-48 h-48 shrink-0">
@@ -613,10 +658,14 @@ function InvestmentsSummaryView({
         </div>
 
         {/* Type + currency breakdown */}
-        <div className="space-y-4">
+        <div className="space-y-8">
           {/* By type */}
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
-            <p className="text-sm font-semibold mb-3">Klasy aktywów</p>
+          <div className="bg-card rounded-[2rem] border border-border shadow-warm p-8">
+            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+               Klasy aktywów
+               <div className="h-px flex-1 bg-border/50" />
+            </h3>
+
             <div className="space-y-2.5">
               {byType.map(({ type, value, pct }, idx) => (
                 <div key={type}>
@@ -641,8 +690,12 @@ function InvestmentsSummaryView({
           </div>
 
           {/* By currency */}
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
-            <p className="text-sm font-semibold mb-3">Ekspozycja walutowa</p>
+          <div className="bg-card rounded-[2rem] border border-border shadow-warm p-8">
+            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+               Ekspozycja walutowa
+               <div className="h-px flex-1 bg-border/50" />
+            </h3>
+
             <div className="space-y-2.5">
               {byCurrency.map(({ currency, value, pct }, idx) => (
                 <div key={currency}>
@@ -669,7 +722,8 @@ function InvestmentsSummaryView({
       </div>
 
       {/* Per-position table */}
-      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="bg-card rounded-[2rem] border border-border shadow-warm overflow-hidden">
+
         <div className="px-5 py-3 border-b border-border bg-muted/30">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
             Pozycje ({sorted.length})
@@ -825,7 +879,8 @@ function AddInvestmentDialog() {
           Dodaj inwestycję
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[420px] rounded-[2rem]">
+
         <DialogHeader>
           <DialogTitle>Dodaj inwestycję</DialogTitle>
           <DialogDescription>
@@ -1030,7 +1085,6 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
   );
 }
 
-/* LOANS */
 function LoansSection() {
   const loans = useAppState((s) => s.loans);
   const totalDebt = loans.reduce((s, l) => s + l.principal, 0);
@@ -1043,16 +1097,22 @@ function LoansSection() {
   );
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Kredyty</h2>
-          <AddLoanDialog />
+    <section className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center">
+                <ArrowRight className="w-5 h-5 rotate-45" />
+             </div>
+             <h2 className="font-display text-3xl font-semibold">Kredyty</h2>
+             <AddLoanDialog />
+          </div>
+          <p className="text-muted-foreground text-sm pl-[3.25rem]">
+            Hipoteki i gotówkowe · {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/mc
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c (z nadpłatą)
-        </p>
       </div>
+
 
       {loans.length === 0 ? (
         <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
@@ -1136,13 +1196,19 @@ function LoanCard({
   }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.label]);
 
   return (
-    <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <Input
-          value={loan.label}
-          onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
-          className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-        />
+    <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm hover:shadow-lg transition-all duration-300 group/card">
+      <div className="flex items-start justify-between gap-2 mb-6">
+        <div className="space-y-1">
+          <Input
+            value={loan.label}
+            onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
+            className="font-display text-2xl font-bold h-auto bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none hover:text-accent transition-colors cursor-pointer"
+          />
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+             {loan.annualRatePct}% Oprocentowania
+          </div>
+        </div>
+
         <button
           onClick={() => {
             const copy = { ...loan };
@@ -1360,23 +1426,28 @@ function LoanCard({
   );
 }
 
-/* RENTALS */
 function RentalsSection() {
   const rentals = useAppState((s) => s.rentals);
   const totalCashflow = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
   const totalValue = rentals.reduce((s, r) => s + r.marketValue, 0);
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Mieszkania na wynajem</h2>
-          <AddRentalDialog />
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground mt-1">
-          {formatPLN(totalValue)} · {totalCashflow >= 0 ? "zysk" : "strata"} {formatPLN(totalCashflow)}/m-c
+    <section className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-success/10 text-success flex items-center justify-center">
+                <Zap className="w-5 h-5" />
+             </div>
+             <h2 className="font-display text-3xl font-semibold">Nieruchomości</h2>
+             <AddRentalDialog />
+          </div>
+          <p className="text-muted-foreground text-sm pl-[3.25rem]">
+            Mieszkania na wynajem · {formatPLN(totalValue)} · {totalCashflow >= 0 ? "zysk" : "strata"} {formatPLN(totalCashflow)}/mc
+          </p>
         </div>
       </div>
+
 
       {rentals.length === 0 ? (
         <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
@@ -1390,14 +1461,21 @@ function RentalsSection() {
             return (
               <div
                 key={r.id}
-                className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
+
+                className="bg-card rounded-[2rem] p-8 border border-border shadow-warm hover:shadow-lg transition-all duration-300 group/card"
               >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <Input
-                    value={r.label}
-                    onChange={(e) => actions.updateRental(r.id, { label: e.target.value })}
-                    className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-                  />
+                <div className="flex items-start justify-between gap-2 mb-6">
+                  <div className="space-y-1">
+                    <Input
+                      value={r.label}
+                      onChange={(e) => actions.updateRental(r.id, { label: e.target.value })}
+                      className="font-display text-2xl font-bold h-auto bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none hover:text-accent transition-colors cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                       {formatPLN(r.marketValue)} · Wartość rynkowa
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => {
                       const copy = { ...r };
@@ -1721,7 +1799,8 @@ function AddRentalDialog() {
           Dodaj nieruchomość
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
+
         <DialogHeader>
           <DialogTitle>Dodaj wynajem / nieruchomość</DialogTitle>
           <DialogDescription>Wprowadź dane lokalu na wynajem i oblicz cashflow.</DialogDescription>
@@ -1827,34 +1906,37 @@ function SavingsSection() {
   const totalNetGain = totalWithInterest - totalBalance;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Oszczędności</h2>
-          <AddSavingsDialog />
+    <section className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+                <Wallet className="w-5 h-5" />
+             </div>
+             <h2 className="font-display text-3xl font-semibold">Oszczędności</h2>
+             <AddSavingsDialog />
+          </div>
+          <p className="text-muted-foreground text-sm pl-[3.25rem]">
+            Konta bankowe i lokaty terminowe · {formatPLN(totalBalance)}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          {savings.length > 0 && (
-            <div className="flex rounded-lg border border-border overflow-hidden text-xs">
-              <button
-                onClick={() => setView("list")}
-                className={`px-2.5 py-1 transition-colors ${view === "list" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >
-                Lista
-              </button>
-              <button
-                onClick={() => setView("summary")}
-                className={`px-2.5 py-1 transition-colors ${view === "summary" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
-              >
-                Podsumowanie
-              </button>
-            </div>
-          )}
-          {savings.length > 0 && (
-            <p className="text-sm text-muted-foreground">Łącznie {formatPLN(totalBalance)}</p>
-          )}
+
+        <div className="flex items-center gap-4 bg-card border border-border p-1 rounded-2xl shadow-sm">
+           <button
+             onClick={() => setView("summary")}
+             className={`px-4 py-2 rounded-xl transition-all text-sm font-semibold ${view === "summary" ? "bg-accent text-white shadow-md shadow-accent/20" : "text-muted-foreground hover:bg-muted"}`}
+           >
+             Podsumowanie
+           </button>
+           <button
+             onClick={() => setView("list")}
+             className={`px-4 py-2 rounded-xl transition-all text-sm font-semibold ${view === "list" ? "bg-accent text-white shadow-md shadow-accent/20" : "text-muted-foreground hover:bg-muted"}`}
+           >
+             Lista
+           </button>
         </div>
       </div>
+
 
       {savings.length === 0 && (
         <p className="text-sm text-muted-foreground">Brak kont. Dodaj konto bankowe lub lokatę.</p>
@@ -1920,44 +2002,40 @@ function SavingsSummaryView({
   return (
     <div className="space-y-4">
       {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-            <Wallet className="w-3 h-3" /> Saldo łączne
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <Wallet className="w-3.5 h-3.5" /> Saldo łączne
           </p>
-          <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(totalBalance)}</p>
+          <p className="text-3xl font-bold tabular-nums font-display text-accent">{formatPLN(totalBalance)}</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> Po odsetkach
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5" /> Po odsetkach
           </p>
-          <p className="text-2xl font-bold tabular-nums font-display text-emerald-500">
+          <p className="text-3xl font-bold tabular-nums font-display text-success">
             {formatPLN(totalWithInterest)}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
             Zysk netto
           </p>
           <p
-            className={`text-2xl font-bold tabular-nums font-display ${totalNetGain > 0 ? "text-emerald-500" : "text-muted-foreground"}`}
+            className={`text-3xl font-bold tabular-nums font-display ${totalNetGain > 0 ? "text-success" : "text-muted-foreground"}`}
           >
             {totalNetGain > 0 ? "+" : ""}
             {formatPLN(totalNetGain)}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-            <Clock className="w-3 h-3" /> Kont
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-warm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5" /> Kont razem
           </p>
-          <p className="text-2xl font-bold font-display">{savings.length}</p>
-          {lokaty.length > 0 && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {lokaty.length} {lokaty.length === 1 ? "lokata" : "lokat"} · {accounts.length} kont
-            </p>
-          )}
+          <p className="text-3xl font-bold font-display">{savings.length}</p>
         </div>
       </div>
+
 
       {/* Main content: lokaty + accounts side by side */}
       <div
@@ -1965,18 +2043,19 @@ function SavingsSummaryView({
       >
         {/* Lokaty section */}
         {lokatyByMaturity.length > 0 && (
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
-            <div className="px-5 py-3 border-b border-border bg-amber-500/5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+          <div className="bg-card rounded-[2rem] border border-border shadow-warm overflow-hidden">
+            <div className="px-8 py-5 border-b border-border bg-warning/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-warning" />
+                <p className="text-sm font-bold uppercase tracking-widest text-warning-foreground">
                   Lokaty terminowe ({lokatyByMaturity.length})
                 </p>
               </div>
-              <p className="text-xs font-mono font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+              <p className="font-display font-bold text-warning-foreground">
                 {formatPLN(lokatyByMaturity.reduce((s, a) => s + a.balance, 0))}
               </p>
             </div>
+
             <div className="divide-y divide-border">
               {lokatyByMaturity.map((a) => {
                 const net =
@@ -2123,18 +2202,19 @@ function SavingsSummaryView({
 
         {/* Regular accounts section */}
         {accountsByRate.length > 0 && (
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
-            <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="bg-card rounded-[2rem] border border-border shadow-warm overflow-hidden">
+            <div className="px-8 py-5 border-b border-border bg-muted/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Wallet className="w-5 h-5 text-muted-foreground" />
+                <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                   Konta bankowe ({accountsByRate.length})
                 </p>
               </div>
-              <p className="text-xs font-mono font-semibold tabular-nums text-muted-foreground">
+              <p className="font-display font-bold text-muted-foreground">
                 {formatPLN(accountsByRate.reduce((s, a) => s + a.balance, 0))}
               </p>
             </div>
+
             <div className="divide-y divide-border">
               {accountsByRate.map((a) => {
                 const balancePct = totalBalance > 0 ? (a.balance / totalBalance) * 100 : 0;
@@ -2254,12 +2334,13 @@ function SavingsSummaryView({
       </div>
 
       {/* Combined snapshot: all accounts sorted by balance */}
-      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
-        <div className="px-5 py-3 border-b border-border bg-muted/30">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+      <div className="bg-card rounded-[2rem] border border-border shadow-warm overflow-hidden">
+        <div className="px-8 py-5 border-b border-border bg-muted/30">
+          <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
             Wszystkie konta
           </p>
         </div>
+
         <div className="divide-y divide-border">
           {[...savings]
             .sort((a, b) => b.balance - a.balance)
@@ -2362,12 +2443,15 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
       : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] p-4 space-y-3 relative group">
+    <div className="rounded-[2rem] border border-border bg-card shadow-warm p-8 space-y-6 relative group/card hover:shadow-lg transition-all duration-300">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="font-semibold text-sm">{account.bank}</p>
-          <p className="text-[11px] text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
+        <div className="space-y-1">
+          <p className="font-display text-xl font-bold">{account.bank}</p>
+          <div className="px-2.5 py-0.5 rounded-full bg-muted text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-fit">
+             {ACCOUNT_TYPE_LABEL[account.type]}
+          </div>
         </div>
+
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <EditSavingsDialog account={account} />
           <button

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Wallet } from "lucide-react";
+import { Wallet, Calculator, Home, TrendingUp, BarChart3 } from "lucide-react";
+
 import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -47,38 +48,62 @@ export const Route = createFileRoute("/kalkulatory")({
   component: CalculatorsPage,
 });
 
+
 function CalculatorsPage() {
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Kalkulatory
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          Symuluj <span className="italic text-accent">scenariusze</span>
-        </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Sprawdź ile naprawdę zarobi twój portfel ETF i czy mieszkanie na wynajem ma sens — z
-          uwzględnieniem hipoteki, kosztów, pustostanów i ryczałtu 8.5%.
-        </p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+      {/* Page Header */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
+                Analiza Scenariuszy
+             </div>
+             <div className="w-1 h-1 rounded-full bg-border" />
+             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Calculator className="w-3.5 h-3.5" />
+                Interaktywne symulacje
+             </div>
+          </div>
+          <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight">
+            Przewiduj <span className="italic text-accent decoration-accent/30 underline underline-offset-8">przyszłość</span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+            Sprawdź ile naprawdę zarobi twój portfel ETF i czy mieszkanie na wynajem ma sens — z
+            uwzględnieniem hipoteki, kosztów, pustostanów i podatków.
+          </p>
+        </div>
       </header>
 
-      <Tabs defaultValue="realestate" className="space-y-6">
-        <TabsList className="grid w-full sm:w-auto sm:inline-grid grid-cols-2 sm:grid-cols-2">
-          <TabsTrigger value="realestate">Mieszkanie na wynajem</TabsTrigger>
-          <TabsTrigger value="portfolio">Portfel ETF / akcji</TabsTrigger>
+      <Tabs defaultValue="realestate" className="space-y-10">
+        <TabsList className="bg-card border border-border p-1.5 rounded-[1.5rem] shadow-sm h-auto inline-flex">
+          <TabsTrigger 
+            value="realestate" 
+            className="rounded-xl px-6 py-2.5 text-sm font-semibold data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2"
+          >
+            <Home className="w-4 h-4" />
+            Wynajem Nieruchomości
+          </TabsTrigger>
+          <TabsTrigger 
+            value="portfolio"
+            className="rounded-xl px-6 py-2.5 text-sm font-semibold data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Portfel ETF / Akcji
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="realestate">
+        <TabsContent value="realestate" className="focus-visible:ring-0">
           <RealEstateCalculator />
         </TabsContent>
-        <TabsContent value="portfolio">
+        <TabsContent value="portfolio" className="focus-visible:ring-0">
           <PortfolioCalculator />
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }
+
 
 /* ============================================================
    PORTFOLIO CALCULATOR
@@ -129,7 +154,8 @@ function PortfolioCalculator() {
 
   return (
     <div className="grid lg:grid-cols-[380px,1fr] gap-6">
-      <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] space-y-4 h-fit">
+      <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm space-y-6 h-fit">
+
         <h2 className="font-display text-xl">Założenia</h2>
 
         <NumField
@@ -200,7 +226,8 @@ function PortfolioCalculator() {
           />
         </div>
 
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
+
           <h3 className="font-display text-lg mb-1">Wzrost portfela</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wpłaty (kapitał) vs wartość rynkowa vs realna wartość po inflacji
@@ -258,7 +285,8 @@ function PortfolioCalculator() {
         </div>
 
         {/* BUDGET IMPACT SECTION */}
-        <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-2xl p-6 border border-accent/20 shadow-sm relative overflow-hidden">
+        <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-[2rem] p-8 border border-accent/20 shadow-sm relative overflow-hidden">
+
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <Wallet className="w-24 h-24 text-accent" />
           </div>
@@ -365,7 +393,8 @@ function RealEstateCalculator() {
   return (
     <div className="grid lg:grid-cols-[400px,1fr] gap-6">
       {/* Inputs */}
-      <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] space-y-5 h-fit">
+      <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm space-y-8 h-fit">
+
         <div>
           <h2 className="font-display text-xl mb-3">Zakup</h2>
           <div className="space-y-3">
@@ -573,7 +602,8 @@ function RealEstateCalculator() {
         </div>
 
         {/* Cashflow & equity chart */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
+
           <h3 className="font-display text-lg mb-1">Skumulowany wynik vs kapitał własny</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wartość mieszkania rośnie, kredyt maleje — kapitał własny to różnica.
@@ -622,7 +652,8 @@ function RealEstateCalculator() {
         </div>
 
         {/* Annual cashflow bar */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
+
           <h3 className="font-display text-lg mb-1">Roczny wynik (zysk / strata)</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Po kosztach, racie i podatku. Czynsz rośnie {s.rentGrowthPct}% rocznie.
@@ -654,7 +685,8 @@ function RealEstateCalculator() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           {/* Detailed Summary */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+          <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
+
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-success" />
               Podsumowanie po {s.holdingYears} latach
@@ -698,7 +730,8 @@ function RealEstateCalculator() {
           </div>
 
           {/* Mortgage Breakdown */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+          <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
+
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
               Koszty kredytu ({s.holdingYears} lat)

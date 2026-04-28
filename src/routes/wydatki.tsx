@@ -65,6 +65,9 @@ const FREQUENCIES: Frequency[] = [
   "oneoff",
 ];
 
+import { StatCard } from "@/components/ui/stat-card";
+import { Receipt, Wallet, Calendar, TrendingDown } from "lucide-react";
+
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
 
@@ -96,69 +99,114 @@ function ExpensesPage() {
   }, [expenses]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-            Wydatki
-          </p>
-          <h1 className="font-display text-4xl sm:text-5xl">
-            <span className="italic text-accent tabular-nums">{formatPLN(monthlyTotal)}</span>{" "}
-            <span className="text-muted-foreground text-2xl sm:text-3xl">/ m-c</span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+      {/* Page Header */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
+                Planowanie wydatków
+             </div>
+             <div className="w-1 h-1 rounded-full bg-border" />
+             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <Calendar className="w-3.5 h-3.5" />
+                Ujęcie miesięczne i roczne
+             </div>
+          </div>
+          <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight">
+            Twoje <span className="italic text-accent decoration-accent/30 underline underline-offset-8">koszty</span>
           </h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Rocznie: <span className="font-mono tabular-nums">{formatPLN(annualTotal)}</span>
-            {oneoffTotal > 0 && (
-              <>
-                {" "}
-                · w tym jednorazowe:{" "}
-                <span className="font-mono tabular-nums">{formatPLN(oneoffTotal)}</span>
-              </>
-            )}
+          <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+            Zarządzaj domowym budżetem. Dodawaj wydatki stałe, subskrypcje i koszty jednorazowe, 
+            a my wyliczymy ich średni wpływ na Twój miesięczny portfel.
           </p>
         </div>
+
         <div className="flex items-center gap-3">
           <AddExpenseDialog />
         </div>
       </header>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          label="Średnio miesięcznie" 
+          value={monthlyTotal} 
+          icon={<Receipt className="w-5 h-5" />}
+          description="Suma uśredniona"
+        />
+        <StatCard 
+          label="Rocznie razem" 
+          value={annualTotal} 
+          icon={<TrendingDown className="w-5 h-5" />}
+          description="Wszystkie koszty w roku"
+        />
+        <StatCard 
+          label="Najdroższa kategoria" 
+          value={grouped[0]?.monthly || 0} 
+          description={grouped[0]?.category || "Brak danych"}
+          icon={<Wallet className="w-5 h-5" />}
+        />
+        <StatCard 
+          label="Jednorazowe" 
+          value={oneoffTotal} 
+          description="Wydatki incydentalne"
+          icon={<Plus className="w-5 h-5" />}
+        />
+      </div>
+
       {grouped.length === 0 ? (
-        <div className="bg-card rounded-2xl p-12 text-center text-muted-foreground border border-dashed border-border">
-          Brak wydatków. Dodaj pierwszy powyżej.
+        <div className="bg-card rounded-[2rem] p-20 text-center border border-dashed border-border shadow-sm">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+             <Plus className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Brak wpisanych wydatków</h3>
+          <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
+            Zacznij od dodania pierwszego wydatku, aby zobaczyć analizę swojego budżetu.
+          </p>
+          <AddExpenseDialog />
         </div>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-8">
           {grouped.map((g) => (
             <div
               key={g.category}
-              className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
+              className="bg-card rounded-[2rem] p-8 border border-border shadow-warm hover:shadow-lg transition-all duration-300"
             >
-              <div className="flex items-baseline justify-between mb-3 gap-2">
-                <h3 className="font-display text-lg">{g.category}</h3>
+              <div className="flex items-baseline justify-between mb-8 gap-2">
+                <div className="space-y-1">
+                   <h3 className="font-display text-2xl font-bold">{g.category}</h3>
+                   <div className="px-2.5 py-0.5 rounded-full bg-muted text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-fit">
+                      {g.items.length} {g.items.length === 1 ? "pozycja" : "pozycje"}
+                   </div>
+                </div>
                 <div className="text-right">
-                  <p className="font-mono tabular-nums text-sm">
-                    {formatPLN2(g.monthly)}{" "}
-                    <span className="text-muted-foreground text-xs">
-                      ({monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100).toFixed(0) : 0}%)
-                    </span>
+                  <p className="font-display text-2xl font-bold text-accent">
+                    {formatPLN2(g.monthly)}
                   </p>
-                  <p className="font-mono tabular-nums text-xs text-muted-foreground">
-                    {formatPLN(g.annual)} / rok
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                    {monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100).toFixed(0) : 0}% budżetu
                   </p>
                 </div>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 {g.items.map((e) => (
                   <ExpenseRow key={e.id} expense={e} />
                 ))}
+              </div>
+              
+              <div className="mt-8 pt-6 border-t border-border flex justify-between items-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <span>Roczne obciążenie:</span>
+                 <span className="font-mono text-foreground">{formatPLN(g.annual)}</span>
               </div>
             </div>
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }
+
 
 function MonthSelector({
   selectedMonths,
@@ -517,28 +565,43 @@ function AddExpenseDialog() {
 
 function ExpenseRow({ expense }: { expense: Expense }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-1 group p-3 md:p-0">
-      <div className="flex items-center gap-1 flex-1">
+    <div className="flex flex-col md:flex-row md:items-center gap-3 group p-4 rounded-2xl hover:bg-accent-soft/50 transition-all border border-transparent hover:border-accent/10">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-white transition-colors">
+           <Receipt className="w-4 h-4 text-muted-foreground group-hover:text-accent" />
+        </div>
         <div className="flex-1 min-w-0">
           <Input
             value={expense.label}
             onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
-            className="h-10 w-full bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none truncate"
+            className="h-auto w-full bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none font-semibold text-sm truncate"
           />
+          <div className="flex items-center gap-2 mt-0.5">
+             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {FREQUENCY_LABELS[expense.frequency]}
+             </span>
+             {expense.frequency !== "monthly" && (
+                <span className="text-[10px] font-bold text-accent">
+                   ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/mc
+                </span>
+             )}
+          </div>
         </div>
-        <Input
-          type="text"
-          inputMode="decimal"
-          value={formatLocaleAmount(expense.amount)}
-          onChange={(e) =>
-            actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
-          }
-          placeholder="0"
-          className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none shrink-0"
-        />
+        <div className="shrink-0">
+           <Input
+             type="text"
+             inputMode="decimal"
+             value={formatLocaleAmount(expense.amount)}
+             onChange={(e) =>
+               actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
+             }
+             placeholder="0"
+             className="h-auto w-24 font-mono font-bold text-sm text-right bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none shrink-0"
+           />
+        </div>
       </div>
 
-      <div className="flex items-center gap-1 justify-between md:justify-end">
+      <div className="flex items-center gap-3 justify-end">
         <div className="flex items-center gap-1">
           <Select
             value={expense.frequency}
@@ -567,7 +630,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
               actions.updateExpense(expense.id, patch);
             }}
           >
-            <SelectTrigger className="h-10 w-[110px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+            <SelectTrigger className="h-8 w-[100px] bg-muted/50 border-0 hover:bg-white shadow-none text-[10px] font-bold uppercase tracking-widest rounded-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -582,16 +645,14 @@ function ExpenseRow({ expense }: { expense: Expense }) {
           {expense.frequency !== "monthly" && (
             <Dialog>
               <DialogTrigger asChild>
-                <button className="h-10 px-2 flex flex-col items-center justify-center bg-transparent border-0 hover:bg-muted/50 shadow-none min-w-[50px]">
-                  <span className="text-[9px] uppercase font-bold text-muted-foreground/70 leading-none mb-1">
-                    M-ce
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-accent leading-none">
+                <button className="h-8 px-2 flex items-center justify-center gap-1.5 bg-muted/50 border-0 hover:bg-white shadow-none rounded-lg transition-colors">
+                  <Calendar className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] font-bold text-accent uppercase tracking-widest">
                     {expense.months?.length || 1}x
                   </span>
                 </button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[400px]">
+              <DialogContent className="sm:max-w-[400px] rounded-[2rem]">
                 <DialogHeader>
                   <DialogTitle>Miesiące płatności</DialogTitle>
                   <DialogDescription>
@@ -612,36 +673,30 @@ function ExpenseRow({ expense }: { expense: Expense }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {expense.frequency !== "monthly" && (
-            <span className="text-[11px] text-muted-foreground tabular-nums w-16 text-right whitespace-nowrap">
-              ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/m
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              const expenseCopy = { ...expense };
-              actions.removeExpense(expense.id);
-              toast(`"${expense.label}" usunięto`, {
-                action: {
-                  label: "Cofnij",
-                  onClick: () => {
-                    const { id, ...rest } = expenseCopy;
-                    actions.addExpense(rest as any);
-                  },
+        <button
+          type="button"
+          onClick={() => {
+            const expenseCopy = { ...expense };
+            actions.removeExpense(expense.id);
+            toast(`"${expense.label}" usunięto`, {
+              action: {
+                label: "Cofnij",
+                onClick: () => {
+                  const { id, ...rest } = expenseCopy;
+                  actions.addExpense(rest as any);
                 },
-                duration: 5000,
-              });
-            }}
-            className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity"
-            aria-label={`Usuń: ${expense.label}`}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+              },
+              duration: 5000,
+            });
+          }}
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity"
+          aria-label={`Usuń: ${expense.label}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
 }
+
 
