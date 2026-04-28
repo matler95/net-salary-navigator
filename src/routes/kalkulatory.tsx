@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { formatPLN, formatPLN2, parseLocaleAmount } from "@/lib/salary";
+import { Separator } from "@/components/ui/separator";
 import {
   projectPortfolio,
   calculateRealEstate,
@@ -236,12 +237,15 @@ function RealEstateCalculator() {
   const [s, setS] = useState<RealEstateScenario>({
     purchasePrice: 650000,
     downPaymentPct: 20,
-    renovationCost: 60000,
-    closingCostsPct: 4,
-    mortgageRatePct: 7.5,
+    renovationCost: 50000,
+    closingCostsPct: 4.5,
+    mortgageRatePct: 7.2,
     mortgageYears: 30,
-    monthlyRent: 3200,
-    monthlyCosts: 700,
+    mortgageType: "equal",
+    bankCommissionPct: 0,
+    mortgageInsuranceMonthly: 150,
+    monthlyRent: 3500,
+    monthlyCosts: 800,
     vacancyRatePct: 5,
     taxRatePct: 8.5,
     rentGrowthPct: 3,
@@ -292,26 +296,67 @@ function RealEstateCalculator() {
         </div>
 
         <div className="border-t border-border pt-4">
-          <h2 className="font-display text-xl mb-3">Hipoteka</h2>
-          <div className="space-y-3">
-            <SliderField
-              label="Oprocentowanie"
-              value={s.mortgageRatePct}
-              min={2}
-              max={12}
-              step={0.1}
-              format={(v) => `${v.toFixed(1)}%`}
-              onChange={(v) => setS({ ...s, mortgageRatePct: v })}
-            />
-            <SliderField
-              label="Okres kredytu"
-              value={s.mortgageYears}
-              min={5}
-              max={35}
-              step={1}
-              format={(v) => `${v} lat`}
-              onChange={(v) => setS({ ...s, mortgageYears: v })}
-            />
+          <h2 className="font-display text-xl mb-3">Kredyt hipoteczny</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setS({ ...s, mortgageType: "equal" })}
+                className={`text-xs py-2 px-3 rounded-lg border transition-all ${
+                  s.mortgageType === "equal"
+                    ? "bg-accent text-accent-foreground border-accent font-bold"
+                    : "bg-muted/30 text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                Raty równe
+              </button>
+              <button
+                type="button"
+                onClick={() => setS({ ...s, mortgageType: "decreasing" })}
+                className={`text-xs py-2 px-3 rounded-lg border transition-all ${
+                  s.mortgageType === "decreasing"
+                    ? "bg-accent text-accent-foreground border-accent font-bold"
+                    : "bg-muted/30 text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                Raty malejące
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <SliderField
+                label="Oprocentowanie"
+                value={s.mortgageRatePct}
+                min={2}
+                max={12}
+                step={0.1}
+                format={(v) => `${v.toFixed(1)}%`}
+                onChange={(v) => setS({ ...s, mortgageRatePct: v })}
+              />
+              <SliderField
+                label="Okres"
+                value={s.mortgageYears}
+                min={5}
+                max={35}
+                step={1}
+                format={(v) => `${v} lat`}
+                onChange={(v) => setS({ ...s, mortgageYears: v })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <NumField
+                label="Prowizja (%)"
+                value={s.bankCommissionPct}
+                onChange={(v) => setS({ ...s, bankCommissionPct: v })}
+                hint="Upfront"
+              />
+              <NumField
+                label="Ubezpieczenie"
+                value={s.mortgageInsuranceMonthly}
+                onChange={(v) => setS({ ...s, mortgageInsuranceMonthly: v })}
+                hint="Miesięcznie"
+              />
+            </div>
           </div>
         </div>
 
@@ -387,26 +432,26 @@ function RealEstateCalculator() {
       <div className="space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
-            label="Wkład gotówkowy"
+            label="Inwestycja (cash)"
             value={formatPLN(r.totalUpfront)}
-            sub={`Wpłata ${formatPLN(r.downPayment)} + remont + koszty`}
+            sub={`Wkład + remont + koszty`}
           />
           <StatCard
-            label="Rata kredytu"
+            label="Miesięczna rata"
             value={formatPLN2(r.monthlyPmt)}
-            sub={`Kwota kredytu ${formatPLN(r.loanAmount)}`}
+            sub={s.mortgageInsuranceMonthly > 0 ? `+ ${s.mortgageInsuranceMonthly} zł ubezp.` : `Kredyt: ${formatPLN(r.loanAmount)}`}
           />
           <StatCard
-            label="Cashflow / m-c"
+            label="Cashflow netto"
             value={formatPLN2(r.monthlyCashflow)}
-            sub={cashflowPositive ? "z plusem ✓" : "dopłacasz każdego miesiąca"}
+            sub={cashflowPositive ? "Po wszystkich kosztach ✓" : "Wymaga dopłaty"}
             tone={cashflowPositive ? "success" : "destructive"}
           />
           <StatCard
             label="Cash-on-cash"
             value={`${r.cashOnCashPct.toFixed(1)}%`}
-            sub={`Yield brutto ${r.grossYieldPct.toFixed(1)}%`}
-            tone={r.cashOnCashPct >= 4 ? "success" : "default"}
+            sub={`ROI z samej gotówki`}
+            tone={r.cashOnCashPct >= 5 ? "success" : r.cashOnCashPct > 0 ? "default" : "destructive"}
           />
         </div>
 
@@ -502,40 +547,78 @@ function RealEstateCalculator() {
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-          <h3 className="font-display text-lg mb-3">Podsumowanie po {s.holdingYears} latach</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Wpłacone</p>
-              <p className="font-mono tabular-nums text-xl mt-1">{formatPLN(r.totalUpfront)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Łączny cashflow
-              </p>
-              <p
-                className={`font-mono tabular-nums text-xl mt-1 ${r.totalCashflow >= 0 ? "text-success" : "text-destructive"}`}
-              >
-                {formatPLN(r.totalCashflow)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Kapitał własny
-              </p>
-              <p className="font-mono tabular-nums text-xl mt-1">{formatPLN(r.finalEquity)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Łączny zysk</p>
-              <p
-                className={`font-mono tabular-nums text-xl mt-1 ${r.totalReturn >= 0 ? "text-success" : "text-destructive"}`}
-              >
-                {formatPLN(r.totalReturn)}
-                <span className="text-sm text-muted-foreground ml-1">
-                  ({r.totalReturnPct.toFixed(0)}%)
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* Detailed Summary */}
+          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+            <h3 className="font-display text-lg mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-success" />
+              Podsumowanie po {s.holdingYears} latach
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Wpłacony kapitał (cash)</span>
+                <span className="font-mono font-semibold">{formatPLN(r.totalUpfront)}</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Skumulowany cashflow</span>
+                <span className={`font-mono font-semibold ${r.totalCashflow >= 0 ? "text-success" : "text-destructive"}`}>
+                  {r.totalCashflow >= 0 ? "+" : ""}{formatPLN(r.totalCashflow)}
                 </span>
-              </p>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Spłacony kapitał w kredycie</span>
+                <span className="font-mono font-semibold text-success">
+                  +{formatPLN(r.finalEquity - (s.purchasePrice * s.appreciationPct * s.holdingYears / 100) - r.downPayment)} 
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Wzrost wartości (prognoza)</span>
+                <span className="font-mono font-semibold text-success">
+                  +{formatPLN(r.yearly[r.yearly.length - 1].propertyValue - s.purchasePrice)}
+                </span>
+              </div>
+              <Separator />
+              <div className="flex justify-between items-center pt-1">
+                <span className="font-bold">Łączny zysk (netto)</span>
+                <div className="text-right">
+                  <p className="font-display text-2xl text-success">{formatPLN(r.totalReturn)}</p>
+                  <p className="text-xs text-muted-foreground">+{r.totalReturnPct.toFixed(0)}% zwrotu z kapitału</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mortgage Breakdown */}
+          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+            <h3 className="font-display text-lg mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent" />
+              Koszty kredytu ({s.holdingYears} lat)
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Suma zapłaconych odsetek</span>
+                <span className="font-mono font-semibold text-destructive">{formatPLN(r.totalInterestPaid)}</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Prowizje i ubezpieczenia</span>
+                <span className="font-mono font-semibold text-destructive">
+                  {formatPLN(r.totalMortgageCost - r.totalInterestPaid)}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Średni koszt miesięczny (RRSO eq.)</span>
+                <span className="font-mono font-semibold">{formatPLN2(r.totalMortgageCost / (s.holdingYears * 12))}</span>
+              </div>
+              <Separator />
+              <div className="pt-1">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Kredyt na <span className="font-bold">{formatPLN(r.loanAmount)}</span> ({s.mortgageYears} lat). 
+                  Pozostały kapitał do spłaty po {s.holdingYears} latach: 
+                  <span className="font-mono font-bold block text-lg mt-1">
+                    {formatPLN(r.yearly[r.yearly.length - 1].loanBalance)}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -551,22 +634,27 @@ function NumField({
   label,
   value,
   onChange,
+  hint,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  hint?: string;
 }) {
   return (
     <div>
-      <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </label>
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+          {label}
+        </label>
+        {hint && <span className="text-[10px] text-muted-foreground italic">{hint}</span>}
+      </div>
       <Input
         type="text"
         inputMode="decimal"
         value={value || ""}
         onChange={(e) => onChange(parseLocaleAmount(e.target.value))}
-        className="mt-1 h-10 font-mono tabular-nums text-right"
+        className="h-10 font-mono tabular-nums text-right bg-muted/20 border-border focus:bg-background"
       />
     </div>
   );

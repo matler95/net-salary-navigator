@@ -260,6 +260,9 @@ export interface RealEstateScenario {
   // Mortgage
   mortgageRatePct: number; // annual %
   mortgageYears: number;
+  mortgageType: "equal" | "decreasing";
+  bankCommissionPct: number; // bank commission upfront %
+  mortgageInsuranceMonthly: number; // monthly life/property insurance required by bank
   // Rent
   monthlyRent: number;
   monthlyCosts: number; // czynsz admin., zarządzanie, ubezpieczenie /m-c
@@ -278,6 +281,8 @@ export interface RealEstateResult {
   totalUpfront: number; // down + reno + closing
   loanAmount: number;
   monthlyPmt: number;
+  totalMortgageCost: number; // total interest + commission + insurance over holdingYears
+  totalInterestPaid: number; // total interest over holdingYears
   // First-year cashflow
   effectiveRent: number;
   monthlyTax: number;
@@ -312,14 +317,32 @@ export interface RealEstateYearPoint {
 export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const downPayment = s.purchasePrice * (s.downPaymentPct / 100);
   const closingCosts = s.purchasePrice * (s.closingCostsPct / 100);
-  const totalUpfront = downPayment + s.renovationCost + closingCosts;
   const loanAmount = Math.max(0, s.purchasePrice - downPayment);
+  const bankCommission = loanAmount * ((s.bankCommissionPct || 0) / 100);
+  const totalUpfront = downPayment + s.renovationCost + closingCosts + bankCommission;
+  
   const months = Math.max(1, s.mortgageYears * 12);
-  const monthlyPmt = monthlyPayment(loanAmount, s.mortgageRatePct, months);
+  
+  // Calculate average monthly mortgage payment for the first year (for yield/CF display)
+  let monthlyPmt = 0;
+  if (s.mortgageType === "decreasing") {
+    // Average of first 12 months for decreasing installments
+    let sum = 0;
+    for (let m = 1; m <= 12; m++) {
+      const interest = (loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
+      sum += loanAmount / months + interest;
+    }
+    monthlyPmt = sum / 12;
+  } else {
+    monthlyPmt = monthlyPayment(loanAmount, s.mortgageRatePct, months);
+  }
+  
+  // Total cost including insurance
+  const totalMonthlyMortgageCost = monthlyPmt + (s.mortgageInsuranceMonthly || 0);
 
   const effectiveRent = s.monthlyRent * (1 - s.vacancyRatePct / 100);
   const monthlyTax = effectiveRent * (s.taxRatePct / 100);
-  const monthlyCashflow = effectiveRent - s.monthlyCosts - monthlyPmt - monthlyTax;
+  const monthlyCashflow = effectiveRent - s.monthlyCosts - totalMonthlyMortgageCost - monthlyTax;
   const annualCashflow = monthlyCashflow * 12;
 
   const grossYieldPct = s.purchasePrice > 0 ? ((s.monthlyRent * 12) / s.purchasePrice) * 100 : 0;
@@ -337,16 +360,34 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const effectiveYear = rentYear * (1 - s.vacancyRatePct / 100);
     const taxYear = effectiveYear * (s.taxRatePct / 100);
     const costsYear = s.monthlyCosts * 12;
-    const pmtYear = monthlyPmt * 12;
-    const cf = effectiveYear - costsYear - pmtYear - taxYear;
+    const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
+    
+    let pmtYear = 0;
+    if (s.mortgageType === "decreasing") {
+      // Sum installments for months (y-1)*12 + 1 to y*12
+      for (let m = (y - 1) * 12 + 1; m <= y * 12; m++) {
+        if (m > months) break;
+        const interest = Math.max(0, loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
+        pmtYear += loanAmount / months + interest;
+      }
+    } else {
+      pmtYear = monthlyPmt * 12;
+    }
+    
+    const cf = effectiveYear - costsYear - pmtYear - taxYear - insuranceYear;
     cumulative += cf;
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
-    const loanBalance = remainingBalance(
-      loanAmount,
-      s.mortgageRatePct,
-      months,
-      Math.min(y * 12, months),
-    );
+    let loanBalance = 0;
+    if (s.mortgageType === "decreasing") {
+      loanBalance = Math.max(0, loanAmount - (loanAmount / months) * Math.min(y * 12, months));
+    } else {
+      loanBalance = remainingBalance(
+        loanAmount,
+        s.mortgageRatePct,
+        months,
+        Math.min(y * 12, months),
+      );
+    }
     const equity = propertyValue - loanBalance;
     yearly.push({
       year: y,
@@ -359,6 +400,30 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
       totalValueIfSold: round2(equity + cumulative),
     });
   }
+
+  const totalInterestPaid = yearly.reduce((sum, y, idx) => {
+    // This is a bit simplified for interest calculation from CF, let's do it properly
+    // Interest = (Installment - PrincipalRepayment)
+    const prevBalance = idx === 0 ? loanAmount : yearly[idx - 1].loanBalance;
+    const principalRepaid = prevBalance - y.loanBalance;
+    
+    // We need the total pmt for that year
+    let pmtYear = 0;
+    const yearNum = idx + 1;
+    if (s.mortgageType === "decreasing") {
+      for (let m = (yearNum - 1) * 12 + 1; m <= yearNum * 12; m++) {
+        if (m > months) break;
+        const interest = Math.max(0, loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
+        pmtYear += loanAmount / months + interest;
+      }
+    } else {
+      pmtYear = monthlyPmt * 12;
+    }
+    return sum + (pmtYear - principalRepaid);
+  }, 0);
+
+  const totalInsurancePaid = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
+  const totalMortgageCost = totalInterestPaid + bankCommission + totalInsurancePaid;
 
   // Break-even (cashflow only, no appreciation) — months until cumulative monthly cf > 0 and recoups upfront
   let beMonths = Infinity;
@@ -383,6 +448,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     totalUpfront: round2(totalUpfront),
     loanAmount: round2(loanAmount),
     monthlyPmt: round2(monthlyPmt),
+    totalMortgageCost: round2(totalMortgageCost),
+    totalInterestPaid: round2(totalInterestPaid),
     effectiveRent: round2(effectiveRent),
     monthlyTax: round2(monthlyTax),
     monthlyCashflow: round2(monthlyCashflow),
