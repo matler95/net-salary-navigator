@@ -286,11 +286,24 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
     console.warn("Cannot save: Supabase client not available");
     return;
   }
+
+  // Fetch valid member IDs once so we can strip stale assignedUserId references
+  // before they hit the FK constraint on spouses.assigned_user_id.
+  let validMemberIds: Set<string> = new Set();
+  try {
+    const members = await loadHouseholdMembers(householdId);
+    validMemberIds = new Set(members.map((m) => m.user_id));
+  } catch {
+    // Non-fatal — proceed with empty set; all assignedUserId values will be nulled.
+  }
+
   await Promise.all([
     replaceRows(
       "spouses",
       householdId,
-      state.spouses.map((x) => mapSpouseToRow(householdId, x)),
+      state.spouses.map((x) =>
+        mapSpouseToRow(householdId, x, validMemberIds),
+      ),
     ),
     replaceRows(
       "expenses",
@@ -476,13 +489,17 @@ async function replaceRows(table: string, householdId: string, rows: Record<stri
   }
 }
 
-function mapSpouseToRow(householdId: string, spouse: Spouse) {
+function mapSpouseToRow(householdId: string, spouse: Spouse, validMemberIds?: Set<string>) {
+  const assignedUserId =
+    spouse.assignedUserId && (!validMemberIds || validMemberIds.has(spouse.assignedUserId))
+      ? spouse.assignedUserId
+      : null;
   return {
     id: spouse.id,
     household_id: householdId,
     name: spouse.name,
     inputs: spouse.inputs,
-    assigned_user_id: spouse.assignedUserId ?? null,
+    assigned_user_id: assignedUserId,
   };
 }
 function mapSpouseFromRow(row: unknown): Spouse {
