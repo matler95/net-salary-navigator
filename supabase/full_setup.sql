@@ -192,7 +192,9 @@ begin
 end;
 $$;
 
--- Accept an invite atomically: validate, insert membership, delete invite
+-- Accept an invite atomically: validate, insert membership, mark accepted.
+-- Idempotent: retrying after a network drop (invite already accepted + user
+-- is already a member) returns the household_id instead of raising.
 create or replace function public.accept_invite(invite_token text)
 returns uuid
 language plpgsql
@@ -201,20 +203,39 @@ set search_path = public
 as $$
 declare
   v_household_id uuid;
+  v_caller_email text;
 begin
-  -- Find valid invite for current user
+  v_caller_email := coalesce(
+    nullif(auth.jwt()->>'email', ''),
+    auth.email()
+  );
+
   select household_id into v_household_id
   from public.household_invites
   where token = invite_token
     and status = 'pending'
     and expires_at > now()
-    and lower(email) = lower(auth.jwt()->>'email');
+    and lower(email) = lower(v_caller_email);
 
   if v_household_id is null then
-    raise exception 'Invalid or expired invite';
+    select hi.household_id into v_household_id
+    from public.household_invites hi
+    where hi.token = invite_token
+      and hi.status = 'accepted'
+      and lower(hi.email) = lower(v_caller_email)
+      and exists (
+        select 1 from public.household_members hm
+        where hm.household_id = hi.household_id
+          and hm.user_id = auth.uid()
+      );
+
+    if v_household_id is not null then
+      return v_household_id;
+    end if;
+
+    raise exception 'Invalid, expired, or already used invite';
   end if;
 
-  -- Insert membership (on conflict do nothing to handle duplicates gracefully)
   insert into public.household_members (household_id, user_id, role)
   values (v_household_id, auth.uid(), 'member')
   on conflict (household_id, user_id) do nothing;

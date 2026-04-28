@@ -125,9 +125,9 @@ function InvitePage() {
 
     if (signUpData?.session) {
       const accepted = await acceptInvite(token, signUpData.session);
-      if (!accepted) {
+      if (!accepted.success) {
         setStatus({
-          msg: "Nie udało się dołączyć do gospodarstwa. Spróbuj zalogować się na ten sam email.",
+          msg: accepted.error ?? "Nie udało się dołączyć do gospodarstwa. Spróbuj zalogować się na ten sam email.",
           type: "error",
         });
         setRegistering(false);
