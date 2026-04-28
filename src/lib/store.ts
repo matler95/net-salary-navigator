@@ -12,6 +12,7 @@ import {
   acceptHouseholdInvite,
   createHouseholdInvite,
   ensureHouseholdForSession,
+  loadHouseholdMembers,
   loadHouseholdState,
   saveHouseholdState,
   verifyHouseholdMembership,
@@ -147,9 +148,15 @@ let syncInProgress = false;   // guards syncFromCloud
 let initInProgress = false;   // guards initCloudSync (separate to avoid blocking acceptInvite)
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
+let cachedMemberIds: Set<string> = new Set();
+let memberCacheUnsubscribe: (() => void) | null = null;
+
+export function getCachedMemberIds(): Set<string> {
+  return cachedMemberIds;
+}
 
 // Debounced version of syncFromCloud to prevent rapid calls from realtime subscriptions
-const debouncedSyncFromCloud = debounce(syncFromCloud, 100);
+const debouncedSyncFromCloud = debounce(syncFromCloud, 500);
 
 function mergeGlobalSettings(next?: Partial<GlobalSettings>): GlobalSettings {
   if (!next) return state.globalSettings;
@@ -227,6 +234,11 @@ export function clearAppState(): void {
   activeHouseholdId = null;
   syncInProgress = false;
   initInProgress = false;
+  cachedMemberIds = new Set();
+  if (memberCacheUnsubscribe) {
+    memberCacheUnsubscribe();
+    memberCacheUnsubscribe = null;
+  }
   if (syncTimer) {
     clearTimeout(syncTimer);
     syncTimer = null;
@@ -312,12 +324,35 @@ export async function initCloudSync(
     }
 
     cloudSyncEnabled = true;
+
+    // Load household members once and cache them for FK validation on saves.
+    try {
+      const members = await loadHouseholdMembers(household.householdId);
+      cachedMemberIds = new Set(members.map((m) => m.user_id));
+    } catch {
+      cachedMemberIds = new Set();
+    }
+
+    // Refresh the member cache whenever membership changes (invite accepted, member removed).
+    if (memberCacheUnsubscribe) memberCacheUnsubscribe();
+    if (typeof window !== "undefined") {
+      const onMetaChange = async () => {
+        if (!activeHouseholdId) return;
+        try {
+          const updated = await loadHouseholdMembers(activeHouseholdId);
+          cachedMemberIds = new Set(updated.map((m) => m.user_id));
+        } catch { /* ignore */ }
+      };
+      window.addEventListener("household:meta-change", onMetaChange);
+      memberCacheUnsubscribe = () => window.removeEventListener("household:meta-change", onMetaChange);
+    }
+
     // Only migrate local→cloud when the user is initialising their OWN new household.
     // When preferredHouseholdId is set the user is joining someone else's household via
     // invite — never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
       try {
-        await migrateLocalToCloudOnce(household.householdId, state);
+        await migrateLocalToCloudOnce(household.householdId, state, cachedMemberIds);
       } catch (err) {
         console.error("initCloudSync: migration failed, continuing to load cloud state:", err);
       }
@@ -442,10 +477,6 @@ export async function syncFromCloud() {
     console.log("Skipping cloud sync because save is pending");
     return;
   }
-
-  // Verify membership before syncing
-  const membershipOk = await verifyAndRestoreHouseholdAccess();
-  if (!membershipOk) return;
 
   // Debounce cloud fetches to once every 0.5 seconds
   const now = Date.now();
@@ -637,19 +668,14 @@ function scheduleCloudSync() {
     }
     try {
       console.log("Starting cloud sync...");
-      await saveHouseholdState(activeHouseholdId, state);
+      await saveHouseholdState(activeHouseholdId, state, cachedMemberIds);
       console.log("Cloud sync completed successfully");
-      // Keep syncTimer set for 100ms to block concurrent reads during the post-save window,
-      // then clear and pull any concurrent changes from other sessions.
-      syncTimer = setTimeout(() => {
-        syncTimer = null;
-        void syncFromCloud();
-      }, 100);
+      syncTimer = null;
     } catch (error) {
       console.error("Cloud sync failed:", error);
       syncTimer = null;
     }
-  }, 450);
+  }, 1500);
 }
 
 export const actions = {

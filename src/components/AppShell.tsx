@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
   clearAppState,
@@ -24,6 +25,7 @@ export function AppShell() {
   const router = useRouter();
   const { session, isAuthenticated, loading } = useAuthSession();
   const [signOutInProgress, setSignOutInProgress] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -43,21 +45,14 @@ export function AppShell() {
     void initCloudSync(session);
 
     const onFocus = () => {
-      console.log("Window focused, checking for cloud updates...");
       void syncFromCloud();
     };
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("Tab visible, checking for cloud updates...");
         void syncFromCloud();
       }
     };
-
-    const poll = window.setInterval(() => {
-      console.log("Periodic cloud sync polling...");
-      void syncFromCloud();
-    }, 8000);
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -65,9 +60,15 @@ export function AppShell() {
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.clearInterval(poll);
     };
   }, [session, loc.pathname]);
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await syncFromCloud();
+    setRefreshing(false);
+  };
 
   const handleLogout = async () => {
     if (signOutInProgress) return;
@@ -150,7 +151,17 @@ export function AppShell() {
                   );
                 })}
               </nav>
-              <div className="text-xs text-muted-foreground shrink-0">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                <button
+                  type="button"
+                  onClick={() => void handleRefresh()}
+                  disabled={refreshing}
+                  title="Odśwież dane"
+                  aria-label="Odśwież dane"
+                  className="hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
                 <button
                   type="button"
                   onClick={handleLogout}

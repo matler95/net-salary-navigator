@@ -3,7 +3,11 @@ import { loadHouseholdState, saveHouseholdState } from "./repository";
 
 const MIGRATION_KEY_PREFIX = "placa-netto-cloud-migration-v1";
 
-export async function migrateLocalToCloudOnce(householdId: string, localState: AppState) {
+export async function migrateLocalToCloudOnce(
+  householdId: string,
+  localState: AppState,
+  validMemberIds: Set<string> = new Set(),
+) {
   if (typeof window === "undefined") return;
   const migrationKey = `${MIGRATION_KEY_PREFIX}:${householdId}`;
   const marker = window.localStorage.getItem(migrationKey);
@@ -21,7 +25,7 @@ export async function migrateLocalToCloudOnce(householdId: string, localState: A
 
   if (!hasCloudData) {
     try {
-      await saveHouseholdState(householdId, localState);
+      await saveHouseholdState(householdId, localState, validMemberIds);
     } catch (err) {
       console.error("migrateLocalToCloudOnce: save failed, will retry next session:", err);
       return; // don't mark as done — retry next time

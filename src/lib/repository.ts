@@ -279,7 +279,11 @@ export async function loadHouseholdState(householdId: string): Promise<Partial<A
   };
 }
 
-export async function saveHouseholdState(householdId: string, state: AppState): Promise<void> {
+export async function saveHouseholdState(
+  householdId: string,
+  state: AppState,
+  validMemberIds: Set<string> = new Set(),
+): Promise<void> {
   console.log(`Saving household state for: ${householdId}`);
   const supabase = await getSupabase();
   if (!supabase) {
@@ -287,23 +291,11 @@ export async function saveHouseholdState(householdId: string, state: AppState): 
     return;
   }
 
-  // Fetch valid member IDs once so we can strip stale assignedUserId references
-  // before they hit the FK constraint on spouses.assigned_user_id.
-  let validMemberIds: Set<string> = new Set();
-  try {
-    const members = await loadHouseholdMembers(householdId);
-    validMemberIds = new Set(members.map((m) => m.user_id));
-  } catch {
-    // Non-fatal — proceed with empty set; all assignedUserId values will be nulled.
-  }
-
   await Promise.all([
     replaceRows(
       "spouses",
       householdId,
-      state.spouses.map((x) =>
-        mapSpouseToRow(householdId, x, validMemberIds),
-      ),
+      state.spouses.map((x) => mapSpouseToRow(householdId, x, validMemberIds)),
     ),
     replaceRows(
       "expenses",
