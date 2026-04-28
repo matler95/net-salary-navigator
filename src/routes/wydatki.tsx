@@ -514,118 +514,127 @@ function AddExpenseDialog() {
 
 function ExpenseRow({ expense }: { expense: Expense }) {
   return (
-    <div className="flex items-center gap-1 group">
-      <div className="flex-1 min-w-0">
+    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-1 group p-3 md:p-0">
+      <div className="flex items-center gap-1 flex-1">
+        <div className="flex-1 min-w-0">
+          <Input
+            value={expense.label}
+            onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
+            className="h-10 w-full bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none truncate"
+          />
+        </div>
         <Input
-          value={expense.label}
-          onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
-          className="h-10 w-full bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none truncate"
+          type="text"
+          inputMode="decimal"
+          value={formatLocaleAmount(expense.amount)}
+          onChange={(e) =>
+            actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
+          }
+          placeholder="0"
+          className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none shrink-0"
         />
       </div>
-      <Input
-        type="text"
-        inputMode="decimal"
-        value={formatLocaleAmount(expense.amount)}
-        onChange={(e) =>
-          actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
-        }
-        placeholder="0"
-        className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
-      />
-      <Select
-        value={expense.frequency}
-        onValueChange={(v) => {
-          const f = v as Frequency;
-          const patch: Partial<Expense> = { frequency: f };
-          // When changing frequency in the row, reset months to defaults
-          const m = new Date().getMonth() + 1;
-          switch (f) {
-            case "monthly":
-              patch.months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-              break;
-            case "bimonthly":
-              patch.months = [1, 3, 5, 7, 9, 11];
-              break;
-            case "quarterly":
-              patch.months = [1, 4, 7, 10];
-              break;
-            case "semiannual":
-              patch.months = [1, 7];
-              break;
-            case "annual":
-            case "oneoff":
-              patch.months = [expense.month ?? m];
-              break;
-          }
-          actions.updateExpense(expense.id, patch);
-        }}
-      >
-        <SelectTrigger className="h-10 w-[120px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {FREQUENCIES.map((f) => (
-            <SelectItem key={f} value={f} className="text-xs">
-              {FREQUENCY_LABELS[f]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
 
-      {expense.frequency !== "monthly" && (
-        <Dialog>
-          <DialogTrigger asChild>
-            <button className="h-10 px-2 flex flex-col items-center justify-center bg-transparent border-0 hover:bg-muted/50 shadow-none min-w-[60px]">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground/70 leading-none mb-1">
-                M-ce
-              </span>
-              <span className="text-[10px] font-mono font-bold text-accent leading-none">
-                {expense.months?.length || 1}x
-              </span>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Miesiące płatności</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <MonthSelector
-                frequency={expense.frequency}
-                selectedMonths={
-                  expense.months || (expense.month ? [expense.month] : [1])
-                }
-                onChange={(m) => actions.updateExpense(expense.id, { months: m, month: m[0] })}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      {expense.frequency !== "monthly" && (
-        <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">
-          ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/m
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={() => {
-          const expenseCopy = { ...expense };
-          actions.removeExpense(expense.id);
-          toast(`"${expense.label}" usunięto`, {
-            action: {
-              label: "Cofnij",
-              onClick: () => {
-                const { id, ...rest } = expenseCopy;
-                actions.addExpense(rest as any);
-              },
-            },
-            duration: 5000,
-          });
-        }}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 transition-opacity"
-        aria-label={`Usuń: ${expense.label}`}
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1 justify-between md:justify-end">
+        <div className="flex items-center gap-1">
+          <Select
+            value={expense.frequency}
+            onValueChange={(v) => {
+              const f = v as Frequency;
+              const patch: Partial<Expense> = { frequency: f };
+              const m = new Date().getMonth() + 1;
+              switch (f) {
+                case "monthly":
+                  patch.months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                  break;
+                case "bimonthly":
+                  patch.months = [1, 3, 5, 7, 9, 11];
+                  break;
+                case "quarterly":
+                  patch.months = [1, 4, 7, 10];
+                  break;
+                case "semiannual":
+                  patch.months = [1, 7];
+                  break;
+                case "annual":
+                case "oneoff":
+                  patch.months = [expense.month ?? m];
+                  break;
+              }
+              actions.updateExpense(expense.id, patch);
+            }}
+          >
+            <SelectTrigger className="h-10 w-[110px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FREQUENCIES.map((f) => (
+                <SelectItem key={f} value={f} className="text-xs">
+                  {FREQUENCY_LABELS[f]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {expense.frequency !== "monthly" && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="h-10 px-2 flex flex-col items-center justify-center bg-transparent border-0 hover:bg-muted/50 shadow-none min-w-[50px]">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground/70 leading-none mb-1">
+                    M-ce
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-accent leading-none">
+                    {expense.months?.length || 1}x
+                  </span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle>Miesiące płatności</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <MonthSelector
+                    frequency={expense.frequency}
+                    selectedMonths={
+                      expense.months || (expense.month ? [expense.month] : [1])
+                    }
+                    onChange={(m) => actions.updateExpense(expense.id, { months: m, month: m[0] })}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {expense.frequency !== "monthly" && (
+            <span className="text-[11px] text-muted-foreground tabular-nums w-16 text-right whitespace-nowrap">
+              ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/m
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const expenseCopy = { ...expense };
+              actions.removeExpense(expense.id);
+              toast(`"${expense.label}" usunięto`, {
+                action: {
+                  label: "Cofnij",
+                  onClick: () => {
+                    const { id, ...rest } = expenseCopy;
+                    actions.addExpense(rest as any);
+                  },
+                },
+                duration: 5000,
+              });
+            }}
+            className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity"
+            aria-label={`Usuń: ${expense.label}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

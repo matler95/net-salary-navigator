@@ -66,8 +66,8 @@ function SalariesPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="flex-1">
           <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
             Wynagrodzenia
           </p>
@@ -76,46 +76,48 @@ function SalariesPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
             Pełne polskie zasady 2025: ZUS, zdrowotna, PIT (oba progi), KUP standardowe i autorskie
-            (50%), PPK, benefity (w tym samochód służbowy), bony żywieniowe, ekwiwalent za pracę
-            zdalną.
+            (50%), PPK, benefity, ekwiwalent za pracę zdalną.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           {spouses.length >= 2 && (
             <label className="flex items-center gap-2 text-sm bg-card border border-border rounded-full px-3 py-1.5">
               <Switch checked={jointFiling} onCheckedChange={(v) => actions.setJointFiling(v)} />
-              Rozliczenie wspólne
+              <span className="hidden sm:inline">Rozliczenie wspólne</span>
+              <span className="sm:hidden text-xs">Wspólne</span>
             </label>
           )}
-          <Button variant="outline" size="sm" onClick={() => actions.addSpouse()}>
-            <Plus className="w-4 h-4 mr-1" /> Dodaj osobę
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Zresetuj dane"
-                className="text-muted-foreground"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogTitle>Zresetować dane?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki,
-                aktywa i ustawienia).
-                Tej operacji nie można cofnąć.
-              </AlertDialogDescription>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Anuluj</AlertDialogCancel>
-                <AlertDialogAction onClick={() => actions.reset()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Wyczyść dane
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => actions.addSpouse()}>
+              <Plus className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Dodaj osobę</span><span className="sm:hidden">Dodaj</span>
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Zresetuj dane"
+                  className="text-muted-foreground"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>Zresetować dane?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki,
+                  aktywa i ustawienia).
+                  Tej operacji nie można cofnąć.
+                </AlertDialogDescription>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => actions.reset()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Wyczyść dane
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </header>
 

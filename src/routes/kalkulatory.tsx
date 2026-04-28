@@ -58,17 +58,17 @@ function CalculatorsPage() {
         </p>
       </header>
 
-      <Tabs defaultValue="portfolio" className="space-y-6">
+      <Tabs defaultValue="realestate" className="space-y-6">
         <TabsList className="grid w-full sm:w-auto sm:inline-grid grid-cols-2 sm:grid-cols-2">
-          <TabsTrigger value="portfolio">Portfel ETF / akcji</TabsTrigger>
           <TabsTrigger value="realestate">Mieszkanie na wynajem</TabsTrigger>
+          <TabsTrigger value="portfolio">Portfel ETF / akcji</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="portfolio">
-          <PortfolioCalculator />
-        </TabsContent>
         <TabsContent value="realestate">
           <RealEstateCalculator />
+        </TabsContent>
+        <TabsContent value="portfolio">
+          <PortfolioCalculator />
         </TabsContent>
       </Tabs>
     </main>

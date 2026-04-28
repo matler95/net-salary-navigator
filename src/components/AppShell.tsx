@@ -1,6 +1,15 @@
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { 
+  RefreshCw, 
+  LayoutDashboard, 
+  Banknote, 
+  ShoppingBag, 
+  PieChart, 
+  Calculator, 
+  Settings,
+  User 
+} from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
   clearAppState,
@@ -13,12 +22,12 @@ import {
 import { getSupabase } from "@/lib/supabase";
 
 const NAV = [
-  { to: "/", label: "Pulpit" },
-  { to: "/wynagrodzenia", label: "Wynagrodzenia" },
-  { to: "/wydatki", label: "Wydatki" },
-  { to: "/aktywa", label: "Aktywa" },
-  { to: "/kalkulatory", label: "Kalkulatory" },
-  { to: "/settings", label: "Ustawienia" },
+  { to: "/", label: "Pulpit", icon: LayoutDashboard },
+  { to: "/wynagrodzenia", label: "Wynagrodzenia", icon: Banknote },
+  { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
+  { to: "/aktywa", label: "Aktywa", icon: PieChart },
+  { to: "/kalkulatory", label: "Kalkulatory", icon: Calculator },
+  { to: "/settings", label: "Ustawienia", icon: Settings },
 ] as const;
 
 export function AppShell() {
@@ -127,7 +136,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-3 shrink-0">
             <div className="w-9 h-9 rounded-xl bg-(image:--gradient-accent) flex items-center justify-center text-accent-foreground font-display font-bold text-lg shadow-(--shadow-card)">
               ₧
@@ -142,7 +151,7 @@ export function AppShell() {
 
           {isAuthenticated ? (
             <>
-              <nav className="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
+              <nav className="hidden md:flex items-center gap-1">
                 {NAV.map((n) => {
                   const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
                   return (
@@ -162,12 +171,16 @@ export function AppShell() {
               </nav>
               <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
                 {isAuthenticated && (
-                  <span className="hidden sm:block truncate max-w-30" title={session?.user.email}>
-                    {session?.user.user_metadata?.nickname?.trim() ||
-                      session?.user.email?.split("@")[0] ||
-                      session?.user.email ||
-                      ""}
-                  </span>
+                  <div className="flex items-center gap-2" title={session?.user.email}>
+                    <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-accent shrink-0 border border-accent/20">
+                      {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
+                    </div>
+                    <span className="hidden md:block truncate max-w-30 font-medium">
+                      {session?.user.user_metadata?.nickname?.trim() ||
+                        session?.user.email?.split("@")[0] ||
+                        ""}
+                    </span>
+                  </div>
                 )}
                 <button
                   type="button"
@@ -175,7 +188,7 @@ export function AppShell() {
                   disabled={refreshing}
                   title="Odśwież dane"
                   aria-label="Odśwież dane"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors p-1.5"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
                 </button>
@@ -183,7 +196,7 @@ export function AppShell() {
                   type="button"
                   onClick={handleLogout}
                   disabled={signOutInProgress}
-                  className="hover:text-foreground"
+                  className="hover:text-foreground p-1.5"
                 >
                   {signOutInProgress ? "Wylogowywanie…" : "Wyloguj"}
                 </button>
@@ -199,9 +212,34 @@ export function AppShell() {
         </div>
       </header>
 
-      <Outlet />
+      <main className="pb-24 md:pb-0">
+        <Outlet />
+      </main>
 
-      <footer className="border-t border-border mt-12">
+      {isAuthenticated && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-1 pt-2 pb-[calc(env(safe-area-inset-bottom)+6px)] flex items-center justify-around shadow-[0_-4px_16px_rgba(0,0,0,0.1)]">
+          {NAV.map((n) => {
+            const Icon = n.icon;
+            const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
+            return (
+              <Link
+                key={n.to}
+                to={n.to}
+                className={`flex flex-col items-center gap-1 flex-1 min-w-0 px-1 py-1 rounded-xl transition-all duration-200 active:scale-90 ${
+                  active
+                    ? "text-accent"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
+                <span className="text-[8px] font-bold uppercase tracking-tighter truncate w-full text-center">{n.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
+      <footer className="border-t border-border mt-12 pb-20 md:pb-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-xs text-muted-foreground">
           Wartości orientacyjne. Stawki ZUS/PIT na 2025. Dane lokalne i synchronizacja cloud
           (Supabase).
