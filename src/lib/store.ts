@@ -312,7 +312,12 @@ export async function initCloudSync(
     }
 
     cloudSyncEnabled = true;
-    await migrateLocalToCloudOnce(household.householdId, state);
+    // Only migrate local→cloud when the user is initialising their OWN new household.
+    // When preferredHouseholdId is set the user is joining someone else's household via
+    // invite — never overwrite their data with the invitee's local state.
+    if (!preferredHouseholdId) {
+      await migrateLocalToCloudOnce(household.householdId, state);
+    }
     const cloudState = await loadHouseholdState(household.householdId);
     state = {
       ...state,

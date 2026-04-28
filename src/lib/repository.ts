@@ -166,8 +166,12 @@ export async function ensureHouseholdForSession(
       if (preferredMembership?.household_id) {
         return { householdId: preferredMembership.household_id, userId };
       }
+      // preferredHouseholdId not visible in this query (possible replica lag after accept_invite).
+      // Fall through to create_household RPC which queries the primary and will find the correct
+      // membership, returning preferredHouseholdId instead of creating a new household.
+    } else {
+      return { householdId: membershipsList[0].household_id, userId };
     }
-    return { householdId: membershipsList[0].household_id, userId };
   }
 
   if (creatingHouseholdPromise) {

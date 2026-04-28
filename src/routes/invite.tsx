@@ -76,6 +76,7 @@ function InvitePage() {
 
     const { success, error } = await acceptInvite(token, session);
     if (success) {
+      if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
       toast.success(`Dołączono do gospodarstwa ${invite?.household_name ?? "gospodarstwa"}`);
       await router.navigate({ to: "/" });
       return;
