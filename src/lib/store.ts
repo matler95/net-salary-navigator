@@ -143,7 +143,8 @@ const listeners = new Set<() => void>();
 let cloudSyncEnabled = false;
 let activeHouseholdId: string | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-let syncInProgress = false;
+let syncInProgress = false;   // guards syncFromCloud
+let initInProgress = false;   // guards initCloudSync (separate to avoid blocking acceptInvite)
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 
@@ -225,6 +226,7 @@ export function clearAppState(): void {
   cloudSyncInitialized = false;
   activeHouseholdId = null;
   syncInProgress = false;
+  initInProgress = false;
   if (syncTimer) {
     clearTimeout(syncTimer);
     syncTimer = null;
@@ -279,8 +281,8 @@ export async function initCloudSync(
     }
     return;
   }
-  // Prevent concurrent initialisations from racing
-  if (syncInProgress) return;
+  if (initInProgress) return;
+  initInProgress = true;
   syncInProgress = true;
   try {
     const persistedHouseholdId =
@@ -340,6 +342,7 @@ export async function initCloudSync(
     }
     listeners.forEach((l) => l());
   } finally {
+    initInProgress = false;
     syncInProgress = false;
   }
 }
@@ -619,18 +622,22 @@ function scheduleCloudSync() {
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
     const ready = await ensureCloudSyncContext();
-    if (!ready || !activeHouseholdId) return;
+    if (!ready || !activeHouseholdId) {
+      syncTimer = null;
+      return;
+    }
     try {
       console.log("Starting cloud sync...");
       await saveHouseholdState(activeHouseholdId, state);
       console.log("Cloud sync completed successfully");
-      // After saving, sync from cloud to get any concurrent changes
-      setTimeout(() => {
+      // Keep syncTimer set for 100ms to block concurrent reads during the post-save window,
+      // then clear and pull any concurrent changes from other sessions.
+      syncTimer = setTimeout(() => {
+        syncTimer = null;
         void syncFromCloud();
       }, 100);
     } catch (error) {
       console.error("Cloud sync failed:", error);
-    } finally {
       syncTimer = null;
     }
   }, 450);

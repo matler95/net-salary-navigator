@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getSupabase } from "@/lib/supabase";
-import { acceptInvite, initCloudSync } from "@/lib/store";
+import { acceptInvite, initCloudSync, PENDING_INVITE_TOKEN_KEY } from "@/lib/store";
 import { loadInviteContext } from "@/lib/repository";
 import { useAuthSession } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,6 @@ export const Route = createFileRoute("/login")({
   }),
 });
 
-const PENDING_INVITE_KEY = "placa-netto-pending-invite-token";
 
 type InviteContext = {
   household_id: string;
@@ -50,7 +49,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!search.invite || typeof window === "undefined") return;
-    window.localStorage.setItem(PENDING_INVITE_KEY, search.invite);
+    window.localStorage.setItem(PENDING_INVITE_TOKEN_KEY, search.invite);
   }, [search.invite]);
 
   useEffect(() => {
@@ -83,17 +82,17 @@ function LoginPage() {
     const run = async () => {
       const pendingInvite =
         search.invite ??
-        (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined : undefined);
+        (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
 
       if (pendingInvite) {
         const result = await acceptInvite(pendingInvite, session);
         if (!cancelled && result.success) {
-          if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+          if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           await router.navigate({ to: "/" });
           return;
         } else if (!cancelled && typeof window !== "undefined") {
           // Clean up invalid/expired pending invite
-          window.localStorage.removeItem(PENDING_INVITE_KEY);
+          window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
         }
       }
 
@@ -147,7 +146,7 @@ function LoginPage() {
     const pendingInvite =
       search.invite ??
       (typeof window !== "undefined"
-        ? window.localStorage.getItem(PENDING_INVITE_KEY) ?? undefined
+        ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined
         : undefined);
 
     try {
@@ -178,7 +177,7 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             await initCloudSync(data.session);
           }
@@ -231,7 +230,7 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_KEY);
+            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
           }

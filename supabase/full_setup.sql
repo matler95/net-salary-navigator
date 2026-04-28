@@ -144,6 +144,19 @@ as $$
   );
 $$;
 
+create or replace function public.is_household_owner(target_household uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1 from public.household_members hm
+    where hm.household_id = target_household
+      and hm.user_id = auth.uid()
+      and hm.role = 'owner'
+  );
+$$;
+
 -- Create a household and add the creator as a member in one go
 -- This bypasses the RLS issue where a user cannot select a household they just created
 -- because they aren't yet in the household_members table.
@@ -193,6 +206,7 @@ begin
   select household_id into v_household_id
   from public.household_invites
   where token = invite_token
+    and status = 'pending'
     and expires_at > now()
     and lower(email) = lower(auth.jwt()->>'email');
 
@@ -262,7 +276,8 @@ begin
     create policy member_read on public.household_members for select using (user_id = auth.uid() or public.is_household_member(household_id));
     
     drop policy if exists member_insert on public.household_members;
-    create policy member_insert on public.household_members for insert with check (public.is_household_member(household_id));
+    -- Deny direct API inserts; all membership creation goes through security definer RPCs
+    create policy member_insert on public.household_members for insert with check (false);
     
     drop policy if exists member_delete on public.household_members;
     create policy member_delete on public.household_members for delete using (public.is_household_member(household_id) or user_id = auth.uid());
@@ -274,7 +289,7 @@ begin
     drop policy if exists invites_delete on public.household_invites;
     create policy invites_select on public.household_invites
     for select using (
-      public.is_household_member(household_id)
+      public.is_household_owner(household_id)
       or lower(email) = lower(coalesce(auth.jwt()->>'email', ''))
     );
     create policy invites_insert on public.household_invites

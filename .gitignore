@@ -39,3 +39,4 @@ package-lock.json
 .env
 query_results.json
 query_results_pinpoint.json
+.claude/settings.local.json
