@@ -316,7 +316,11 @@ export async function initCloudSync(
     // When preferredHouseholdId is set the user is joining someone else's household via
     // invite — never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
-      await migrateLocalToCloudOnce(household.householdId, state);
+      try {
+        await migrateLocalToCloudOnce(household.householdId, state);
+      } catch (err) {
+        console.error("initCloudSync: migration failed, continuing to load cloud state:", err);
+      }
     }
     const cloudState = await loadHouseholdState(household.householdId);
     state = {

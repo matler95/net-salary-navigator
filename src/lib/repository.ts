@@ -517,10 +517,10 @@ function mapInvestmentToRow(householdId: string, x: Investment) {
     currency: x.currency,
     ticker: x.ticker,
     volume: x.volume,
-    tickerPriceAtAdd: x.tickerPriceAtAdd,
-    tickerPriceDate: x.tickerPriceDate,
+    ticker_price_at_add: x.tickerPriceAtAdd,
+    ticker_price_date: x.tickerPriceDate,
     value: x.value,
-    monthlyContribution: x.monthlyContribution,
+    monthly_contribution: x.monthlyContribution,
   };
 }
 function mapInvestmentFromRow(row: unknown): Investment {
@@ -532,10 +532,10 @@ function mapInvestmentFromRow(row: unknown): Investment {
     currency: (r.currency as Investment["currency"]) ?? "PLN",
     ticker: String(r.ticker ?? ""),
     volume: Number(r.volume ?? 0),
-    tickerPriceAtAdd: Number(r.tickerPriceAtAdd ?? 0),
-    tickerPriceDate: String(r.tickerPriceDate ?? ""),
+    tickerPriceAtAdd: Number(r.ticker_price_at_add ?? 0),
+    tickerPriceDate: String(r.ticker_price_date ?? ""),
     value: Number(r.value ?? 0),
-    monthlyContribution: Number(r.monthlyContribution ?? 0),
+    monthlyContribution: Number(r.monthly_contribution ?? 0),
   };
 }
 function mapLoanToRow(householdId: string, x: Loan) {
@@ -544,11 +544,11 @@ function mapLoanToRow(householdId: string, x: Loan) {
     household_id: householdId,
     label: x.label,
     principal: x.principal,
-    annualRatePct: x.annualRatePct,
-    monthsRemaining: x.monthsRemaining,
-    monthlyOverpayment: x.monthlyOverpayment,
-    paymentDayOfMonth: x.paymentDayOfMonth,
-    lastPaymentDate: x.lastPaymentDate,
+    annual_rate_pct: x.annualRatePct,
+    months_remaining: x.monthsRemaining,
+    monthly_overpayment: x.monthlyOverpayment,
+    payment_day_of_month: x.paymentDayOfMonth,
+    last_payment_date: x.lastPaymentDate,
   };
 }
 function mapLoanFromRow(row: unknown): Loan {
@@ -557,11 +557,11 @@ function mapLoanFromRow(row: unknown): Loan {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
     principal: Number(r.principal ?? 0),
-    annualRatePct: Number(r.annualRatePct ?? 0),
-    monthsRemaining: Number(r.monthsRemaining ?? 0),
-    monthlyOverpayment: Number(r.monthlyOverpayment ?? 0),
-    paymentDayOfMonth: r.paymentDayOfMonth ? Number(r.paymentDayOfMonth) : undefined,
-    lastPaymentDate: r.lastPaymentDate ? String(r.lastPaymentDate) : undefined,
+    annualRatePct: Number(r.annual_rate_pct ?? 0),
+    monthsRemaining: Number(r.months_remaining ?? 0),
+    monthlyOverpayment: Number(r.monthly_overpayment ?? 0),
+    paymentDayOfMonth: r.payment_day_of_month ? Number(r.payment_day_of_month) : undefined,
+    lastPaymentDate: r.last_payment_date ? String(r.last_payment_date) : undefined,
   };
 }
 function mapRentalToRow(householdId: string, x: Rental) {
@@ -569,12 +569,12 @@ function mapRentalToRow(householdId: string, x: Rental) {
     id: x.id,
     household_id: householdId,
     label: x.label,
-    monthlyRent: x.monthlyRent,
-    monthlyCosts: x.monthlyCosts,
-    monthlyMortgage: x.monthlyMortgage,
-    vacancyRatePct: x.vacancyRatePct,
-    taxRatePct: x.taxRatePct,
-    marketValue: x.marketValue,
+    monthly_rent: x.monthlyRent,
+    monthly_costs: x.monthlyCosts,
+    monthly_mortgage: x.monthlyMortgage,
+    vacancy_rate_pct: x.vacancyRatePct,
+    tax_rate_pct: x.taxRatePct,
+    market_value: x.marketValue,
   };
 }
 function mapRentalFromRow(row: unknown): Rental {
@@ -582,12 +582,12 @@ function mapRentalFromRow(row: unknown): Rental {
   return {
     id: String(r.id ?? ""),
     label: String(r.label ?? ""),
-    monthlyRent: Number(r.monthlyRent ?? 0),
-    monthlyCosts: Number(r.monthlyCosts ?? 0),
-    monthlyMortgage: Number(r.monthlyMortgage ?? 0),
-    vacancyRatePct: Number(r.vacancyRatePct ?? 0),
-    taxRatePct: Number(r.taxRatePct ?? 8.5),
-    marketValue: Number(r.marketValue ?? 0),
+    monthlyRent: Number(r.monthly_rent ?? 0),
+    monthlyCosts: Number(r.monthly_costs ?? 0),
+    monthlyMortgage: Number(r.monthly_mortgage ?? 0),
+    vacancyRatePct: Number(r.vacancy_rate_pct ?? 0),
+    taxRatePct: Number(r.tax_rate_pct ?? 8.5),
+    marketValue: Number(r.market_value ?? 0),
   };
 }
 function mapSavingsToRow(householdId: string, account: AppState["savings"][number]) {
@@ -597,10 +597,10 @@ function mapSavingsToRow(householdId: string, account: AppState["savings"][numbe
     bank: account.bank,
     type: account.type,
     balance: account.balance,
-    ratePct: account.ratePct,
-    lokataStartDate: account.lokataStartDate,
-    lokataDurationMonths: account.lokataDurationMonths,
-    lokataCapitalization: account.lokataCapitalization,
+    rate_pct: account.ratePct,
+    lokata_start_date: account.lokataStartDate,
+    lokata_duration_months: account.lokataDurationMonths,
+    lokata_capitalization: account.lokataCapitalization,
   };
 }
 
@@ -611,10 +611,10 @@ function mapSavingsFromRow(row: unknown): AppState["savings"][number] {
     bank: String(r.bank ?? ""),
     type: String(r.type ?? "zwykłe"),
     balance: Number(r.balance ?? 0),
-    ratePct: Number(r.ratePct ?? 0),
-    lokataStartDate: r.lokataStartDate ? String(r.lokataStartDate) : undefined,
-    lokataDurationMonths: r.lokataDurationMonths ? Number(r.lokataDurationMonths) : undefined,
-    lokataCapitalization: r.lokataCapitalization ? String(r.lokataCapitalization) : undefined,
+    ratePct: Number(r.rate_pct ?? 0),
+    lokataStartDate: r.lokata_start_date ? String(r.lokata_start_date) : undefined,
+    lokataDurationMonths: r.lokata_duration_months ? Number(r.lokata_duration_months) : undefined,
+    lokataCapitalization: r.lokata_capitalization ? String(r.lokata_capitalization) : undefined,
   };
 }
 

@@ -41,7 +41,7 @@ create table if not exists public.spouses (
   household_id uuid not null references public.households(id) on delete cascade,
   name text not null,
   inputs jsonb not null default '{}'::jsonb,
-  assigned_user_id uuid references auth.users(id),
+  assigned_user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -64,10 +64,10 @@ create table if not exists public.investments (
   currency text not null default 'PLN',
   ticker text,
   volume numeric not null default 0,
-  tickerPriceAtAdd numeric not null default 0,
-  tickerPriceDate text,
+  ticker_price_at_add numeric not null default 0,
+  ticker_price_date text,
   value numeric not null default 0,
-  monthlyContribution numeric not null default 0,
+  monthly_contribution numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -76,11 +76,11 @@ create table if not exists public.loans (
   household_id uuid not null references public.households(id) on delete cascade,
   label text not null,
   principal numeric not null default 0,
-  annualRatePct numeric not null default 0,
-  monthsRemaining integer not null default 0,
-  monthlyOverpayment numeric not null default 0,
-  "paymentDayOfMonth" integer,
-  "lastPaymentDate" text,
+  annual_rate_pct numeric not null default 0,
+  months_remaining integer not null default 0,
+  monthly_overpayment numeric not null default 0,
+  payment_day_of_month integer,
+  last_payment_date text,
   created_at timestamptz not null default now()
 );
 
@@ -88,12 +88,12 @@ create table if not exists public.rentals (
   id text primary key,
   household_id uuid not null references public.households(id) on delete cascade,
   label text not null,
-  monthlyRent numeric not null default 0,
-  monthlyCosts numeric not null default 0,
-  monthlyMortgage numeric not null default 0,
-  vacancyRatePct numeric not null default 0,
-  taxRatePct numeric not null default 8.5,
-  marketValue numeric not null default 0,
+  monthly_rent numeric not null default 0,
+  monthly_costs numeric not null default 0,
+  monthly_mortgage numeric not null default 0,
+  vacancy_rate_pct numeric not null default 0,
+  tax_rate_pct numeric not null default 8.5,
+  market_value numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -103,10 +103,10 @@ create table if not exists public.savings (
   bank text not null,
   type text not null default 'zwykłe',
   balance numeric not null default 0,
-  ratePct numeric not null default 0,
-  "lokataStartDate" text,
-  "lokataDurationMonths" integer,
-  "lokataCapitalization" text,
+  rate_pct numeric not null default 0,
+  lokata_start_date text,
+  lokata_duration_months integer,
+  lokata_capitalization text,
   created_at timestamptz not null default now()
 );
 
@@ -115,11 +115,14 @@ alter table public.households add column if not exists joint_filing boolean not 
 alter table public.households add column if not exists global_settings jsonb not null default '{}'::jsonb;
 alter table public.household_members add column if not exists role text not null default 'member';
 alter table public.expenses add column if not exists month integer;
-alter table public.loans add column if not exists "paymentDayOfMonth" integer;
-alter table public.loans add column if not exists "lastPaymentDate" text;
-alter table public.savings add column if not exists "lokataStartDate" text;
-alter table public.savings add column if not exists "lokataDurationMonths" integer;
-alter table public.savings add column if not exists "lokataCapitalization" text;
+alter table public.loans add column if not exists payment_day_of_month integer;
+alter table public.loans add column if not exists last_payment_date text;
+alter table public.savings add column if not exists lokata_start_date text;
+alter table public.savings add column if not exists lokata_duration_months integer;
+alter table public.savings add column if not exists lokata_capitalization text;
+alter table public.spouses drop constraint if exists spouses_assigned_user_id_fkey;
+alter table public.spouses add constraint spouses_assigned_user_id_fkey
+  foreign key (assigned_user_id) references auth.users(id) on delete set null;
 
 -- 3. INDEXES
 create index if not exists idx_household_members_user on public.household_members(user_id);
