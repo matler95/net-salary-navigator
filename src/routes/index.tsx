@@ -124,7 +124,8 @@ function Dashboard() {
     (s, l) =>
       s +
       monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
-      (l.monthlyOverpayment ?? 0),
+      (l.monthlyOverpayment ?? 0) +
+      (l.mortgageInsuranceMonthly ?? 0),
     0,
   );
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);

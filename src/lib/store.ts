@@ -71,6 +71,7 @@ export type Loan = {
   monthlyOverpayment?: number; // optional fixed extra payment / month
   paymentDayOfMonth?: number; // day of month (1-31) when payment is made
   lastPaymentDate?: string; // ISO date of last payment
+  mortgageInsuranceMonthly: number; // monthly insurance required by bank
 };
 
 export type Rental = {
@@ -219,7 +220,11 @@ function loadInitial(): AppState {
           }))
         : DEFAULT_STATE.investments,
       loans: parsed.loans
-        ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
+        ? parsed.loans.map((l) => ({
+            ...l,
+            monthlyOverpayment: l.monthlyOverpayment ?? 0,
+            mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
+          }))
         : DEFAULT_STATE.loans,
       savings: parsed.savings
         ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))

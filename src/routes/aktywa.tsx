@@ -1122,7 +1122,8 @@ function LoansSection() {
     (s, l) =>
       s +
       monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
-      (l.monthlyOverpayment ?? 0),
+      (l.monthlyOverpayment ?? 0) +
+      (l.mortgageInsuranceMonthly ?? 0),
     0,
   );
 
@@ -1167,6 +1168,7 @@ function LoanCard({
     monthlyOverpayment?: number;
     paymentDayOfMonth?: number;
     lastPaymentDate?: string;
+    mortgageInsuranceMonthly: number;
   };
 }) {
   const [showSchedule, setShowSchedule] = useState(false);
@@ -1183,6 +1185,8 @@ function LoanCard({
   );
 
   const pmt = monthlyPayment(loan.principal, loan.annualRatePct, loan.monthsRemaining);
+  const insurance = loan.mortgageInsuranceMonthly ?? 0;
+  const totalMonthlyCost = pmt + overpay + insurance;
   const interestNoOverpay = loanTotalInterest(
     loan.principal,
     loan.annualRatePct,
@@ -1201,13 +1205,18 @@ function LoanCard({
 
 
   return (
-    <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
+    <div className="bg-card rounded-2xl p-8 border border-border shadow-card group">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <Input
-          value={loan.label}
-          onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
-          className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-        />
+        <div className="flex-1 min-w-0">
+          <Input
+            value={loan.label}
+            onChange={(e) => actions.updateLoan(loan.id, { label: e.target.value })}
+            className="font-display text-2xl h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none truncate hover:bg-muted/30 rounded-lg px-2 -ml-2"
+          />
+          <p className="text-xs text-muted-foreground mt-1 px-0.5">
+            {loan.annualRatePct}% · {loan.monthsRemaining} m-cy · <span className="font-bold text-foreground">{formatPLN2(totalMonthlyCost)}/m-c</span>
+          </p>
+        </div>
         <button
           onClick={() => {
             const copy = { ...loan };
@@ -1311,6 +1320,14 @@ function LoanCard({
           <LocalNumInput
             value={overpay}
             onChange={(v) => actions.updateLoan(loan.id, { monthlyOverpayment: v })}
+            className="h-10 font-mono tabular-nums text-accent"
+            decimals={0}
+          />
+        </Field>
+        <Field label="Ubezpieczenie">
+          <LocalNumInput
+            value={loan.mortgageInsuranceMonthly}
+            onChange={(v) => actions.updateLoan(loan.id, { mortgageInsuranceMonthly: v })}
             className="h-10 font-mono tabular-nums"
             decimals={0}
           />
@@ -1336,13 +1353,17 @@ function LoanCard({
         </Field>
       </div>
 
-      <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-3 gap-2 text-center mb-3">
+      <div className="bg-accent/5 rounded-xl p-3 grid grid-cols-3 gap-2 text-center mb-3 border border-accent/20">
         <div>
-          <p className="text-xs text-muted-foreground">Rata bazowa</p>
-          <p className="font-mono tabular-nums text-sm font-semibold">{formatPLN2(pmt)}</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Rata + Ub.</p>
+          <p className="font-mono tabular-nums text-sm font-bold text-accent">{formatPLN2(pmt + insurance)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Odsetki razem</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Z nadpłatą</p>
+          <p className="font-mono tabular-nums text-sm font-bold text-accent">{formatPLN2(totalMonthlyCost)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Odsetki</p>
           <p className="font-mono tabular-nums text-sm font-semibold text-destructive">
             {formatPLN(interestWithOverpay)}
           </p>
@@ -1676,8 +1697,18 @@ function AddLoanDialog() {
     annualRatePct: 7.5,
     monthsRemaining: 240,
     monthlyOverpayment: 0,
+    mortgageInsuranceMonthly: 0,
     paymentDayOfMonth: undefined as number | undefined,
   });
+  const [isInsuranceManual, setIsInsuranceManual] = useState(false);
+
+  // Auto-calculate insurance: ~0.2% of principal annually
+  useEffect(() => {
+    if (!isInsuranceManual && draft.principal > 0) {
+      const suggested = Math.round((draft.principal * 0.002) / 12);
+      setDraft((prev) => ({ ...prev, mortgageInsuranceMonthly: suggested }));
+    }
+  }, [draft.principal, isInsuranceManual]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -1707,8 +1738,10 @@ function AddLoanDialog() {
               annualRatePct: 7.5,
               monthsRemaining: 240,
               monthlyOverpayment: 0,
+              mortgageInsuranceMonthly: 0,
               paymentDayOfMonth: undefined,
             });
+            setIsInsuranceManual(false);
             setOpen(false);
           }}
         >
@@ -1750,6 +1783,25 @@ function AddLoanDialog() {
               }
               className="col-span-3 font-mono tabular-nums h-10"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium text-muted-foreground">
+              Ubezpieczenie
+            </label>
+            <LocalNumInput
+              value={draft.mortgageInsuranceMonthly}
+              onChange={(v) => {
+                setDraft({ ...draft, mortgageInsuranceMonthly: v });
+                setIsInsuranceManual(true);
+              }}
+              className="col-span-3 font-mono tabular-nums h-10"
+              decimals={0}
+            />
+            {!isInsuranceManual && draft.principal > 0 && (
+              <p className="col-start-2 col-span-3 text-[10px] text-muted-foreground -mt-3 italic">
+                Sugerowane: ~0.2% kapitału rocznie
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium text-muted-foreground">
