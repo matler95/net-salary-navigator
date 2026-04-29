@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
 import { Trash2, X, ChevronDown, User, Zap, Landmark, BadgePercent, Gift, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMemo, useState, useEffect, useId } from "react";
+import React, { useMemo, useState, useEffect, useId, useRef } from "react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
@@ -215,6 +215,18 @@ export function SpousePanel({
   const baseId = useId();
   const globalSettings = useAppState((s) => s.globalSettings);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowMemberDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
@@ -259,9 +271,9 @@ export function SpousePanel({
   const pctPpk = (r.ppkEmployee / totalBase) * 100;
 
   return (
-    <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden relative group/panel">
+    <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden relative group/panel">
       {/* HEADER */}
-      <div className="flex items-center justify-between gap-4 p-5 bg-[var(--gradient-warm)] border-b border-border">
+      <div className="flex items-center justify-between gap-4 p-5 bg-warm-gradient border-b border-border">
         <div className="flex items-center gap-4 flex-1">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent font-display text-xl font-bold italic text-accent-foreground shadow-sm">
             {getInitial(spouse.name)}
@@ -285,7 +297,7 @@ export function SpousePanel({
               </span>
             )}
             {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
-              <div className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1">
+              <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1">
                 {filteredMembers.map((member) => (
                   <button
                     key={member.user_id}
@@ -356,7 +368,7 @@ export function SpousePanel({
 
         {/* 2. PRIMARY RESULT: Na rękę */}
         <div className="order-2">
-          <div className="rounded-2xl p-6 bg-accent text-accent-foreground shadow-[var(--shadow-warm)]">
+          <div className="rounded-2xl p-6 bg-accent text-accent-foreground shadow-warm">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
               Na rękę
             </p>
@@ -683,17 +695,17 @@ export function SpousePanel({
                 </div>
                 <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted border border-border shadow-inner">
                   <div style={{ width: `${pctNet}%` }} className="bg-success transition-all duration-500" title="Netto" />
-                  <div style={{ width: `${pctZus}%` }} className="bg-orange-400 transition-all duration-500" title="ZUS" />
-                  <div style={{ width: `${pctHealth}%` }} className="bg-yellow-400 transition-all duration-500" title="Zdrowotna" />
+                  <div style={{ width: `${pctZus}%` }} className="bg-[var(--zus)] transition-all duration-500" title="ZUS" />
+                  <div style={{ width: `${pctHealth}%` }} className="bg-[var(--health)] transition-all duration-500" title="Zdrowotna" />
                   <div style={{ width: `${pctPit}%` }} className="bg-destructive transition-all duration-500" title="PIT" />
-                  {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-blue-500 transition-all duration-500" title="PPK" />}
+                  {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-[var(--ppk)] transition-all duration-500" title="PPK" />}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] uppercase font-semibold text-muted-foreground">
                   <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> ZUS ({pctZus.toFixed(1)}%)</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--zus)]" /> ZUS ({pctZus.toFixed(1)}%)</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--health)]" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
                   <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}%)</span>
-                  {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /> PPK</span>}
+                  {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--ppk)]" /> PPK</span>}
                 </div>
 
               </CollapsibleTrigger>
@@ -732,7 +744,7 @@ export function SpousePanel({
                 <div
                   className={cn(
                     "h-full transition-all duration-1000",
-                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning-foreground" : "bg-destructive"
+                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning" : "bg-destructive"
                   )}
                   style={{ width: `${thresholdPct}%` }}
                 />

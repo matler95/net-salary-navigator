@@ -228,7 +228,7 @@ function Dashboard() {
   if (isCompletelyEmpty) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24">
-        <div className="mx-auto max-w-2xl bg-card rounded-[2rem] border border-border p-8 md:p-12 shadow-[var(--shadow-warm)] text-center animate-fade-up">
+        <div className="mx-auto max-w-2xl bg-card rounded-[2rem] border border-border p-8 md:p-12 shadow-warm text-center animate-fade-up">
           <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[1.5rem] bg-accent/10 font-display text-5xl font-bold italic text-accent shadow-sm">
             S
           </div>
@@ -258,7 +258,7 @@ function Dashboard() {
 
           <Link
             to="/wynagrodzenia"
-            className="inline-flex h-14 w-full sm:w-auto items-center justify-center rounded-full bg-[var(--gradient-accent)] px-8 text-base font-semibold text-accent-foreground shadow-[var(--shadow-warm)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex h-14 w-full sm:w-auto items-center justify-center rounded-full bg-accent-gradient px-8 text-base font-semibold text-accent-foreground shadow-warm transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Rozpocznij planowanie
           </Link>
@@ -272,7 +272,7 @@ function Dashboard() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-up">
       {/* A) HERO SECTION */}
-      <section className="bg-card rounded-2xl p-6 sm:p-8 shadow-[var(--shadow-elevated)] border border-border">
+      <section className="bg-card rounded-2xl p-6 sm:p-8 shadow-elevated border border-border">
         <div className="flex flex-col gap-6">
           {/* Header row with greeting and month navigator */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -315,10 +315,9 @@ function Dashboard() {
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-6">
                   <div className="flex items-baseline gap-2">
-                    <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]")}>
+                    <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-income" : "text-expense")}>
                       {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow).replace(" zł", "")}
                     </p>
-                    <span className="text-2xl text-muted-foreground font-medium">zł</span>
                   </div>
                   <div className="h-16 w-full max-w-[240px] opacity-80 pb-2">
                     <ResponsiveContainer width="100%" height="100%">
@@ -351,32 +350,21 @@ function Dashboard() {
               <div className="grid grid-cols-3 gap-4 border-t border-border pt-6">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Dochody</p>
-                  <p className="font-mono text-sm font-bold text-[var(--income)]">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
+                  <p className="font-mono text-sm font-bold text-income">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki (mies.)</p>
-                  <p className="font-mono text-sm font-bold text-[var(--expense)]">{formatPLN(selectedMonthExpenses)}</p>
+                  <p className="font-mono text-sm font-bold text-expense">{formatPLN(selectedMonthExpenses)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Raty kredytów</p>
-                  <p className="font-mono text-sm font-bold text-[var(--debt)]">{formatPLN(monthlyLoanPmt)}</p>
+                  <p className="font-mono text-sm font-bold text-debt">{formatPLN(monthlyLoanPmt)}</p>
                 </div>
               </div>
             </div>
 
             {/* Right: Wealth Status */}
             <div className="space-y-6">
-              {/* <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                  Majątek netto
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <p className="font-display text-5xl tracking-tight animate-count-up tabular-nums text-foreground">
-                    {formatPLN(netWorth).replace(" zł", "")}
-                  </p>
-                  <span className="text-2xl text-muted-foreground font-medium">zł</span>
-                </div>
-              </div> */}
 
               {/* Integrated Wealth Metrics */}
               <div className="grid grid-cols-2 gap-3">
@@ -389,7 +377,7 @@ function Dashboard() {
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
-                    <CreditCard className="h-3.5 w-3.5 text-[var(--debt)]" />
+                    <CreditCard className="h-3.5 w-3.5 text-debt" />
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Zadłużenie</p>
                   </div>
                   <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalLoans)}</p>
@@ -418,7 +406,7 @@ function Dashboard() {
       {/* E) CHARTS SECTION */}
       <section className="grid lg:grid-cols-2 gap-6">
         {/* Tax threshold chart */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Zarobki vs II próg podatkowy</h2>
           <p className="text-sm text-muted-foreground mb-6">Skumulowana roczna podstawa (120k zł)</p>
           <div className="h-64">
@@ -457,10 +445,24 @@ function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-4 pt-4 border-t border-border/40 flex flex-wrap gap-x-4 gap-y-2">
+            {thresholdDates.map((td) => (
+              <div key={td.id} className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+                <p className="text-[10px] leading-none text-muted-foreground">
+                  <span className="font-bold text-foreground">{td.name}</span>:{" "}
+                  {td.monthIndex === -1 
+                    ? "pozostaje w I progu" 
+                    : `wpada w II próg w ${monthLabel(td.monthIndex + 1).split(" ")[0]}`
+                  }
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Expense breakdown pie */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
           <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(totalExpenses)}</p>
           {byCategory.length === 0 ? (
@@ -499,7 +501,7 @@ function Dashboard() {
       </section>
 
       {/* F) SAVINGS PROJECTION CHART */}
-      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
+      <section className="bg-card rounded-2xl p-6 border border-border shadow-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="font-display text-xl mb-1 gradient-text font-bold">Projekcja budżetu</h2>
@@ -560,7 +562,7 @@ function Dashboard() {
       <section className="grid sm:grid-cols-3 gap-4">
         <Link
           to="/wynagrodzenia"
-          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-card card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-accent/5 p-8 transition-transform group-hover:scale-110">
             <Banknote className="h-10 w-10 text-accent/20" />
@@ -576,7 +578,7 @@ function Dashboard() {
         </Link>
         <Link
           to="/wydatki"
-          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-card card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-destructive/5 p-8 transition-transform group-hover:scale-110">
             <ShoppingBag className="h-10 w-10 text-destructive/20" />
@@ -592,7 +594,7 @@ function Dashboard() {
         </Link>
         <Link
           to="/aktywa"
-          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-card card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-success/5 p-8 transition-transform group-hover:scale-110">
             <Landmark className="h-10 w-10 text-success/20" />

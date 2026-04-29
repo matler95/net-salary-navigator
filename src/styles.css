@@ -1,4 +1,4 @@
-﻿@import "tailwindcss" source(none);
+@import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
 
@@ -37,6 +37,23 @@
   --font-display: "Fraunces", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --background-image-accent-gradient: var(--gradient-accent);
+  --background-image-success-gradient: var(--gradient-success);
+  --background-image-warm-gradient: var(--gradient-warm);
+
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-savings: var(--savings);
+  --color-debt: var(--debt);
+  --color-investment: var(--investment);
+  --color-zus: var(--zus);
+  --color-health: var(--health);
+  --color-ppk: var(--ppk);
+
+  --shadow-card: 0 1px 3px oklch(0.15 0.018 210 / 0.06), 0 2px 8px -2px oklch(0.15 0.018 210 / 0.08);
+  --shadow-elevated: 0 4px 16px -4px oklch(0.15 0.018 210 / 0.12), 0 1px 3px oklch(0.15 0.018 210 / 0.06);
+  --shadow-warm: 0 2px 12px -2px oklch(0.56 0.13 175 / 0.15);
 }
 
 :root {
@@ -78,16 +95,6 @@
   --input:               oklch(0.90 0.014 90);
   --ring:                oklch(0.56 0.13 175);
 
-  /* Shadows */
-  --shadow-card:
-    0 1px 3px oklch(0.15 0.018 210 / 0.06),
-    0 2px 8px -2px oklch(0.15 0.018 210 / 0.08);
-  --shadow-elevated:
-    0 4px 16px -4px oklch(0.15 0.018 210 / 0.12),
-    0 1px 3px oklch(0.15 0.018 210 / 0.06);
-  --shadow-warm:
-    0 2px 12px -2px oklch(0.56 0.13 175 / 0.15);
-
   /* Gradients */
   --gradient-accent:  linear-gradient(135deg, oklch(0.56 0.13 175) 0%, oklch(0.62 0.11 185) 100%);
   --gradient-success: linear-gradient(135deg, oklch(0.56 0.14 148) 0%, oklch(0.62 0.12 160) 100%);
@@ -102,6 +109,9 @@
   --savings:             oklch(0.62 0.13 175);
   --debt:                oklch(0.74 0.13 75);
   --investment:          oklch(0.55 0.1 250);
+  --zus:                 oklch(0.68 0.14 55);
+  --health:              oklch(0.72 0.12 75);
+  --ppk:                 oklch(0.55 0.10 250);
 
   /* Chart Colors */
   --chart-1:             oklch(0.56 0.13 175);
@@ -157,6 +167,9 @@
   --savings:             oklch(0.62 0.13 175);
   --debt:                oklch(0.76 0.13 75);
   --investment:          oklch(0.60 0.12 250);
+  --zus:                 oklch(0.74 0.14 55);
+  --health:              oklch(0.78 0.12 75);
+  --ppk:                 oklch(0.61 0.10 250);
 }
 
 @layer base {

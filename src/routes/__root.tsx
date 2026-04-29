@@ -6,7 +6,7 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground font-display font-bold text-3xl italic shadow-[var(--shadow-warm)]">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground font-display font-bold text-3xl italic shadow-warm">
           S
         </div>
         <h1 className="text-7xl font-bold text-foreground font-display">404</h1>

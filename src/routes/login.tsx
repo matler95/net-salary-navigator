@@ -26,6 +26,17 @@ type InviteContext = {
   is_valid: boolean;
 };
 
+function SaldeoMark({ size = 36 }: { size?: number }) {
+  return (
+    <div
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
+      className="flex shrink-0 items-center justify-center rounded-[10px] bg-accent font-display font-bold italic text-accent-foreground shadow-warm"
+    >
+      S
+    </div>
+  );
+}
+
 function LoginPage() {
   const baseId = useId();
   const router = useRouter();
@@ -270,15 +281,27 @@ function LoginPage() {
   // Don't render the form while we're checking auth (prevents flash)
   if (authLoading) {
     return (
-      <main className="max-w-xl mx-auto px-4 py-10">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent font-display text-3xl font-bold italic text-accent-foreground shadow-warm animate-pulse-gentle">
+            S
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse-gentle">Ładowanie…</p>
+        </div>
       </main>
     );
   }
 
   return (
     <main className="max-w-xl mx-auto px-4 py-12 sm:py-16 animate-fade-up">
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 flex flex-col items-center">
+        <div className="mb-6 flex items-center gap-3">
+          <SaldeoMark size={48} />
+          <div className="text-left">
+            <p className="font-display text-2xl font-bold">Saldeo</p>
+            <p className="text-xs text-muted-foreground">Twoje finanse, po ludzku.</p>
+          </div>
+        </div>
         <h1 className="font-display text-4xl mb-3">
           {mode === "login" ? "Witaj ponownie" : "Dołącz do Saldeo"}
         </h1>
@@ -308,18 +331,18 @@ function LoginPage() {
         </div>
       )}
       <form
-        className="space-y-4 bg-card border border-border rounded-2xl p-8 shadow-[var(--shadow-card)]"
+        className="space-y-4 bg-card border border-border rounded-2xl p-8 shadow-card"
         onSubmit={(e) => void handleSubmit(e)}
         noValidate
       >
         <div className="space-y-1">
-          <Label htmlFor={`${baseId}-email`} className="sr-only">
+          <Label htmlFor={`${baseId}-email`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
             Email
           </Label>
           <Input
             id={`${baseId}-email`}
             type="email"
-            placeholder="email"
+            placeholder="twoj@email.pl"
             value={email}
             autoComplete="email"
             disabled={loading || (hasInvite && !!inviteEmail)}
@@ -332,13 +355,13 @@ function LoginPage() {
           </p>
         )}
         <div className="space-y-1">
-          <Label htmlFor={`${baseId}-password`} className="sr-only">
+          <Label htmlFor={`${baseId}-password`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
             Hasło
           </Label>
           <Input
             id={`${baseId}-password`}
             type="password"
-            placeholder="hasło"
+            placeholder="••••••••"
             value={password}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             disabled={loading}
@@ -347,13 +370,13 @@ function LoginPage() {
         </div>
         {mode === "register" && !hasInvite ? (
           <div className="space-y-1">
-            <Label htmlFor={`${baseId}-household`} className="sr-only">
+            <Label htmlFor={`${baseId}-household`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
               Nazwa gospodarstwa
             </Label>
             <Input
               id={`${baseId}-household`}
               type="text"
-              placeholder="Nazwa gospodarstwa"
+              placeholder="Np. Kowalscy"
               value={householdName}
               disabled={loading}
               onChange={(e) => setHouseholdName(e.target.value)}
@@ -362,13 +385,13 @@ function LoginPage() {
         ) : null}
         {mode === "register" ? (
           <div className="space-y-1">
-            <Label htmlFor={`${baseId}-nickname`} className="sr-only">
+            <Label htmlFor={`${baseId}-nickname`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
               Twoja ksywka
             </Label>
             <Input
               id={`${baseId}-nickname`}
               type="text"
-              placeholder="Twoja ksywka"
+              placeholder="Np. Mati"
               value={nickname}
               disabled={loading}
               onChange={(e) => setNickname(e.target.value)}
@@ -384,7 +407,7 @@ function LoginPage() {
             ? "Zaloguj"
             : "Utwórz konto"}
         </Button>
-        {cooldownSeconds > 0 && (
+        {import.meta.env.DEV && cooldownSeconds > 0 && (
           <Button
             type="button"
             variant="outline"

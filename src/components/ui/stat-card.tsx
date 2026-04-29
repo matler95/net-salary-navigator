@@ -21,11 +21,11 @@ const TONE_VALUE: Record<NonNullable<StatCardProps["tone"]>, string> = {
   destructive: "text-destructive",
   warning:     "text-warning-foreground",
   accent:      "text-accent",
-  income:      "text-[var(--income)]",
-  expense:     "text-[var(--expense)]",
-  savings:     "text-[var(--savings)]",
-  debt:        "text-[var(--debt)]",
-  investment:  "text-[var(--investment)]",
+  income:      "text-income",
+  expense:     "text-expense",
+  savings:     "text-savings",
+  debt:        "text-debt",
+  investment:  "text-investment",
 };
 
 const TONE_ICON_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -34,11 +34,11 @@ const TONE_ICON_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
   destructive: "bg-destructive/12 text-destructive/70",
   warning:     "bg-warning/12 text-warning-foreground/70",
   accent:      "bg-accent/12 text-accent/70",
-  income:      "bg-[var(--income)]/12 text-[var(--income)]/70",
-  expense:     "bg-[var(--expense)]/12 text-[var(--expense)]/70",
-  savings:     "bg-[var(--savings)]/12 text-[var(--savings)]/70",
-  debt:        "bg-[var(--debt)]/12 text-[var(--debt)]/70",
-  investment:  "bg-[var(--investment)]/12 text-[var(--investment)]/70",
+  income:      "bg-income/12 text-income/70",
+  expense:     "bg-expense/12 text-expense/70",
+  savings:     "bg-savings/12 text-savings/70",
+  debt:        "bg-debt/12 text-debt/70",
+  investment:  "bg-investment/12 text-investment/70",
 };
 
 const TONE_GRADIENT_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {

@@ -331,6 +331,7 @@ export function AppShell() {
             type="button"
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsed ? "Rozwiń menu" : "Zwiń menu"}
+            title={collapsed ? "Rozwiń menu" : "Zwiń menu"}
             className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {collapsed ? (
@@ -376,7 +377,7 @@ export function AppShell() {
           <Outlet />
         </main>
 
-        <footer className="border-t border-border px-4 py-3 pb-20 md:px-6 md:py-4 md:pb-4">
+        <footer className="border-t border-border px-4 py-3 pb-6 md:px-6 md:py-4 md:pb-4">
           <p className="text-[11px] md:text-xs text-muted-foreground/60 text-center">
             Wartości szacunkowe · Stawki ZUS/PIT 2025 · {typeof window !== "undefined" && window.innerWidth >= 768 ? "Dane synchronizowane · " : ""}© 2025 Saldeo
           </p>

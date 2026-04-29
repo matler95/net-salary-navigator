@@ -172,7 +172,7 @@ function ExpensesPage() {
             return (
               <div
                 key={g.category}
-                className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-[var(--shadow-card)] relative overflow-hidden"
+                className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
               >
                 {/* Accent border left */}
                 <div
@@ -212,6 +212,10 @@ function ExpensesPage() {
                   {g.items.map((e) => (
                     <ExpenseRow key={e.id} expense={e} color={color} />
                   ))}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
+                  <AddExpenseDialog defaultCategory={g.category} variant="ghost" />
                 </div>
               </div>
             );
@@ -278,7 +282,7 @@ function MonthSelector({
               className={cn(
                 "h-11 rounded-xl text-xs font-bold transition-all flex items-center justify-center border",
                 isSelected
-                  ? "bg-[var(--gradient-accent)] text-accent-foreground border-transparent shadow-[var(--shadow-card)]"
+                  ? "bg-accent-gradient text-accent-foreground border-transparent shadow-card"
                   : "bg-card text-foreground border-border hover:border-accent/40"
               )}
             >
@@ -516,7 +520,7 @@ function ExpenseForm({
             </Button>
             <Button
               type="submit"
-              className="flex-1 sm:w-auto h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
+              className="flex-1 sm:w-auto h-12 rounded-full px-8 bg-accent-gradient text-accent-foreground shadow-warm font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
               disabled={amount <= 0 || !label.trim() || selectedMonths.length === 0}
             >
               {submitLabel}
@@ -528,19 +532,27 @@ function ExpenseForm({
   );
 }
 
-function AddExpenseDialog() {
+function AddExpenseDialog({ defaultCategory, variant = "default" }: { defaultCategory?: string; variant?: "default" | "ghost" }) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-12 sm:h-11 rounded-full px-6 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold">
-          <ListPlus className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Dodaj wydatek</span>
-        </Button>
+        {variant === "default" ? (
+          <Button className="h-12 sm:h-11 rounded-full px-6 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold">
+            <ListPlus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Dodaj wydatek</span>
+          </Button>
+        ) : (
+          <button className="text-[10px] uppercase tracking-wider font-bold text-accent hover:underline flex items-center gap-1.5 transition-all">
+            <ListPlus className="w-3.5 h-3.5" />
+            Dodaj do tej kategorii
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl p-0 rounded-2xl overflow-hidden">
         <ExpenseForm
+          initialData={defaultCategory ? { category: defaultCategory } : undefined}
           onSave={(data) => {
             actions.addExpense(data);
             setOpen(false);

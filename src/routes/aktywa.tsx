@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
 import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
@@ -75,6 +75,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/aktywa")({
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : "oszczednosci",
+  }),
   head: () => ({
     meta: [
       { title: "Aktywa & długi — Saldeo" },
@@ -89,6 +92,8 @@ export const Route = createFileRoute("/aktywa")({
 });
 
 function AssetsPage() {
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const investments = useAppState((s) => s.investments);
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
@@ -107,9 +112,13 @@ function AssetsPage() {
   const netWorth = totalAssets - totalLoans;
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
 
+  const setTab = (t: string) => {
+    void navigate({ search: (prev) => ({ ...prev, tab: t }) });
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
-      <Tabs defaultValue="oszczednosci" className="space-y-8">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-8">
         <header className="flex flex-col gap-6">
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
@@ -320,7 +329,7 @@ function InvestmentsSection() {
           )}
 
           {view === "list" && investments.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden animate-fade-up">
+            <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden animate-fade-up">
               <table className="w-full text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
                   <tr>
@@ -540,7 +549,7 @@ function InvestmentsSummaryView({
     if (active && payload?.length) {
       const { name, value } = payload[0];
       return (
-        <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-[var(--shadow-card)] text-xs">
+        <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-card text-xs">
           <p className="font-medium mb-0.5">{name}</p>
           <p className="font-mono text-accent">{formatPLN(value)}</p>
           <p className="text-muted-foreground">
@@ -556,13 +565,13 @@ function InvestmentsSummaryView({
     <div className="space-y-4 animate-fade-up">
       {/* Top KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
             <BarChart3 className="w-3 h-3" /> Wartość portfela
           </p>
           <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(total)}</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
             <TrendingUp className="w-3 h-3" /> Wpłaty / m-c
           </p>
@@ -570,7 +579,7 @@ function InvestmentsSummaryView({
             {monthlyContribTotal > 0 ? formatPLN(monthlyContribTotal) : "—"}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
             Zysk / Strata (P&L)
           </p>
@@ -583,7 +592,7 @@ function InvestmentsSummaryView({
             </p>
           )}
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
             Największa pozycja
           </p>
@@ -604,7 +613,7 @@ function InvestmentsSummaryView({
       {/* Donut chart + breakdowns */}
       <div className="grid lg:grid-cols-[1fr,1fr] gap-4">
         {/* Donut allocation chart */}
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+        <div className="bg-card rounded-2xl border border-border shadow-card p-5">
           <p className="text-sm font-semibold mb-4">Alokacja portfela</p>
           {total > 0 ? (
             <div className="flex items-center gap-4">
@@ -655,7 +664,7 @@ function InvestmentsSummaryView({
         {/* Type + currency breakdown */}
         <div className="space-y-4">
           {/* By type */}
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+          <div className="bg-card rounded-2xl border border-border shadow-card p-5">
             <p className="text-sm font-semibold mb-3">Klasy aktywów</p>
             <div className="space-y-2.5">
               {byType.map(({ type, value, pct }, idx) => (
@@ -681,7 +690,7 @@ function InvestmentsSummaryView({
           </div>
 
           {/* By currency */}
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] p-5">
+          <div className="bg-card rounded-2xl border border-border shadow-card p-5">
             <p className="text-sm font-semibold mb-3">Ekspozycja walutowa</p>
             <div className="space-y-2.5">
               {byCurrency.map(({ currency, value, pct }, idx) => (
@@ -709,7 +718,7 @@ function InvestmentsSummaryView({
       </div>
 
       {/* Per-position table */}
-      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border bg-muted/30">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
             Pozycje ({sorted.length})
@@ -868,7 +877,7 @@ function AddInvestmentDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button className="h-10 rounded-full px-5 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold border-0">
+        <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
           Dodaj inwestycję
         </Button>
@@ -1192,7 +1201,7 @@ function LoanCard({
 
 
   return (
-    <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]">
+    <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
       <div className="flex items-start justify-between gap-2 mb-3">
         <Input
           value={loan.label}
@@ -1472,7 +1481,7 @@ function RentalsSection() {
             return (
               <div
                 key={r.id}
-                className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]"
+                className="bg-card rounded-2xl p-8 border border-border shadow-card"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <Input
@@ -1673,7 +1682,7 @@ function AddLoanDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-10 rounded-full px-5 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold border-0">
+        <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
           Dodaj kredyt
         </Button>
@@ -1774,7 +1783,7 @@ function AddLoanDialog() {
             </Select>
           </div>
           <DialogFooter>
-            <Button type="submit" className="rounded-full bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold border-0">Dodaj kredyt</Button>
+            <Button type="submit" className="rounded-full bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">Dodaj kredyt</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1797,7 +1806,7 @@ function AddRentalDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-10 rounded-full px-5 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold border-0">
+        <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
           Dodaj nieruchomość
         </Button>
@@ -2004,13 +2013,13 @@ function SavingsSummaryView({
     <div className="space-y-4 animate-fade-up">
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
             <Wallet className="w-3 h-3" /> Saldo łączne
           </p>
           <p className="text-2xl font-bold tabular-nums font-display">{formatPLN(totalBalance)}</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
             <TrendingUp className="w-3 h-3" /> Po odsetkach
           </p>
@@ -2018,7 +2027,7 @@ function SavingsSummaryView({
             {formatPLN(totalWithInterest)}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
             Zysk netto
           </p>
@@ -2029,7 +2038,7 @@ function SavingsSummaryView({
             {formatPLN(totalNetGain)}
           </p>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
             <Clock className="w-3 h-3" /> Kont
           </p>
@@ -2048,7 +2057,7 @@ function SavingsSummaryView({
       >
         {/* Lokaty section */}
         {lokatyByMaturity.length > 0 && (
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
             <div className="px-5 py-3 border-b border-border bg-amber-500/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-amber-600" />
@@ -2205,7 +2214,7 @@ function SavingsSummaryView({
 
         {/* Regular accounts section */}
         {accountsByRate.length > 0 && (
-          <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
             <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
@@ -2335,7 +2344,7 @@ function SavingsSummaryView({
       </div>
 
       {/* Combined snapshot: all accounts sorted by balance */}
-      <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border bg-muted/30">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
             Wszystkie konta
@@ -2442,7 +2451,7 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
       : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] p-4 space-y-3 relative group">
+    <div className="rounded-2xl border border-border bg-card shadow-card p-4 space-y-3 relative group">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-semibold text-sm">{account.bank}</p>
@@ -2566,7 +2575,7 @@ function AddSavingsDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button className="h-10 rounded-full px-5 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold border-0">
+        <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
           Dodaj konto
         </Button>

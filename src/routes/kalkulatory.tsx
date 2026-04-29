@@ -130,7 +130,7 @@ function PortfolioCalculator() {
 
   return (
     <div className="grid lg:grid-cols-[380px,1fr] gap-6">
-      <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)] space-y-6 h-fit">
+      <div className="bg-card rounded-2xl p-8 border border-border shadow-card space-y-6 h-fit">
         <h2 className="font-display text-xl">Założenia</h2>
 
         <NumField
@@ -201,7 +201,7 @@ function PortfolioCalculator() {
           />
         </div>
 
-        <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
           <h3 className="font-display text-lg mb-1">Wzrost portfela</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wpłaty (kapitał) vs wartość rynkowa vs realna wartość po inflacji
@@ -211,12 +211,12 @@ function PortfolioCalculator() {
               <AreaChart data={projection}>
                 <defs>
                   <linearGradient id="g-value" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="g-contrib" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
@@ -233,7 +233,7 @@ function PortfolioCalculator() {
                   type="monotone"
                   dataKey="value"
                   name="Wartość portfela"
-                  stroke="oklch(0.62 0.13 145)"
+                  stroke="var(--chart-2)"
                   strokeWidth={2}
                   fill="url(#g-value)"
                 />
@@ -241,7 +241,7 @@ function PortfolioCalculator() {
                   type="monotone"
                   dataKey="contributions"
                   name="Wpłacony kapitał"
-                  stroke="oklch(0.55 0.1 250)"
+                  stroke="var(--chart-3)"
                   strokeWidth={2}
                   fill="url(#g-contrib)"
                 />
@@ -271,7 +271,7 @@ function PortfolioCalculator() {
           
           <div className="grid sm:grid-cols-2 gap-6 relative z-10">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income po inwestycji</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Nadwyżka po inwestycji</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-display font-bold">
                   {formatPLN(budgetImpact.remainingAfterInvestment)}
@@ -367,7 +367,7 @@ function RealEstateCalculator() {
   return (
     <div className="grid lg:grid-cols-[400px,1fr] gap-6">
       {/* Inputs */}
-      <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)] space-y-6 h-fit">
+      <div className="bg-card rounded-2xl p-8 border border-border shadow-card space-y-6 h-fit">
         <div>
           <h2 className="font-display text-xl mb-3">Zakup</h2>
           <div className="space-y-3">
@@ -575,7 +575,7 @@ function RealEstateCalculator() {
         </div>
 
         {/* Cashflow & equity chart */}
-        <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
           <h3 className="font-display text-lg mb-1">Skumulowany wynik vs kapitał własny</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wartość mieszkania rośnie, kredyt maleje — kapitał własny to różnica.
@@ -625,7 +625,7 @@ function RealEstateCalculator() {
         </div>
 
         {/* Annual cashflow bar */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-5 border border-border shadow-card">
           <h3 className="font-display text-lg mb-1">Roczny wynik (zysk / strata)</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Po kosztach, racie i podatku. Czynsz rośnie {s.rentGrowthPct}% rocznie.
@@ -657,7 +657,7 @@ function RealEstateCalculator() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           {/* Detailed Summary */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+          <div className="bg-card rounded-2xl p-5 border border-border shadow-card">
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-success" />
               Podsumowanie po {s.holdingYears} latach
@@ -701,7 +701,7 @@ function RealEstateCalculator() {
           </div>
 
           {/* Mortgage Breakdown */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+          <div className="bg-card rounded-2xl p-5 border border-border shadow-card">
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
               Koszty kredytu ({s.holdingYears} lat)
@@ -747,7 +747,7 @@ function RealEstateCalculator() {
           
           <div className="grid sm:grid-cols-3 gap-6 relative z-10">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Nadwyżka finansowa</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-display font-bold">
                   {formatPLN(budgetImpact.newDisposable)}

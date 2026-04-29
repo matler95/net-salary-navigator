@@ -146,10 +146,10 @@ function SettingsPage() {
 
   function buildMailtoLink() {
     if (!inviteRecipient || !inviteLink) return "";
-    const subject = "Zaproszenie do Net Salary Navigator";
+    const subject = "Zaproszenie do Saldeo";
     const body = `Cześć,
 
-Zostałeś zaproszony do wspólnego gospodarstwa w aplikacji Net Salary Navigator.
+Zostałeś zaproszony do wspólnego gospodarstwa w aplikacji Saldeo.
 Kliknij ten link, aby dołączyć:
 
 ${inviteLink}
@@ -260,7 +260,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
       <section className="md:hidden">
         <Link
           to="/kalkulatory"
-          className="flex items-center justify-between p-6 bg-accent text-accent-foreground rounded-2xl shadow-[var(--shadow-warm)] transition-transform active:scale-[0.98]"
+          className="flex items-center justify-between p-6 bg-accent text-accent-foreground rounded-2xl shadow-warm transition-transform active:scale-[0.98]"
         >
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
@@ -283,7 +283,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         </div>
       <form
-        className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-[var(--shadow-warm)]"
+        className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-warm"
         onSubmit={(e) => void handleCreateInvite(e)}
         noValidate
       >
@@ -363,13 +363,13 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
           <div className="flex items-center gap-2 mb-3">
             {editingName ? (
-              <input
+              <Input
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
                 onBlur={handleSaveName}
                 onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
                 autoFocus
-                className="text-base font-semibold px-2 py-1 border border-border rounded-md bg-background"
+                className="h-9 text-sm font-semibold"
               />
             ) : (
               <h3 className="text-base font-semibold">{householdName}</h3>
@@ -514,7 +514,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-8 space-y-8 shadow-[var(--shadow-card)]">
+        <div className="bg-card border border-border rounded-2xl p-8 space-y-8 shadow-card">
           <div className="grid sm:grid-cols-2 gap-8">
             {/* Average Salary Forecast */}
             <div className="space-y-2">

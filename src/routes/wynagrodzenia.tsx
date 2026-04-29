@@ -93,7 +93,7 @@ function SalariesPage() {
 
           <Button
             onClick={() => actions.addSpouse()}
-            className="h-12 sm:h-11 rounded-xl px-6 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-bold"
+            className="h-12 sm:h-11 rounded-xl px-6 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-bold"
           >
             <UserPlus className="w-4 h-4" /> Dodaj osobę
           </Button>
@@ -141,7 +141,7 @@ function SalariesPage() {
       )}
 
       {spouses.length === 2 && (
-        <div className="mt-12 bg-[var(--gradient-warm)] rounded-2xl p-6 sm:p-10 border border-border shadow-[var(--shadow-elevated)] flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+        <div className="mt-12 bg-warm-gradient rounded-2xl p-6 sm:p-10 border border-border shadow-elevated flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
           <div className="relative z-10 flex-1 w-full text-center md:text-left">
             <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/50 font-bold mb-1">
               Razem na rękę
@@ -153,7 +153,7 @@ function SalariesPage() {
 
           {jointFiling && joint && joint.savings > 0 && (
             <div className="relative z-10 bg-success/10 border border-success/20 rounded-2xl p-4 flex items-start gap-3 w-full md:w-auto">
-              <div className="bg-success text-success-foreground p-2 rounded-xl shadow-[var(--shadow-warm)]">
+              <div className="bg-success text-success-foreground p-2 rounded-xl shadow-warm">
                 <PartyPopper className="w-5 h-5" />
               </div>
               <div>

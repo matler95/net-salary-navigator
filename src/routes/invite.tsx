@@ -178,7 +178,7 @@ function InvitePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-16 animate-fade-up">
-      <div className="rounded-2xl border border-border bg-card p-8 sm:p-10 shadow-[var(--shadow-card)]">
+      <div className="rounded-2xl border border-border bg-card p-8 sm:p-10 shadow-card">
         <div className="mb-8 text-center sm:text-left">
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">Zaproszenie</p>
           <h1 className="font-display text-4xl mb-3">Dołącz do Saldeo</h1>
