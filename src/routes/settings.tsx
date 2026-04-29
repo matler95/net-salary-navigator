@@ -103,7 +103,7 @@ function SettingsPage() {
           </p>
         </div>
         <Button asChild className="rounded-full px-8">
-          <Link to="/login">Przejdź do logowania</Link>
+          <Link to="/login" search={{ invite: undefined, register: undefined }}>Przejdź do logowania</Link>
         </Button>
       </main>
     );
