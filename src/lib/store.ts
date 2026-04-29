@@ -717,7 +717,7 @@ export const actions = {
         ...s.spouses,
         {
           id: uid(),
-          name: `Małżonek ${s.spouses.length + 1}`,
+          name: "",
           inputs: { ...DEFAULT_SALARY_INPUTS, gross: 8000 },
         },
       ],

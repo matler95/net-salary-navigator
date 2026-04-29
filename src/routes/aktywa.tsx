@@ -2679,7 +2679,7 @@ function AddSavingsDialog() {
           Dodaj konto
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Dodaj konto / lokatę</DialogTitle>
           <DialogDescription>

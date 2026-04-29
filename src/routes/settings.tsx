@@ -293,9 +293,6 @@ function SettingsPage() {
                               {m.role === "owner" && (
                                 <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 text-[9px] px-1.5 h-4">Właściciel</Badge>
                               )}
-                              {session?.user.id === m.user_id && (
-                                <Badge variant="secondary" className="text-[9px] px-1.5 h-4">Ty</Badge>
-                              )}
                             </div>
                             <p className="text-[11px] text-muted-foreground">{m.email}</p>
                           </div>

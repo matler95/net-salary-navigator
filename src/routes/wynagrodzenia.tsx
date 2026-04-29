@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw, Users, UserPlus, PartyPopper, ReceiptText } from "lucide-react";
 import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
 import { getActiveHouseholdId } from "@/lib/store";
-import { useAuthSession } from "@/lib/auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +38,6 @@ function SalariesPage() {
   const spouses = useAppState((s) => s.spouses);
   const jointFiling = useAppState((s) => s.jointFiling);
   const globalSettings = useAppState((s) => s.globalSettings);
-  const { session } = useAuthSession();
 
   const members = useMemo(() => {
     const cached = getCachedMembers();
@@ -53,12 +51,9 @@ function SalariesPage() {
       .map((member) => ({
         user_id: member.user_id,
         role: member.role,
-        label:
-          member.user_id === session?.user.id
-            ? `Ty (${getMemberDisplayName(member)})`
-            : getMemberDisplayName(member),
+        label: getMemberDisplayName(member),
       }));
-  }, [session?.user.id]);
+  }, []);
 
   const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
   const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;

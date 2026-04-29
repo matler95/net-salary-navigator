@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
-import { Trash2, X, ChevronDown, User, Zap, Landmark, BadgePercent, Gift, PiggyBank } from "lucide-react";
+import { Trash2, X, ChevronDown, User, Zap, Landmark, BadgePercent, Gift, PiggyBank, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import React, { useMemo, useState, useEffect, useId, useRef } from "react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -227,6 +227,12 @@ export function SpousePanel({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!spouse.name && memberOptions && memberOptions.length > 0) {
+      setShowMemberDropdown(true);
+    }
+  }, [spouse.name, memberOptions]);
+
   const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
@@ -287,7 +293,7 @@ export function SpousePanel({
                 setShowMemberDropdown(true);
               }}
               onFocus={() => memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)}
-              placeholder="Imię osoby"
+              placeholder={!spouse.name && memberOptions && memberOptions.length > 0 ? "Wybierz osobę..." : "Imię osoby"}
               className="font-display text-3xl font-bold h-12 px-0 bg-transparent border-none rounded-none focus-visible:ring-0 focus-visible:border-none shadow-none text-foreground placeholder:text-muted-foreground/50 w-full"
             />
             {spouse.assignedUserId && (
@@ -295,6 +301,11 @@ export function SpousePanel({
                 <User className="w-3 h-3" /> połączono: {memberOptions?.find(m => m.user_id === spouse.assignedUserId)?.label}
                 <button onClick={handleClearAssignment} className="ml-1 hover:text-foreground"><X className="w-3 h-3" /></button>
               </span>
+            )}
+            {!spouse.name && memberOptions && memberOptions.length > 0 && (
+              <div className="inline-flex items-center gap-1.5 mt-1 text-[10px] font-medium text-muted-foreground bg-muted/30 px-2 py-1.5 rounded-lg">
+                <Search className="w-3 h-3" /> Wybierz z listy poniżej
+              </div>
             )}
             {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
               <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1">

@@ -81,6 +81,7 @@ create table if not exists public.loans (
   monthly_overpayment numeric not null default 0,
   payment_day_of_month integer,
   last_payment_date text,
+  mortgage_insurance_monthly numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -117,6 +118,7 @@ alter table public.household_members add column if not exists role text not null
 alter table public.expenses add column if not exists month integer;
 alter table public.loans add column if not exists payment_day_of_month integer;
 alter table public.loans add column if not exists last_payment_date text;
+alter table public.loans add column if not exists mortgage_insurance_monthly numeric not null default 0;
 alter table public.savings add column if not exists lokata_start_date text;
 alter table public.savings add column if not exists lokata_duration_months integer;
 alter table public.savings add column if not exists lokata_capitalization text;
