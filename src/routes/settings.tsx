@@ -255,6 +255,25 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
         </div>
       </header>
 
+      {/* Kalkulatory Link (Promoted for mobile "Więcej" flow) */}
+      <section className="md:hidden">
+        <Link
+          to="/kalkulatory"
+          className="flex items-center justify-between p-6 bg-accent text-accent-foreground rounded-2xl shadow-[var(--shadow-warm)] transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+            </div>
+            <div>
+              <p className="font-display text-xl font-bold">Kalkulatory</p>
+              <p className="text-xs opacity-80">Porównaj opodatkowanie i raty</p>
+            </div>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><path d="m9 18 6-6-6-6"/></svg>
+        </Link>
+      </section>
+
       <section className="space-y-6">
         <div>
           <h2 className="font-display text-2xl">Zaproś do gospodarstwa</h2>
@@ -263,7 +282,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         </div>
       <form
-        className="bg-card border border-border rounded-[2rem] p-8 space-y-4 shadow-[var(--shadow-warm)]"
+        className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-[var(--shadow-warm)]"
         onSubmit={(e) => void handleCreateInvite(e)}
         noValidate
       >
@@ -337,7 +356,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/40 p-8 shadow-sm">
           <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
             Stan gospodarstwa
           </p>
@@ -399,7 +418,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/40 p-8 shadow-sm">
           <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
             Członkowie gospodarstwa
           </p>
@@ -428,7 +447,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
         </div>
       </div>
 
-      <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+      <div className="rounded-2xl border border-border bg-muted/40 p-8 shadow-sm">
         <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
           Zaproszenia
         </p>
@@ -469,7 +488,7 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         </div>
 
-        <div className="bg-card border border-border rounded-[2rem] p-8 space-y-8 shadow-[var(--shadow-card)]">
+        <div className="bg-card border border-border rounded-2xl p-8 space-y-8 shadow-[var(--shadow-card)]">
           <div className="grid sm:grid-cols-2 gap-8">
             {/* Average Salary Forecast */}
             <div className="space-y-2">

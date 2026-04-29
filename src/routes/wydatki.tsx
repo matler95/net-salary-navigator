@@ -8,6 +8,7 @@ import {
   type Frequency,
 } from "@/lib/finance";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -146,16 +147,13 @@ function ExpensesPage() {
       </header>
 
       {grouped.length === 0 ? (
-        <div className="bg-card rounded-[2rem] p-8 md:p-12 border border-border shadow-[var(--shadow-elevated)] text-center max-w-2xl mx-auto my-12 animate-fade-up">
-          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-destructive/5">
-            <ShoppingBag className="w-12 h-12 text-destructive/40" strokeWidth={1.5} />
-          </div>
-          <h2 className="font-display text-2xl font-bold mb-3">Jeszcze nie śledzisz wydatków</h2>
-          <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-md mx-auto">
-            Zacznij od największych kategorii — czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego.
-          </p>
-          <AddExpenseDialog />
-        </div>
+        <EmptyState
+          icon={ShoppingBag}
+          title="Jeszcze nie śledzisz wydatków"
+          description="Zacznij od największych kategorii — czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
+          action={<AddExpenseDialog />}
+          className="my-12 max-w-2xl mx-auto"
+        />
       ) : (
         <div className="grid lg:grid-cols-2 gap-6">
           {grouped.map((g) => {
@@ -166,7 +164,7 @@ function ExpensesPage() {
             return (
               <div
                 key={g.category}
-                className="bg-card rounded-[1.5rem] p-5 sm:p-6 border border-border shadow-[var(--shadow-card)] relative overflow-hidden"
+                className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-[var(--shadow-card)] relative overflow-hidden"
               >
                 {/* Accent border left */}
                 <div 
@@ -370,7 +368,7 @@ function AddExpenseDialog() {
           <span className="hidden sm:inline">Dodaj wydatek</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl p-6 sm:p-8 rounded-[2rem]">
+      <DialogContent className="sm:max-w-xl p-6 sm:p-8 rounded-2xl">
         <DialogHeader className="mb-6">
           <DialogTitle className="font-display text-2xl">Nowy wydatek</DialogTitle>
           <DialogDescription>

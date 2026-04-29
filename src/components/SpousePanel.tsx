@@ -160,12 +160,14 @@ function SectionGroup({
   children,
   defaultOpen = false,
   activeIndicator = false,
+  summary,
 }: {
   title: string;
   icon: React.ElementType;
   children: React.ReactNode;
   defaultOpen?: boolean;
   activeIndicator?: boolean;
+  summary?: string | null;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -178,10 +180,16 @@ function SectionGroup({
             open ? "bg-accent-soft/40" : "bg-muted/30 hover:bg-muted/50"
           )}
         >
-          <div className="flex items-center gap-3">
-            <Icon className="h-4 w-4 text-accent" />
-            <span className="font-semibold text-sm">{title}</span>
-            {activeIndicator && <div className="h-2 w-2 rounded-full bg-accent" />}
+          <div className="flex items-center justify-between flex-1 pr-2">
+            <div className="flex items-center gap-3">
+              <Icon className="h-4 w-4 text-accent" />
+              <span className="font-semibold text-sm">{title}</span>
+            </div>
+            {!open && summary && (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider animate-in fade-in slide-in-from-right-1">
+                {summary}
+              </span>
+            )}
           </div>
           <ChevronDown
             className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")}
@@ -251,7 +259,7 @@ export function SpousePanel({
   const pctPpk = (r.ppkEmployee / totalBase) * 100;
 
   return (
-    <div className="bg-card rounded-3xl shadow-[var(--shadow-card)] border border-border overflow-hidden relative group/panel">
+    <div className="bg-card rounded-2xl shadow-[var(--shadow-card)] border border-border overflow-hidden relative group/panel">
       {/* HEADER */}
       <div className="flex items-center justify-between gap-4 p-5 bg-[var(--gradient-warm)] border-b border-border">
         <div className="flex items-center gap-4 flex-1">
@@ -309,7 +317,7 @@ export function SpousePanel({
         {/* RIGHT COLUMN (Results on desktop, top on mobile) */}
         <div className="order-first lg:order-last space-y-6">
           {/* Hero Result */}
-          <div className="rounded-[2rem] p-6 bg-[var(--gradient-hero)] text-primary-foreground shadow-[var(--shadow-warm)]">
+          <div className="rounded-2xl p-6 bg-[var(--gradient-hero)] text-primary-foreground shadow-[var(--shadow-warm)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
               Na rękę
             </p>
@@ -443,7 +451,12 @@ export function SpousePanel({
           <Separator className="my-6" />
 
           {/* Collapsibles */}
-          <SectionGroup title="Benefity i dodatki" icon={Gift} activeIndicator={hasBenefits}>
+          <SectionGroup 
+            title="Benefity i dodatki" 
+            icon={Gift} 
+            activeIndicator={hasBenefits}
+            summary={hasBenefits ? formatPLN(spouse.inputs.benefitsTaxable + spouse.inputs.lunchAllowance + spouse.inputs.remoteAllowance + (spouse.inputs.companyCarEnabled ? (spouse.inputs.companyCarMode === "statutory" ? parseInt(spouse.inputs.companyCarStatutoryValue) : spouse.inputs.companyCarManualAmount) : 0)) : null}
+          >
             <div className="grid grid-cols-2 gap-4">
               <NumberField
                 label="Benefity (LuxMed, sport)"
@@ -594,7 +607,12 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup title="PPK" icon={PiggyBank} activeIndicator={hasPpk}>
+          <SectionGroup 
+            title="PPK" 
+            icon={PiggyBank} 
+            activeIndicator={hasPpk}
+            summary={hasPpk ? `${spouse.inputs.ppkEmployeeRate}% / ${spouse.inputs.ppkEmployerRate}%` : null}
+          >
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <div className="flex justify-between mb-2">
@@ -629,7 +647,12 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup title="Premia i Bonusy" icon={Zap} activeIndicator={hasBonus}>
+          <SectionGroup 
+            title="Premia i Bonusy" 
+            icon={Zap} 
+            activeIndicator={hasBonus}
+            summary={hasBonus ? formatPLN(spouse.inputs.bonusOverrideGross ?? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))) : null}
+          >
             <ToggleRow
               label="Dodaj premię roczną"
               hint="Zostanie doliczona do dochodu w wybranym miesiącu"

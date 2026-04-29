@@ -102,8 +102,7 @@ export function AppShell() {
     if (typeof window === "undefined") return false;
     const saved = window.localStorage.getItem(SIDEBAR_KEY);
     if (saved !== null) return saved === "true";
-    // Default: collapsed on tablet, expanded on desktop
-    return window.innerWidth < 1024;
+    return false; // Default to expanded for SSR safety
   });
 
   // Persist collapse state
@@ -184,10 +183,19 @@ export function AppShell() {
     "Ty";
   const avatarLetter = nickname[0]?.toUpperCase() ?? "?";
 
-  const sidebarW = collapsed ? 64 : 240;
+  const mobileNav = [
+    { to: "/",             label: "Dom",         icon: LayoutDashboard },
+    { to: "/wynagrodzenia",label: "Zarobki",     icon: Banknote        },
+    { to: "/wydatki",      label: "Wydatki",     icon: ShoppingBag     },
+    { to: "/aktywa",       label: "Majątek",     icon: TrendingUp      },
+    { to: "/settings",     label: "Więcej",      icon: Menu            },
+  ];
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row bg-background">
+    <div
+      className="flex min-h-screen flex-col md:flex-row bg-background"
+      data-sidebar-collapsed={collapsed}
+    >
       {/* ── Skip link ───────────────────────────────────────────── */}
       <a
         href="#main-content"
@@ -198,7 +206,7 @@ export function AppShell() {
 
       {/* ── Desktop Sidebar (Hidden on mobile) ────────────────────── */}
       <aside
-        style={{ width: sidebarW }}
+        style={{ width: "var(--sidebar-width)" }}
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden md:flex flex-col border-r border-border bg-card transition-[width] duration-200 ease-in-out overflow-hidden",
         )}
@@ -339,8 +347,7 @@ export function AppShell() {
 
       {/* ── Main View Area ────────────────────────────────────────── */}
       <div
-        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[margin-left] duration-200 ease-in-out"
-        style={{ marginLeft: typeof window !== "undefined" && window.innerWidth >= 768 ? sidebarW : 0 }}
+        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[padding-left] duration-200 ease-in-out md:pl-[var(--sidebar-width)]"
       >
         {/* Mobile header (hidden on md+) */}
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 backdrop-blur-sm px-4 md:hidden">
@@ -381,7 +388,7 @@ export function AppShell() {
           className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-1 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] flex items-stretch justify-around shadow-[0_-4px_20px_oklch(0.15_0.018_210/0.08)] md:hidden"
           style={{ minHeight: 64 }}
         >
-          {NAV.map((n) => {
+          {mobileNav.map((n) => {
             const Icon = n.icon;
             const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
             return (

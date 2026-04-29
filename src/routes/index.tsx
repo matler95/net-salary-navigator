@@ -269,117 +269,102 @@ function Dashboard() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-up">
       {/* A) HERO SECTION */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--gradient-hero)] p-6 sm:p-10 text-primary-foreground shadow-[var(--shadow-elevated)]">
-        {/* Background decorative S */}
-        <div className="pointer-events-none absolute -right-20 -top-20 opacity-5 select-none font-display italic font-bold" style={{ fontSize: "400px", lineHeight: 1 }}>
-          S
-        </div>
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div>
-            <p className="font-display text-xl sm:text-2xl mb-4 italic text-primary-foreground/90">
-              {greeting()}, {nickname}!
-            </p>
-            <p className="font-display text-5xl sm:text-7xl tracking-tight mb-2 animate-count-up tabular-nums">
-              {formatPLN(totalSelectedMonthNet).replace(" zł", "")} <span className="text-3xl sm:text-4xl text-primary-foreground/70">zł</span>
-            </p>
-            <p className="text-sm sm:text-base text-primary-foreground/70 font-medium tracking-wide">
-              NA RĘKĘ W {monthLabel(selectedMonthIdx, true).toUpperCase()}
-            </p>
-          </div>
-
-          <div className="hidden md:flex flex-col gap-3 min-w-[200px]">
-            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
-              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">
-                {selectedMonthCashflow >= 0 ? "Zysk" : "Strata"}
+      <section className="bg-card rounded-2xl p-6 sm:p-8 shadow-[var(--shadow-elevated)] border border-border">
+        <div className="flex flex-col gap-6">
+          {/* Header row with greeting and month navigator */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 font-display text-lg font-bold italic text-accent">
+                S
+              </div>
+              <p className="font-display text-xl italic text-foreground/80">
+                {greeting()}, {nickname}!
               </p>
-              <p className="font-display text-xl tabular-nums">{formatPLN(selectedMonthCashflow)}</p>
             </div>
-            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
-              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">Wydatki (est.)</p>
-              <p className="font-display text-xl tabular-nums">{formatPLN(selectedMonthExpenses + monthlyLoanPmt)}</p>
+
+            <div className="inline-flex items-center rounded-full border border-border bg-muted/30 p-1">
+              <button
+                onClick={() => setSelectedMonthIdx((m) => (m === 1 ? 12 : m - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+                aria-label="Poprzedni miesiąc"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="px-3 text-xs font-bold w-28 text-center text-foreground uppercase tracking-wider">
+                {monthLabel(selectedMonthIdx, true)}
+              </div>
+              <button
+                onClick={() => setSelectedMonthIdx((m) => (m === 12 ? 1 : m + 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+                aria-label="Następny miesiąc"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
-              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">Majątek netto</p>
-              <p className="font-display text-xl tabular-nums">{formatPLN(netWorth)}</p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8 items-end">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                Suma na rękę
+              </p>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-5xl tracking-tight animate-count-up tabular-nums text-foreground">
+                  {formatPLN(totalSelectedMonthNet).replace(" zł", "")}
+                </p>
+                <span className="text-2xl text-muted-foreground font-medium">zł</span>
+              </div>
+              
+              {/* Consolidated Monthly Stats */}
+              <div className="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-6">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Dochody</p>
+                  <p className="font-mono text-sm font-bold text-success">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki</p>
+                  <p className="font-mono text-sm font-bold text-destructive">{formatPLN(selectedMonthExpenses)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Kredyty</p>
+                  <p className="font-mono text-sm font-bold text-warning-foreground">{formatPLN(monthlyLoanPmt)}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* B) MONTH NAVIGATOR */}
-      <section className="flex justify-center">
-        <div className="inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
-          <button
-            onClick={() => setSelectedMonthIdx((m) => (m === 1 ? 12 : m - 1))}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="px-4 text-sm font-semibold w-32 text-center text-foreground">
-            {monthLabel(selectedMonthIdx, true)}
-          </div>
-          <button
-            onClick={() => setSelectedMonthIdx((m) => (m === 12 ? 1 : m + 1))}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </section>
-
-      {/* C) CASHFLOW CARD */}
-      <section className="rounded-[1.5rem] bg-card border border-border p-5 sm:p-6 shadow-[var(--shadow-card)] card-hover">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
-              {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
-            </p>
-            <p className={cn("font-display text-4xl tabular-nums animate-count-up", selectedMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
-              {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow)}
-            </p>
-          </div>
-
-          <div className="h-16 w-full lg:w-48 shrink-0 opacity-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cashflowSparkline}>
-                <Line
-                  type="monotone"
-                  dataKey="val"
-                  stroke="var(--accent)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="rounded-lg bg-popover px-2 py-1 text-xs shadow-md border border-border text-popover-foreground">
-                          {payload[0].payload.name}: <span className="font-semibold">{formatPLN(payload[0].value as number)}</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-border">
-          <div className="flex-1 min-w-[120px]">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Dochody</p>
-            <p className="font-semibold text-sm mt-0.5">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
-          </div>
-          <div className="flex-1 min-w-[120px]">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Wydatki</p>
-            <p className="font-semibold text-sm mt-0.5">{formatPLN(selectedMonthExpenses)}</p>
-          </div>
-          <div className="flex-1 min-w-[120px]">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Raty kredytów</p>
-            <p className="font-semibold text-sm mt-0.5">{formatPLN(monthlyLoanPmt)}</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-0.5">
+                    {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
+                  </p>
+                  <p className={cn("font-display text-3xl tabular-nums", selectedMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
+                    {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow)}
+                  </p>
+                </div>
+                <div className="h-12 w-32 shrink-0 opacity-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={cashflowSparkline}>
+                      <Line
+                        type="monotone"
+                        dataKey="val"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              <div className="rounded-xl bg-muted/30 p-4 border border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Landmark className="h-4 w-4 text-accent" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Majątek netto</span>
+                </div>
+                <p className="font-display text-xl tabular-nums text-foreground">{formatPLN(netWorth)}</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -434,7 +419,7 @@ function Dashboard() {
       {/* E) CHARTS SECTION */}
       <section className="grid lg:grid-cols-2 gap-6">
         {/* Tax threshold chart */}
-        <div className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Zarobki vs II próg podatkowy</h2>
           <p className="text-sm text-muted-foreground mb-6">Skumulowana roczna podstawa (120k zł)</p>
           <div className="h-64">
@@ -476,7 +461,7 @@ function Dashboard() {
         </div>
 
         {/* Expense breakdown pie */}
-        <div className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
           <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(totalExpenses)}</p>
           {byCategory.length === 0 ? (
@@ -515,7 +500,7 @@ function Dashboard() {
       </section>
 
       {/* F) SAVINGS PROJECTION CHART */}
-      <section className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="font-display text-xl mb-1 gradient-text font-bold">Projekcja budżetu</h2>
@@ -576,7 +561,7 @@ function Dashboard() {
       <section className="grid sm:grid-cols-3 gap-4">
         <Link
           to="/wynagrodzenia"
-          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-accent/5 p-8 transition-transform group-hover:scale-110">
             <Banknote className="h-10 w-10 text-accent/20" />
@@ -592,7 +577,7 @@ function Dashboard() {
         </Link>
         <Link
           to="/wydatki"
-          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-destructive/5 p-8 transition-transform group-hover:scale-110">
             <ShoppingBag className="h-10 w-10 text-destructive/20" />
@@ -608,7 +593,7 @@ function Dashboard() {
         </Link>
         <Link
           to="/aktywa"
-          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+          className="group relative overflow-hidden rounded-2xl bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
         >
           <div className="absolute -right-4 -top-4 rounded-full bg-success/5 p-8 transition-transform group-hover:scale-110">
             <Landmark className="h-10 w-10 text-success/20" />

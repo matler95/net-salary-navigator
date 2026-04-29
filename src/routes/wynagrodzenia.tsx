@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const Route = createFileRoute("/wynagrodzenia")({
   head: () => ({
@@ -125,21 +126,20 @@ function SalariesPage() {
       </header>
 
       {spouses.length === 0 ? (
-        <div className="bg-card rounded-[2rem] p-8 md:p-12 border border-border shadow-[var(--shadow-elevated)] text-center max-w-2xl mx-auto my-12 animate-fade-up">
-          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-accent/5">
-            <ReceiptText className="w-12 h-12 text-accent/40" strokeWidth={1.5} />
-          </div>
-          <h2 className="font-display text-2xl font-bold mb-3">Jeszcze nikogo nie ma</h2>
-          <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-md mx-auto">
-            Dodaj pierwszą osobę, wpisz wynagrodzenie brutto, a Saldeo dokładnie wyliczy ile zostanie na rękę, pomagając w zaplanowaniu budżetu.
-          </p>
-          <Button 
-            onClick={() => actions.addSpouse()}
-            className="h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:scale-[1.02] active:scale-[0.98] transition-all text-sm font-bold"
-          >
-            <UserPlus className="w-4 h-4 mr-2" /> Dodaj pierwszą osobę
-          </Button>
-        </div>
+        <EmptyState
+          icon={ReceiptText}
+          title="Jeszcze nikogo nie ma"
+          description="Dodaj pierwszą osobę, wpisz wynagrodzenie brutto, a Saldeo dokładnie wyliczy ile zostanie na rękę, pomagając w zaplanowaniu budżetu."
+          action={
+            <Button
+              onClick={() => actions.addSpouse()}
+              className="h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:scale-[1.02] active:scale-[0.98] transition-all text-sm font-bold"
+            >
+              <UserPlus className="w-4 h-4 mr-2" /> Dodaj pierwszą osobę
+            </Button>
+          }
+          className="my-12 max-w-2xl mx-auto"
+        />
       ) : (
         <div className="grid xl:grid-cols-2 gap-6 lg:gap-8">
           {spouses.map((s) => (
@@ -149,7 +149,7 @@ function SalariesPage() {
       )}
 
       {spouses.length === 2 && (
-        <div className="mt-12 bg-[var(--gradient-warm)] rounded-[2rem] p-6 sm:p-10 border border-border shadow-[var(--shadow-elevated)] flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+        <div className="mt-12 bg-[var(--gradient-warm)] rounded-2xl p-6 sm:p-10 border border-border shadow-[var(--shadow-elevated)] flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
           <div className="relative z-10 flex-1 w-full text-center md:text-left">
             <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/50 font-bold mb-1">
               Razem na rękę

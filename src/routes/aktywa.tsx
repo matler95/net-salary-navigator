@@ -295,7 +295,7 @@ function InvestmentsSection() {
       )}
 
       {view === "list" && investments.length > 0 && (
-        <div className="bg-card rounded-[2rem] border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
               <tr>
@@ -1143,7 +1143,7 @@ function LoanCard({
   }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.label]);
 
   return (
-    <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]">
+    <div className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-2 mb-3">
         <Input
           value={loan.label}
@@ -1397,7 +1397,7 @@ function RentalsSection() {
             return (
               <div
                 key={r.id}
-                className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]"
+                className="bg-card rounded-2xl p-8 border border-border shadow-[var(--shadow-card)]"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <Input
@@ -2413,7 +2413,7 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
       </div>
 
       {isLokata && gross !== null && net !== null && (
-        <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-xs border border-border/50">
+        <div className="rounded-2xl bg-muted/50 p-3 space-y-2 text-xs border border-border/50">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             Podsumowanie lokaty
           </p>

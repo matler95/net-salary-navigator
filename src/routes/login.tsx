@@ -308,7 +308,7 @@ function LoginPage() {
         </div>
       )}
       <form
-        className="space-y-4 bg-card border border-border rounded-[2rem] p-8 shadow-[var(--shadow-card)]"
+        className="space-y-4 bg-card border border-border rounded-2xl p-8 shadow-[var(--shadow-card)]"
         onSubmit={(e) => void handleSubmit(e)}
         noValidate
       >
