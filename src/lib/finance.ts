@@ -447,12 +447,19 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
   const totalCashflow = cumulative;
   const totalReturn = totalCashflow + (finalEquity - totalUpfront);
-  const totalReturnPct = totalUpfront > 0 ? (totalReturn / totalUpfront) * 100 : 0;
+  
+  // Invested capital for ROI should include all monthly top-ups if cashflow was negative
+  const totalInjections = yearly.reduce((sum, y) => sum + (y.cashflow < 0 ? Math.abs(y.cashflow) : 0), 0);
+  const investedCapital = totalUpfront + totalInjections;
+  
+  const totalReturnPct = investedCapital > 0 ? (totalReturn / investedCapital) * 100 : 0;
+  
   // Approximate annualized IRR: ((endValue / start) ^ (1/years) − 1)
-  const endValue = totalUpfront + totalReturn;
+  // Here start is totalUpfront, but effectively we are adding money over time.
+  // For simplicity, we use the same investedCapital base.
   const irrAnnualPct =
-    totalUpfront > 0 && s.holdingYears > 0
-      ? (Math.pow(Math.max(0.0001, endValue / totalUpfront), 1 / s.holdingYears) - 1) * 100
+    investedCapital > 0 && s.holdingYears > 0
+      ? (Math.pow(Math.max(0.0001, (investedCapital + totalReturn) / investedCapital), 1 / s.holdingYears) - 1) * 100
       : 0;
 
   return {
@@ -479,6 +486,49 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     totalReturnPct: round2(totalReturnPct),
     irrAnnualPct: round2(irrAnnualPct),
   };
+}
+
+/**
+ * Minimum monthly rent (gross, from tenant) at which monthly cash-flow = 0.
+ * Solves: rent*(1−vacancy%)*(1−tax%) = mortgage + insurance + monthlyCosts
+ */
+export function minBreakEvenRent(s: RealEstateScenario, r: RealEstateResult): number {
+  const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts;
+  const factor = (1 - s.vacancyRatePct / 100) * (1 - s.taxRatePct / 100);
+  return factor > 0 ? round2(totalFixed / factor) : 0;
+}
+
+/** Qualitative investment verdict based on cashflow + yield + IRR */
+export type InvestmentVerdict = "rentowna" | "graniczna" | "kapitalowa" | "ryzykowna";
+export function getInvestmentVerdict(r: RealEstateResult): InvestmentVerdict {
+  if (r.monthlyCashflow > 0 && r.netYieldPct >= 4) return "rentowna";
+  if (r.monthlyCashflow >= -400) return "graniczna";
+  if (r.irrAnnualPct >= 5) return "kapitalowa";
+  return "ryzykowna";
+}
+
+/** Cashflow & payment impact for interest-rate deltas of −3 … +3 pp */
+export interface WiborScenario {
+  rateDelta: number;   // pp relative to current rate
+  ratePct: number;     // absolute rate
+  monthlyPmt: number;
+  monthlyCashflow: number;
+  pmtDelta: number;    // vs base
+  cashflowDelta: number;
+}
+export function wiborSensitivity(s: RealEstateScenario, base: RealEstateResult): WiborScenario[] {
+  return [-3, -2, -1, 0, 1, 2, 3].map((delta) => {
+    const newRate = Math.max(0.1, s.mortgageRatePct + delta);
+    const r = calculateRealEstate({ ...s, mortgageRatePct: newRate });
+    return {
+      rateDelta: delta,
+      ratePct: round2(newRate),
+      monthlyPmt: r.monthlyPmt,
+      monthlyCashflow: r.monthlyCashflow,
+      pmtDelta: round2(r.monthlyPmt - base.monthlyPmt),
+      cashflowDelta: round2(r.monthlyCashflow - base.monthlyCashflow),
+    };
+  });
 }
 
 function round2(n: number) {

@@ -13,8 +13,13 @@ import {
   calculateRealEstate,
   getExpenseMonthlyAverage,
   monthlyPayment,
+  minBreakEvenRent,
+  getInvestmentVerdict,
+  wiborSensitivity,
   type RealEstateScenario,
   type PortfolioInputs,
+  type InvestmentVerdict,
+  type WiborScenario,
 } from "@/lib/finance";
 import {
   Accordion,
@@ -32,6 +37,12 @@ import {
   ChevronRight,
   Info,
   Calendar,
+  AlertTriangle,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  BarChart2,
 } from "lucide-react";
 import {
   AreaChart,
@@ -179,7 +190,7 @@ function PortfolioCalculator() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[380px,1fr] gap-8 items-start">
+      <div className="grid lg:grid-cols-[360px,1fr] gap-8 items-start">
         <div className="bg-card rounded-3xl p-8 border border-border shadow-card space-y-8 h-fit">
           <div>
             <h2 className="font-display text-2xl mb-6 flex items-center gap-2">
@@ -399,6 +410,16 @@ function RealEstateCalculator() {
     reserve: 250,
   });
 
+  const [isInsuranceManual, setIsInsuranceManual] = useState(false);
+
+  useEffect(() => {
+    if (!isInsuranceManual && s.purchasePrice > 0) {
+      const principal = s.purchasePrice * (1 - s.downPaymentPct / 100);
+      const suggestedInsurance = Math.round(principal * 0.0004);
+      setS(prev => ({ ...prev, mortgageInsuranceMonthly: suggestedInsurance }));
+    }
+  }, [s.purchasePrice, s.downPaymentPct, isInsuranceManual]);
+
   useEffect(() => {
     const total = Object.values(costs).reduce((a, b) => a + b, 0);
     setS(prev => ({ ...prev, monthlyCosts: total }));
@@ -406,6 +427,9 @@ function RealEstateCalculator() {
 
   const r = useMemo(() => calculateRealEstate(s), [s]);
   const cashflowPositive = r.monthlyCashflow >= 0;
+  const minRent = useMemo(() => minBreakEvenRent(s, r), [s, r]);
+  const verdict = getInvestmentVerdict(r);
+  const wiborData = useMemo(() => wiborSensitivity(s, r), [s, r]);
 
   // BUDGET INTEGRATION
   const spouses = useAppState((st) => st.spouses);
@@ -440,51 +464,96 @@ function RealEstateCalculator() {
     };
   }, [spouses, expenses, loans, globalSettings, r.monthlyCashflow, r.monthlyPmt]);
 
+  const verdictMeta: Record<InvestmentVerdict, { label: string; desc: string; banner: string; icon: typeof CheckCircle2 }> = {
+    rentowna:  { label: "Opłacalna inwestycja ✓", desc: "Czynsz pokrywa wszystkie koszty i zostaje Ci nadwyżka co miesiąc. Dobry wynik.", banner: "bg-success/8 border-success/25", icon: CheckCircle2 },
+    graniczna: { label: "Na granicy opłacalności", desc: "Czynsz ledwo pokrywa koszty — mała zmiana (rata, pustostan) może spowodować miesięczne dopłaty.", banner: "bg-warning/8 border-warning/25", icon: AlertTriangle },
+    kapitalowa:{ label: "Zysk przy sprzedaży", desc: "Co miesiąc dokładasz do interesu, ale mieszkanie zyskuje na wartości — zarobisz głównie przy sprzedaży.", banner: "bg-accent/8 border-accent/25", icon: BarChart2 },
+    ryzykowna: { label: "Wysokie ryzyko straty", desc: "Czynsz nie pokrywa kosztów, a mieszkanie drożeje zbyt wolno, żeby to zrekompensować. Rozważ inne opcje.", banner: "bg-destructive/8 border-destructive/25", icon: XCircle },
+  };
+  const vm = verdictMeta[verdict];
+  const VerdictIcon = vm.icon;
+  const rentMargin = s.monthlyRent - minRent;
+  const rentMarginPct = minRent > 0 ? (rentMargin / minRent) * 100 : 0;
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero Results Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Verdict Banner */}
+      <div className={cn("rounded-2xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4", vm.banner)}>
+        <div className="flex items-start gap-3">
+          <VerdictIcon className={cn("w-5 h-5 mt-0.5 shrink-0",
+            verdict === "rentowna" ? "text-success" :
+            verdict === "graniczna" ? "text-warning-foreground" :
+            verdict === "kapitalowa" ? "text-accent" : "text-destructive"
+          )} />
+          <div>
+            <p className={cn("text-sm font-bold",
+              verdict === "rentowna" ? "text-success" :
+              verdict === "graniczna" ? "text-warning-foreground" :
+              verdict === "kapitalowa" ? "text-accent" : "text-destructive"
+            )}>{vm.label}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{vm.desc}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-6 shrink-0 pl-8 sm:pl-0">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Minimalny czynsz</p>
+            <p className="font-mono font-bold text-sm">{formatPLN(minRent)}<span className="text-xs font-normal text-muted-foreground">/mies.</span></p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Twój margines</p>
+            <p className={cn("font-mono font-bold text-sm", rentMargin >= 0 ? "text-success" : "text-destructive")}>
+              {rentMargin >= 0 ? "+" : ""}{formatPLN(rentMargin)}
+              <span className={cn("text-[10px] ml-1 font-normal", rentMarginPct >= 0 ? "text-success" : "text-destructive")}>
+                ({rentMarginPct >= 0 ? "+" : ""}{rentMarginPct.toFixed(0)}%)
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className={cn(
-          "relative overflow-hidden rounded-3xl border border-border p-8 shadow-warm transition-all",
+          "relative overflow-hidden rounded-3xl border border-border p-6 shadow-warm transition-all col-span-2 lg:col-span-1",
           cashflowPositive ? "bg-success/5 border-success/20" : "bg-destructive/5 border-destructive/20"
         )}>
           <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-2">Pieniądze na rękę</p>
-          <div className="flex items-baseline gap-2">
-            <h2 className={cn(
-              "font-display text-5xl sm:text-6xl tracking-tight",
-              cashflowPositive ? "text-success" : "text-destructive"
-            )}>
-              {formatPLN2(r.monthlyCashflow)}
-            </h2>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">
-            {cashflowPositive ? "Tyle zostanie Ci w portfelu co miesiąc ✓" : "Tyle będziesz musiał dopłacać co miesiąc"}
+          <h2 className={cn("font-display text-4xl sm:text-5xl tracking-tight", cashflowPositive ? "text-success" : "text-destructive")}>
+            {formatPLN2(r.monthlyCashflow)}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-2 font-medium">
+            {cashflowPositive ? "miesięcznie ✓" : "dopłata miesięcznie"}
           </p>
-          <div className={cn(
-            "absolute -right-4 -bottom-4 w-32 h-32 opacity-10",
-            cashflowPositive ? "text-success" : "text-destructive"
-          )}>
+          <div className={cn("absolute -right-3 -bottom-3 w-20 h-20 opacity-10", cashflowPositive ? "text-success" : "text-destructive")}>
             <Wallet className="w-full h-full" />
           </div>
         </div>
 
-        <div className="bg-card rounded-3xl border border-border p-8 shadow-card flex flex-col justify-center">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-1">Zysk roczny</p>
-          <h2 className="font-display text-4xl text-accent">{r.irrAnnualPct.toFixed(1)}%</h2>
-          <p className="text-xs text-muted-foreground mt-2">Średni zysk uwzględniający to, że mieszkanie drożeje</p>
+        <div className="bg-card rounded-3xl border border-border p-6 shadow-card flex flex-col justify-center">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-1">Zysk roczny (IRR)</p>
+          <h2 className="font-display text-3xl text-accent">{r.irrAnnualPct.toFixed(1)}%</h2>
+          <p className="text-xs text-muted-foreground mt-2">Uwzględnia wzrost wartości</p>
         </div>
 
-        <div className="bg-card rounded-3xl border border-border p-8 shadow-card flex flex-col justify-center">
+        <div className="bg-card rounded-3xl border border-border p-6 shadow-card flex flex-col justify-center">
           <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-1">Opłacalność gotówki</p>
-          <h2 className="font-display text-4xl text-foreground">{r.cashOnCashPct.toFixed(1)}%</h2>
-          <p className="text-xs text-muted-foreground mt-2">Ile zarabia każda złotówka, którą wyłożyłeś</p>
+          <h2 className="font-display text-3xl text-foreground">{r.cashOnCashPct.toFixed(1)}%</h2>
+          <p className="text-xs text-muted-foreground mt-2">Zysk z wyłożonej gotówki</p>
+        </div>
+
+        <div className="bg-card rounded-3xl border border-border p-6 shadow-card flex flex-col justify-center">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold mb-1">Rentowność netto</p>
+          <h2 className="font-display text-3xl text-foreground">{r.netYieldPct.toFixed(2)}%</h2>
+          <p className="text-xs text-muted-foreground mt-2">
+            {r.netYieldPct >= 5 ? "✓ Dobry poziom (≥5%)" : r.netYieldPct >= 4 ? "OK (≥4%" : "Poniżej 4%"}
+          </p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[420px,1fr] gap-8 items-start">
+      <div className="grid lg:grid-cols-[360px,1fr] gap-8 items-start">
         {/* Left Column: Inputs Accordion */}
         <div className="space-y-4">
-          <Accordion type="multiple" defaultValue={["item-1", "item-2", "item-3"]} className="space-y-4">
+          <Accordion type="multiple" defaultValue={["item-1"]} className="space-y-4">
             <AccordionItem value="item-1" className="bg-card border border-border rounded-2xl px-6 py-1 shadow-card overflow-hidden">
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3 text-left">
@@ -606,7 +675,11 @@ function RealEstateCalculator() {
                 <NumField
                   label="Ubezpieczenie miesięczne"
                   value={s.mortgageInsuranceMonthly}
-                  onChange={(v) => setS({ ...s, mortgageInsuranceMonthly: v })}
+                  onChange={(v) => {
+                    setIsInsuranceManual(true);
+                    setS({ ...s, mortgageInsuranceMonthly: v });
+                  }}
+                  hint={!isInsuranceManual && s.purchasePrice > 0 ? "Sugerowane: 0.04% kapitału (miesięcznie)" : undefined}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -745,198 +818,213 @@ function RealEstateCalculator() {
         </div>
 
         {/* Right Column: Visualizations and Reports */}
-        <div className="space-y-6">
-          <CashflowWaterfall r={r} s={s} />
+        <div className="grid xl:grid-cols-2 gap-6 items-start">
+          {/* Right Column - Left Split */}
+          <div className="space-y-6">
+            <CashflowWaterfall r={r} s={s} minRent={minRent} />
 
-          <div className="grid sm:grid-cols-3 gap-3">
-            <MiniStat
-              label="Czysty zysk (%)"
-              value={`${r.netYieldPct.toFixed(2)}%`}
-            />
-            <MiniStat
-              label="Kiedy się spłaci"
-              value={r.breakEvenMonths > 0 ? `${(r.breakEvenMonths / 12).toFixed(1)} lat` : "—"}
-            />
-            <MiniStat
-              label="Zysk przed kosztami"
-              value={`${r.grossYieldPct.toFixed(2)}%`}
-            />
-          </div>
-
-          <div className="bg-card rounded-3xl p-8 border border-border shadow-card">
-            <h3 className="font-display text-xl mb-1">Twój majątek w czasie</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Zobacz, jak rośnie wartość Twojej części mieszkania i ile zarabiasz na wynajmie.
-            </p>
-            <div className="h-80">
-              <ResponsiveContainer>
-                <LineChart data={r.yearly}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.9 0.015 85)" />
-                  <XAxis
-                    dataKey="year"
-                    tick={{ fontSize: 11, fontWeight: 500 }}
-                    unit="r"
-                    axisLine={false}
-                    tickLine={false}
-                    dy={10}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                    axisLine={false}
-                    tickLine={false}
-                    dx={-10}
-                  />
-                  <Tooltip
-                    formatter={(v: number) => formatPLN(v)}
-                    labelFormatter={(y) => `Rok ${y}`}
-                    contentStyle={{ fontSize: 12, borderRadius: 16, border: 'none', boxShadow: 'var(--shadow-elevated)' }}
-                  />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 11, fontWeight: 600, paddingBottom: 20 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="equity"
-                    name="Twoja część mieszkania"
-                    stroke="var(--color-success)"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="cumulativeCashflow"
-                    name="Suma zysków z wynajmu"
-                    stroke="var(--color-accent)"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="bg-muted/30 rounded-3xl p-6 border border-border/50">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4 px-1">Wskaźniki rentowności</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
+                <MiniStat
+                  label="Rentowność netto"
+                  value={`${r.netYieldPct.toFixed(2)}%`}
+                  badge={r.netYieldPct >= 5 ? "✓ dobry" : r.netYieldPct >= 4 ? "ok" : "słaby"}
+                  badgeTone={r.netYieldPct >= 5 ? "success" : r.netYieldPct >= 4 ? "warning" : "destructive"}
+                  hint="Dobry: ≥5%"
+                />
+                <MiniStat
+                  label="Zwrot gotówki (lata)"
+                  value={r.breakEvenMonths > 0 ? `${(r.breakEvenMonths / 12).toFixed(1)} lat` : "—"}
+                  hint={r.breakEvenMonths <= 0 ? "Ujemny CF — brak zwrotu z czynszów" : undefined}
+                />
+                <MiniStat
+                  label="Rentowność brutto"
+                  value={`${r.grossYieldPct.toFixed(2)}%`}
+                  hint="Bez kosztów i podatku"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="bg-card rounded-3xl p-6 border border-border shadow-card">
-              <h3 className="font-display text-lg mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-success" />
-                Podsumowanie ({s.holdingYears} lat)
-              </h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-muted-foreground font-medium">Wszystkie zyski z wynajmu</span>
-                  <span className={cn("font-mono font-bold", r.totalCashflow >= 0 ? "text-success" : "text-destructive")}>
-                    {r.totalCashflow >= 0 ? "+" : ""}{formatPLN(r.totalCashflow)}
-                  </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-6">
+              <div className="bg-card rounded-3xl p-6 border border-border shadow-card">
+                <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-success" />
+                  Podsumowanie ({s.holdingYears} lat)
+                </h3>
+                
+                <div className="mb-4">
+                  {r.monthlyCashflow < 0 ? (
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full whitespace-normal text-left leading-tight">
+                      Strategia: Budowanie kapitału / Dopłaty
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full whitespace-normal text-left leading-tight">
+                      Strategia: Dochód pasywny / Rentierska
+                    </Badge>
+                  )}
                 </div>
-                <div className="flex justify-between items-baseline">
-                  <span className="text-muted-foreground font-medium">Wzrost ceny mieszkania</span>
-                  <span className="font-mono font-bold text-success">
-                    +{formatPLN(r.yearly[r.yearly.length - 1].propertyValue - s.purchasePrice)}
-                  </span>
+
+                <div className="space-y-4 text-sm">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-muted-foreground font-medium">Zysk z wynajmu</span>
+                    <span className={cn("font-mono font-bold", r.totalCashflow >= 0 ? "text-success" : "text-destructive")}>
+                      {r.totalCashflow >= 0 ? "+" : ""}{formatPLN(r.totalCashflow)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-muted-foreground font-medium">Wzrost wartości</span>
+                    <span className="font-mono font-bold text-success">
+                      +{formatPLN(r.yearly[r.yearly.length - 1].propertyValue - s.purchasePrice)}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="font-bold text-lg">Zysk końcowy</span>
+                    <div className="text-right">
+                      <p className={cn("font-display text-2xl leading-none", r.totalReturn >= 0 ? "text-success" : "text-destructive")}>
+                        {formatPLN(r.totalReturn)}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-bold">
+                        ROI: {r.totalReturnPct.toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Separator />
-                <div className="flex justify-between items-center pt-2">
-                  <span className="font-bold text-lg">Czysty zysk końcowy</span>
-                  <div className="text-right">
-                    <p className={cn("font-display text-2xl leading-none", r.totalReturn >= 0 ? "text-success" : "text-destructive")}>
-                      {formatPLN(r.totalReturn)}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-bold">
-                      {r.totalReturnPct.toFixed(0)}% całkowitego zysku
+              </div>
+
+              <div className="bg-card rounded-3xl p-6 border border-border shadow-card">
+                <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-destructive" />
+                  Kredyt ({s.holdingYears} lat)
+                </h3>
+                <div className="space-y-4 text-sm">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-muted-foreground font-medium">Zapłacone odsetki</span>
+                    <span className="font-mono font-bold text-destructive">-{formatPLN(r.totalInterestPaid)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-muted-foreground font-medium">Dług na koniec</span>
+                    <span className="font-mono font-bold">
+                      {formatPLN(r.yearly[r.yearly.length - 1].loanBalance)}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="pt-2">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Pożyczasz <span className="font-bold text-foreground">{formatPLN(r.loanAmount)}</span> na {s.mortgageYears} lat.
+                      Spłacono już <span className="font-bold text-success">{formatPLN(r.loanAmount - r.yearly[r.yearly.length - 1].loanBalance)}</span> kapitału.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div className="bg-card rounded-3xl p-6 border border-border shadow-card">
-              <h3 className="font-display text-lg mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-destructive" />
-                Kredyt ({s.holdingYears} lat)
-              </h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-muted-foreground font-medium">Zapłacone odsetki</span>
-                  <span className="font-mono font-bold text-destructive">-{formatPLN(r.totalInterestPaid)}</span>
-                </div>
-                <div className="flex justify-between items-baseline">
-                  <span className="text-muted-foreground font-medium">Dług w banku na koniec</span>
-                  <span className="font-mono font-bold">
-                    {formatPLN(r.yearly[r.yearly.length - 1].loanBalance)}
-                  </span>
-                </div>
-                <Separator />
-                <div className="pt-2">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Pożyczasz <span className="font-bold text-foreground">{formatPLN(r.loanAmount)}</span> na {s.mortgageYears} lat.
-                    Do tej pory spłacono już <span className="font-bold text-success">{formatPLN(r.loanAmount - r.yearly[r.yearly.length - 1].loanBalance)}</span> Twojego długu.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-3xl p-8 border border-accent/20 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-10">
-              <Wallet className="w-24 h-24 text-accent" />
+          {/* Right Column - Right Split */}
+          <div className="space-y-6">
+            <WiborSensitivityStrip data={wiborData} currentRate={s.mortgageRatePct} />
+
+            <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-card">
+              <h3 className="font-display text-xl mb-1">Twój majątek w czasie</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Zobacz, jak rośnie wartość Twojej części mieszkania i ile zarabiasz na wynajmie.
+              </p>
+              <div className="h-64 sm:h-80">
+                <ResponsiveContainer>
+                  <LineChart data={r.yearly} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.9 0.015 85)" />
+                    <XAxis
+                      dataKey="year"
+                      tick={{ fontSize: 10, fontWeight: 500 }}
+                      unit="r"
+                      axisLine={false}
+                      tickLine={false}
+                      dy={10}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fontWeight: 500 }}
+                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      formatter={(v: number) => formatPLN(v)}
+                      labelFormatter={(y) => `Rok ${y}`}
+                      contentStyle={{ fontSize: 12, borderRadius: 16, border: 'none', boxShadow: 'var(--shadow-elevated)' }}
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 10, fontWeight: 600, paddingBottom: 10 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="equity"
+                      name="Twoja część mieszkania"
+                      stroke="var(--color-success)"
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="cumulativeCashflow"
+                      name="Suma zysków"
+                      stroke="var(--color-accent)"
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            <h3 className="font-display text-2xl mb-6 flex items-center gap-2 text-accent">
-              Wpływ na domowy budżet
-            </h3>
+            <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-3xl p-6 sm:p-8 border border-accent/20 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-6 opacity-10">
+                <Wallet className="w-24 h-24 text-accent" />
+              </div>
 
-            <div className="grid sm:grid-cols-3 gap-8 relative z-10">
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Zostaje Ci w portfelu</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-display font-bold">
-                    {formatPLN(budgetImpact.newDisposable)}
+              <h3 className="font-display text-2xl mb-6 flex items-center gap-2 text-accent relative z-10">
+                Wpływ na domowy budżet
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Zostaje w portfelu</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-display font-bold">
+                      {formatPLN(budgetImpact.newDisposable)}
+                    </p>
+                    <span className={cn("text-xs font-bold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>
+                      ({r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)})
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Tyle zostanie na życie po opłaceniu wydatków.
                   </p>
-                  <span className={cn("text-xs font-bold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>
-                    ({r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)})
-                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Tyle zostanie Ci na życie po opłaceniu wszystkich wydatków i rat.
-                </p>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Zdolność do oszczędzania</p>
+                  <p className="text-3xl font-display font-bold">
+                    {budgetImpact.totalNetIncome > 0
+                      ? ((budgetImpact.newDisposable / budgetImpact.totalNetIncome) * 100).toFixed(0)
+                      : 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Procent pensji, który wciąż możesz odkładać.
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Ile pensji zjadają raty</p>
-                <p className={cn(
-                  "text-3xl font-display font-bold",
-                  budgetImpact.totalDTI > 40 ? "text-destructive" : "text-foreground"
-                )}>
-                  {budgetImpact.totalDTI.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Bezpieczna granica to około 40% Twoich zarobków.
-                </p>
+              <div className="mt-6 p-4 bg-background/50 backdrop-blur-sm rounded-2xl border border-accent/10 text-sm text-muted-foreground italic relative z-10">
+                {`"Przy dochodach ${formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja`}
+                {r.monthlyCashflow >= 0
+                  ? ` poprawia Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%."`
+                  : ` obciąża Twój budżet o ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%."`
+                }
               </div>
-
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Zdolność do oszczędzania</p>
-                <p className="text-3xl font-display font-bold">
-                  {budgetImpact.totalNetIncome > 0
-                    ? ((budgetImpact.newDisposable / budgetImpact.totalNetIncome) * 100).toFixed(0)
-                    : 0}%
-                </p>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Taki procent pensji wciąż będziesz mógł odkładać.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 p-4 bg-background/50 backdrop-blur-sm rounded-2xl border border-accent/10 text-sm text-muted-foreground italic">
-              "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja
-              {r.monthlyCashflow >= 0
-                ? ` poprawia Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%`
-                : ` obciąża Twój budżet o ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%`
-              }."
             </div>
           </div>
         </div>
@@ -948,7 +1036,7 @@ function RealEstateCalculator() {
 /* ============================================================
    CASHFLOW WATERFALL
 ============================================================ */
-function CashflowWaterfall({ r, s }: { r: any; s: any }) {
+function CashflowWaterfall({ r, s, minRent }: { r: any; s: any; minRent: number }) {
   const steps = [
     { label: "Czynsz brutto", value: s.monthlyRent, tone: "accent" as const },
     { label: "Pustostany", value: -(s.monthlyRent * (s.vacancyRatePct / 100)), tone: "muted" as const },
@@ -1014,7 +1102,131 @@ function CashflowWaterfall({ r, s }: { r: any; s: any }) {
             </div>
           </div>
         </div>
+
+        {/* Min-rent tip */}
+        <div className={cn(
+          "rounded-xl px-4 py-3 border text-xs flex items-start gap-2.5",
+          s.monthlyRent >= minRent
+            ? "bg-success/6 border-success/20 text-success"
+            : "bg-destructive/6 border-destructive/20 text-destructive"
+        )}>
+          <span className="mt-0.5 shrink-0">{s.monthlyRent >= minRent ? "✓" : "⚠"}</span>
+          <span>
+            {s.monthlyRent >= minRent ? (
+              <>
+                Twój czynsz to <strong>{formatPLN(s.monthlyRent)}</strong>. Żeby wyjść na zero z tą inwestycją, 
+                musisz wziąć co najmniej <strong>{formatPLN(minRent)}</strong> od najemcy. 
+                (Masz {(((s.monthlyRent - minRent) / minRent) * 100).toFixed(0)}% marginesu błędu).
+              </>
+            ) : (
+              <>
+                Twój czynsz to <strong>{formatPLN(s.monthlyRent)}</strong>, a żeby wyjść na zero, 
+                musisz wziąć co najmniej <strong>{formatPLN(minRent)}</strong> od najemcy.
+                (Brakuje Ci {formatPLN(minRent - s.monthlyRent)}).
+              </>
+            )}
+          </span>
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   WIBOR / STOPY PROCENTOWE — SENSITIVITY STRIP
+============================================================ */
+function WiborSensitivityStrip({
+  data,
+  currentRate,
+}: {
+  data: WiborScenario[];
+  currentRate: number;
+}) {
+  const current = data.find((d) => d.rateDelta === 0);
+  return (
+    <div className="bg-card rounded-3xl p-6 border border-border shadow-card space-y-4">
+      <div>
+        <h3 className="font-display text-xl mb-0.5 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-warning-foreground" />
+          Wrażliwość na zmiany stóp (WIBOR)
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Twoja hipoteka to rata zmienna (WIBOR + marża banku = {currentRate.toFixed(1)}%). Zobacz,
+          jak zmiana stóp NBP wpłynie na Twoją ratę i rentowność.
+        </p>
+      </div>
+
+      <div className="overflow-x-auto -mx-2 px-2">
+        <table className="w-full min-w-[420px] text-xs">
+          <thead>
+            <tr className="border-b border-border/60">
+              <th className="text-left py-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold pr-3">Stopa</th>
+              <th className="text-right py-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-2">Rata</th>
+              <th className="text-right py-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-2">Δ Raty</th>
+              <th className="text-right py-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-2">CF/mies.</th>
+              <th className="text-right py-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold pl-2">Δ CF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row) => {
+              const isCurrent = row.rateDelta === 0;
+              const cfPositive = row.monthlyCashflow >= 0;
+              return (
+                <tr
+                  key={row.rateDelta}
+                  className={cn(
+                    "border-b border-border/30 transition-colors",
+                    isCurrent && "bg-accent/6"
+                  )}
+                >
+                  <td className="py-2.5 pr-3 font-mono font-bold">
+                    <span className={isCurrent ? "text-accent" : "text-foreground"}>
+                      {row.ratePct.toFixed(1)}%
+                    </span>
+                    {isCurrent && (
+                      <span className="ml-1.5 text-[9px] uppercase tracking-widest text-accent font-bold">teraz</span>
+                    )}
+                    {row.rateDelta !== 0 && (
+                      <span className={cn(
+                        "ml-1.5 text-[9px] font-bold",
+                        row.rateDelta > 0 ? "text-destructive" : "text-success"
+                      )}>
+                        ({row.rateDelta > 0 ? "+" : ""}{row.rateDelta}pp)
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2.5 px-2 text-right font-mono">{formatPLN(row.monthlyPmt)}</td>
+                  <td className={cn(
+                    "py-2.5 px-2 text-right font-mono font-bold",
+                    row.pmtDelta > 0 ? "text-destructive" : row.pmtDelta < 0 ? "text-success" : "text-muted-foreground"
+                  )}>
+                    {row.pmtDelta === 0 ? "—" : `${row.pmtDelta > 0 ? "+" : ""}${formatPLN(row.pmtDelta)}`}
+                  </td>
+                  <td className={cn(
+                    "py-2.5 px-2 text-right font-mono font-bold",
+                    cfPositive ? "text-success" : "text-destructive"
+                  )}>
+                    {formatPLN(row.monthlyCashflow)}
+                  </td>
+                  <td className={cn(
+                    "py-2.5 pl-2 text-right font-mono font-bold",
+                    row.cashflowDelta > 0 ? "text-success" : row.cashflowDelta < 0 ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {row.cashflowDelta === 0 ? "—" : `${row.cashflowDelta > 0 ? "+" : ""}${formatPLN(row.cashflowDelta)}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {current && (
+        <p className="text-[10px] text-muted-foreground italic px-1">
+          * Symulacja zakłada stałą marżę banku. Zmiana WIBOR o +1pp
+          = zmiana raty o ok. {formatPLN(Math.abs(data.find(d => d.rateDelta === 1)?.pmtDelta ?? 0))}.
+        </p>
+      )}
     </div>
   );
 }
@@ -1044,12 +1256,12 @@ function NumField({
   }, [value]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-1 mb-1">
-        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 group">
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
           {label}
         </label>
-        {hint && <span className="text-[10px] text-muted-foreground italic">{hint}</span>}
+        {hint && <span className="text-[10px] text-muted-foreground italic mt-0.5 block leading-tight">{hint}</span>}
       </div>
       <Input
         type="text"
@@ -1060,7 +1272,7 @@ function NumField({
           onChange(parseLocaleAmount(e.target.value));
         }}
         onBlur={() => setLocalValue(formatLocaleAmount(value))}
-        className="h-10 font-mono tabular-nums text-right bg-muted/20 border-border focus:bg-background"
+        className="h-10 font-mono tabular-nums text-right bg-muted/10 border-border focus:bg-background sm:w-32 transition-colors group-hover:bg-muted/30"
       />
     </div>
   );
@@ -1084,12 +1296,12 @@ function SliderField({
   onChange: (v: number) => void;
 }) {
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+    <div className="group">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
           {label}
         </label>
-        <span className="font-mono tabular-nums text-xs">{format(value)}</span>
+        <span className="font-mono tabular-nums text-xs bg-muted/40 px-2 py-1 rounded-md">{format(value)}</span>
       </div>
       <Slider
         min={min}
@@ -1097,6 +1309,7 @@ function SliderField({
         step={step}
         value={[value]}
         onValueChange={(v) => onChange(v[0])}
+        className="py-1 cursor-pointer"
       />
     </div>
   );
@@ -1104,11 +1317,35 @@ function SliderField({
 
 
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({
+  label,
+  value,
+  badge,
+  badgeTone,
+  hint,
+}: {
+  label: string;
+  value: string;
+  badge?: string;
+  badgeTone?: "success" | "warning" | "destructive";
+  hint?: string;
+}) {
   return (
-    <div className="bg-muted/40 rounded-xl p-3 flex items-baseline justify-between">
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="bg-muted/40 rounded-xl p-3 flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {badge && (
+          <span className={cn(
+            "text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider",
+            badgeTone === "success" ? "bg-success/15 text-success" :
+            badgeTone === "warning" ? "bg-warning/15 text-warning-foreground" :
+            badgeTone === "destructive" ? "bg-destructive/15 text-destructive" :
+            "bg-muted text-muted-foreground"
+          )}>{badge}</span>
+        )}
+      </div>
       <span className="font-mono tabular-nums text-sm font-semibold">{value}</span>
+      {hint && <span className="text-[10px] text-muted-foreground italic">{hint}</span>}
     </div>
   );
 }

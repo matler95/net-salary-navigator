@@ -1720,10 +1720,10 @@ function AddLoanDialog() {
   );
   const draftTotal = draftPmt + draft.mortgageInsuranceMonthly + draft.monthlyOverpayment;
 
-  // Auto-calculate insurance: ~0.2% of principal annually
+  // Auto-calculate insurance: 0.04% of principal monthly
   useEffect(() => {
     if (!isInsuranceManual && draft.principal > 0) {
-      const suggested = Math.round((draft.principal * 0.002) / 12);
+      const suggested = Math.round(draft.principal * 0.0004);
       setDraft((prev) => ({ ...prev, mortgageInsuranceMonthly: suggested }));
     }
   }, [draft.principal, isInsuranceManual]);
@@ -1818,7 +1818,7 @@ function AddLoanDialog() {
             />
             {!isInsuranceManual && draft.principal > 0 && (
               <p className="col-start-2 col-span-3 text-[10px] -mt-3 italic">
-                Sugerowane: ~0.2% kapitału rocznie
+                Sugerowane: 0.04% kapitału (miesięcznie)
               </p>
             )}
           </div>
