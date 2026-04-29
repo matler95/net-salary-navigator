@@ -222,6 +222,7 @@ function PortfolioCalculator() {
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} unit="r" />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   labelFormatter={(y) => `Rok ${y}`}
@@ -298,8 +299,8 @@ function PortfolioCalculator() {
           </div>
 
           <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
-            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta wpłata 
-            stanowi {budgetImpact.totalNetIncome > 0 ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(1) : 0}% Twojego budżetu netto."
+            "Przy Twoich dochodach netto (średnio {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, czyli {formatPLN(budgetImpact.totalNetIncome * 12)} rocznie), ta inwestycja 
+            pochłania {budgetImpact.totalNetIncome > 0 ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(1) : 0}% Twojego budżetu netto."
           </div>
         </div>
       </div>
@@ -585,6 +586,7 @@ function RealEstateCalculator() {
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} unit="r" />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
                   labelFormatter={(y) => `Rok ${y}`}
@@ -783,7 +785,7 @@ function RealEstateCalculator() {
           </div>
 
           <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
-            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja 
+            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie ({formatPLN(budgetImpact.totalNetIncome * 12)} rocznie), ta inwestycja 
             {r.monthlyCashflow >= 0 
               ? ` zwiększa Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%` 
               : ` pochłania ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}% Twojego budżetu`

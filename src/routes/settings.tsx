@@ -8,6 +8,7 @@ import {
   loadHouseholdMemberProfiles,
   removeHouseholdMember,
   revokeHouseholdInvite,
+  transferOwnership,
   updateHouseholdName,
   type MemberProfile,
 } from "@/lib/repository";
@@ -434,9 +435,34 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
                     )}
                   </div>
                   {isOwner && member.user_id !== session?.user.id ? (
-                    <Button size="sm" variant="outline" onClick={() => void handleRemoveMember(member.user_id)} disabled={loading}>
-                      Usuń
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={async () => {
+                          if (confirm(`Czy na pewno chcesz przekazać własność gospodarstwa użytkownikowi ${getMemberDisplayName(member)}? Stracisz uprawnienia właściciela.`)) {
+                            const householdId = getActiveHouseholdId();
+                            if (!householdId) return;
+                            setLoading(true);
+                            const success = await transferOwnership(householdId, member.user_id);
+                            if (success) {
+                              setStatus({ msg: "Własność została przekazana.", type: "success" });
+                              void refreshHouseholdInfo();
+                            } else {
+                              setStatus({ msg: "Nie udało się przekazać własności.", type: "error" });
+                            }
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        Przekaż własność
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => void handleRemoveMember(member.user_id)} disabled={loading}>
+                        Usuń
+                      </Button>
+                    </div>
                   ) : null}
                 </li>
               ))}
@@ -590,13 +616,33 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
             </div>
           </div>
           
-          <div className="bg-muted/50 rounded-xl p-4 flex gap-3 items-start border border-dashed border-border">
-             <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-             <p className="text-xs text-muted-foreground leading-relaxed">
-               <strong>Wskazówka:</strong> Zmiana tych wartości natychmiast wpłynie na wszystkie wyliczenia netto, 
-               uśrednienia roczne oraz prognozy oszczędności na pulpicie. Pozwala to na symulację 
-               scenariuszy "co jeśli" (np. jeśli kwota wolna wzrośnie do 60k).
-             </p>
+          <div className="bg-muted/50 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between border border-dashed border-border">
+            <div className="flex gap-3 items-start">
+              <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong>Wskazówka:</strong> Zmiana tych wartości natychmiast wpłynie na wszystkie wyliczenia netto, 
+                uśrednienia roczne oraz prognozy oszczędności na pulpicie. Pozwala to na symulację 
+                scenariuszy "co jeśli" (np. jeśli kwota wolna wzrośnie do 60k).
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-xs h-8"
+              onClick={() => {
+                if (confirm("Czy na pewno chcesz przywrócić domyślne wartości podatkowe dla roku 2025?")) {
+                  actions.updateGlobalSettings({
+                    avgSalaryForecast: 8673,
+                    pitThresholdAnnual: 120000,
+                    pitFirstRate: 12,
+                    pitSecondRate: 32,
+                    taxFreeAmountAnnual: 30000,
+                  });
+                }
+              }}
+            >
+              Przywróć domyślne (2025)
+            </Button>
           </div>
         </div>
       </section>

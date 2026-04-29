@@ -319,15 +319,15 @@ function Dashboard() {
               <div className="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-6">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Dochody</p>
-                  <p className="font-mono text-sm font-bold text-success">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
+                  <p className="font-mono text-sm font-bold text-[var(--income)]">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki</p>
-                  <p className="font-mono text-sm font-bold text-destructive">{formatPLN(selectedMonthExpenses)}</p>
+                  <p className="font-mono text-sm font-bold text-[var(--expense)]">{formatPLN(selectedMonthExpenses)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Kredyty</p>
-                  <p className="font-mono text-sm font-bold text-warning-foreground">{formatPLN(monthlyLoanPmt)}</p>
+                  <p className="font-mono text-sm font-bold text-[var(--debt)]">{formatPLN(monthlyLoanPmt)}</p>
                 </div>
               </div>
             </div>
@@ -338,7 +338,7 @@ function Dashboard() {
                   <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-0.5">
                     {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
                   </p>
-                  <p className={cn("font-display text-3xl tabular-nums", selectedMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
+                  <p className={cn("font-display text-3xl tabular-nums", selectedMonthCashflow >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]")}>
                     {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow)}
                   </p>
                 </div>
@@ -352,6 +352,8 @@ function Dashboard() {
                         strokeWidth={2}
                         dot={false}
                       />
+                      <YAxis hide domain={['auto', 'auto']} />
+                      <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -374,7 +376,7 @@ function Dashboard() {
         <StatCard
           label="Średnie netto (rok)"
           value={formatPLN(totalAnnualAvgNet)}
-          tone="success"
+          tone="income"
           icon={TrendingUp}
           animate
         />
@@ -388,7 +390,7 @@ function Dashboard() {
         <StatCard
           label="Wydatki łącznie"
           value={formatPLN(totalExpenses)}
-          tone="destructive"
+          tone="expense"
           icon={ShoppingBag}
           animate
           sub="Średnio miesięcznie"
@@ -396,21 +398,21 @@ function Dashboard() {
         <StatCard
           label="Oszczędności"
           value={formatPLN(totalSavings)}
-          tone="success"
+          tone="savings"
           icon={PiggyBank}
           animate
         />
         <StatCard
           label="Inwestycje"
           value={formatPLN(totalInvestments)}
-          tone="accent"
+          tone="investment"
           icon={BarChart3}
           animate
         />
         <StatCard
           label="Kredyty"
           value={formatPLN(totalLoans)}
-          tone="warning"
+          tone="debt"
           icon={CreditCard}
           animate
         />
@@ -628,7 +630,11 @@ function monthLabel(m: number, full = false) {
     "Listopad",
     "Grudzień",
   ];
-  return (full ? long : short)[m - 1];
+  const label = (full ? long : short)[m - 1];
+  const year = new Date().getFullYear();
+  // If month is in the past (relative to current month), we show the current year.
+  // If it's a projection tool, we might need more logic, but for dashboard simple "Styczeń 2025" is better than just "Styczeń".
+  return `${label} ${year}`;
 }
 
 function greeting() {

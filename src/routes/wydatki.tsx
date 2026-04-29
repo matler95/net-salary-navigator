@@ -27,7 +27,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag } from "lucide-react";
+import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -160,21 +160,21 @@ function ExpensesPage() {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
             const pct = monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100) : 0;
-            
+
             return (
               <div
                 key={g.category}
                 className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-[var(--shadow-card)] relative overflow-hidden"
               >
                 {/* Accent border left */}
-                <div 
-                  className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80" 
-                  style={{ backgroundColor: color }} 
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
+                  style={{ backgroundColor: color }}
                 />
-                
+
                 <div className="flex items-start justify-between mb-5 gap-4">
                   <div className="flex items-center gap-3">
-                    <div 
+                    <div
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                       style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
                     >
@@ -191,7 +191,7 @@ function ExpensesPage() {
                     <p className="font-display text-2xl tabular-nums leading-none mb-1">
                       {formatPLN2(g.monthly)}
                     </p>
-                    <span 
+                    <span
                       className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                       style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
                     >
@@ -199,7 +199,7 @@ function ExpensesPage() {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   {g.items.map((e) => (
                     <ExpenseRow key={e.id} expense={e} color={color} />
@@ -254,7 +254,7 @@ function MonthSelector({
         </span>
         {frequency !== "oneoff" && frequency !== "annual" && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => setPreset([1,2,3,4,5,6,7,8,9,10,11,12])} className="text-[10px] text-accent hover:underline font-semibold">Wszystkie</button>
+            <button type="button" onClick={() => setPreset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])} className="text-[10px] text-accent hover:underline font-semibold">Wszystkie</button>
           </div>
         )}
       </div>
@@ -307,25 +307,32 @@ function MonthSelector({
   );
 }
 
-function AddExpenseDialog() {
-  const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState("Mieszkanie");
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [label, setLabel] = useState("");
-  const [amount, setAmount] = useState(0);
-  const [amountInput, setAmountInput] = useState("");
-  const [frequency, setFrequency] = useState<Frequency>("monthly");
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-
-  const handleReset = () => {
-    setCategory("Mieszkanie");
-    setIsCustomCategory(false);
-    setLabel("");
-    setAmount(0);
-    setAmountInput("");
-    setFrequency("monthly");
-    setSelectedMonths([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-  };
+function ExpenseForm({
+  initialData,
+  onSave,
+  onCancel,
+  submitLabel = "Zapisz wydatek",
+  title = "Nowy wydatek",
+  description = "Kategoryzacja wydatków pozwala Saldeo na stworzenie lepszej projekcji rocznej."
+}: {
+  initialData?: Partial<Expense>,
+  onSave: (data: any) => void,
+  onCancel: () => void,
+  submitLabel?: string,
+  title?: string,
+  description?: string
+}) {
+  const [category, setCategory] = useState(initialData?.category || "Mieszkanie");
+  const [isCustomCategory, setIsCustomCategory] = useState(
+    initialData?.category ? !SUGGESTED_CATEGORIES.includes(initialData.category) : false
+  );
+  const [label, setLabel] = useState(initialData?.label || "");
+  const [amount, setAmount] = useState(initialData?.amount || 0);
+  const [amountInput, setAmountInput] = useState(initialData?.amount ? formatLocaleAmount(initialData.amount) : "");
+  const [frequency, setFrequency] = useState<Frequency>(initialData?.frequency || "monthly");
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(
+    initialData?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  );
 
   const handleFrequencyChange = (f: Frequency) => {
     setFrequency(f);
@@ -350,177 +357,217 @@ function AddExpenseDialog() {
     }
   };
 
-  const currentPreview = amount > 0 
+  const currentPreview = amount > 0
     ? (frequency === "monthly" ? amount : (amount * selectedMonths.length / 12))
     : 0;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) handleReset();
-      }}
-    >
+    <div className="p-6 sm:p-8">
+      <DialogHeader className="mb-6">
+        <DialogTitle className="font-display text-2xl">{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const parsedAmount = parseLocaleAmount(amountInput);
+          if (!label.trim() || parsedAmount <= 0) return;
+          onSave({
+            category: isCustomCategory ? category.trim() || "Inne" : category,
+            label: label.trim(),
+            amount: parsedAmount,
+            frequency,
+            months: selectedMonths,
+            month: selectedMonths[0],
+          });
+        }}
+        className="space-y-6"
+      >
+        {/* Step 1: Category and Name */}
+        <div className="bg-muted/30 p-4 rounded-2xl border border-border space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Kategoria
+              </label>
+              {isCustomCategory ? (
+                <div className="relative">
+                  <Input
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="h-11 pr-8 bg-card"
+                    autoFocus
+                    placeholder="Wpisz własną..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Select
+                  value={category}
+                  onValueChange={(v) => {
+                    if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
+                    else { setCategory(v); }
+                  }}
+                >
+                  <SelectTrigger className="h-11 bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUGGESTED_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Nazwa
+              </label>
+              <Input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="np. Prąd, Netflix"
+                className="h-11 bg-card"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Step 2: Amount and Frequency */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+              Kwota pojedynczej płatności
+            </label>
+            <div className="relative">
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={amountInput}
+                onChange={(e) => {
+                  setAmountInput(e.target.value);
+                  setAmount(parseLocaleAmount(e.target.value));
+                }}
+                onBlur={() => setAmountInput(formatLocaleAmount(amount))}
+                placeholder="0"
+                className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+              Częstotliwość
+            </label>
+            <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
+              <SelectTrigger className="h-12 bg-card font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCIES.map((f) => (
+                  <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Step 3: Months (if applicable) */}
+        {frequency !== "monthly" && (
+          <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10">
+            <MonthSelector
+              frequency={frequency}
+              selectedMonths={selectedMonths}
+              onChange={setSelectedMonths}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-border mt-6">
+          <div className="mb-4 sm:mb-0 text-center sm:text-left">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Średnie obciążenie
+            </p>
+            <p className="font-display text-xl font-bold tabular-nums text-foreground">
+              {formatPLN(currentPreview)} <span className="text-sm font-sans font-normal text-muted-foreground">/ m-c</span>
+            </p>
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button type="button" variant="ghost" onClick={onCancel} className="flex-1 sm:flex-none h-12 rounded-full px-6 font-bold">
+              Anuluj
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1 sm:w-auto h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
+              disabled={amount <= 0 || !label.trim() || selectedMonths.length === 0}
+            >
+              {submitLabel}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function AddExpenseDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="h-12 sm:h-11 rounded-full px-6 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold">
           <ListPlus className="w-4 h-4 sm:mr-2" />
           <span className="hidden sm:inline">Dodaj wydatek</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl p-6 sm:p-8 rounded-2xl">
-        <DialogHeader className="mb-6">
-          <DialogTitle className="font-display text-2xl">Nowy wydatek</DialogTitle>
-          <DialogDescription>
-            Kategoryzacja wydatków pozwala Saldeo na stworzenie lepszej projekcji rocznej.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const parsedAmount = parseLocaleAmount(amountInput);
-            if (!label.trim() || parsedAmount <= 0) return;
-            actions.addExpense({
-              category: isCustomCategory ? category.trim() || "Inne" : category,
-              label: label.trim(),
-              amount: parsedAmount,
-              frequency,
-              months: selectedMonths,
-              month: selectedMonths[0],
-            });
-            handleReset();
+      <DialogContent className="sm:max-w-xl p-0 rounded-2xl overflow-hidden">
+        <ExpenseForm
+          onSave={(data) => {
+            actions.addExpense(data);
             setOpen(false);
           }}
-          className="space-y-6"
+          onCancel={() => setOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditExpenseDialog({ expense }: { expense: Expense }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          className="opacity-60 group-hover:opacity-100 text-muted-foreground hover:text-accent p-2 transition-opacity rounded-lg hover:bg-accent/10"
+          aria-label={`Edytuj: ${expense.label}`}
         >
-          {/* Step 1: Category and Name */}
-          <div className="bg-muted/30 p-4 rounded-2xl border border-border space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                  Kategoria
-                </label>
-                {isCustomCategory ? (
-                  <div className="relative">
-                    <Input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="h-11 pr-8 bg-card"
-                      autoFocus
-                      placeholder="Wpisz własną..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <Select
-                    value={category}
-                    onValueChange={(v) => {
-                      if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
-                      else { setCategory(v); }
-                    }}
-                  >
-                    <SelectTrigger className="h-11 bg-card">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUGGESTED_CATEGORIES.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                      <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              
-              <div>
-                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                  Nazwa
-                </label>
-                <Input
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="np. Prąd, Netflix"
-                  className="h-11 bg-card"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Step 2: Amount and Frequency */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                Kwota pojedynczej płatności
-              </label>
-              <div className="relative">
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={amountInput}
-                  onChange={(e) => {
-                    setAmountInput(e.target.value);
-                    setAmount(parseLocaleAmount(e.target.value));
-                  }}
-                  onBlur={() => setAmountInput(formatLocaleAmount(amount))}
-                  placeholder="0"
-                  className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                Częstotliwość
-              </label>
-              <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
-                <SelectTrigger className="h-12 bg-card font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FREQUENCIES.map((f) => (
-                    <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Step 3: Months (if applicable) */}
-          {frequency !== "monthly" && (
-            <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10">
-              <MonthSelector
-                frequency={frequency}
-                selectedMonths={selectedMonths}
-                onChange={setSelectedMonths}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-border mt-6">
-            <div className="mb-4 sm:mb-0 text-center sm:text-left">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Średnie obciążenie
-              </p>
-              <p className="font-display text-xl font-bold tabular-nums text-foreground">
-                {formatPLN(currentPreview)} <span className="text-sm font-sans font-normal text-muted-foreground">/ m-c</span>
-              </p>
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full sm:w-auto h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
-              disabled={amount <= 0 || !label.trim() || selectedMonths.length === 0}
-            >
-              Zapisz wydatek
-            </Button>
-          </div>
-        </form>
+          <Pencil className="w-4 h-4" />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-xl p-0 rounded-2xl overflow-hidden">
+        <ExpenseForm
+          initialData={expense}
+          title="Edytuj wydatek"
+          submitLabel="Zapisz zmiany"
+          onSave={(data) => {
+            actions.updateExpense(expense.id, data);
+            setOpen(false);
+          }}
+          onCancel={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -536,7 +583,7 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
           className="h-10 w-full bg-transparent border-0 px-1 font-semibold hover:bg-muted focus-visible:ring-1 shadow-none truncate"
         />
         {expense.frequency !== "monthly" && (
-          <span 
+          <span
             className="shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border border-border bg-card text-muted-foreground"
           >
             {FREQUENCY_LABELS[expense.frequency].replace('Co ', '')}
@@ -548,13 +595,13 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
         {/* Months dots if not monthly */}
         {expense.frequency !== "monthly" && (
           <div className="flex flex-wrap gap-0.5 w-16 opacity-70">
-            {Array.from({length: 12}).map((_, i) => {
+            {Array.from({ length: 12 }).map((_, i) => {
               const m = i + 1;
               const isActive = expense.months?.includes(m) || expense.month === m;
               return (
-                <div 
-                  key={m} 
-                  className={cn("w-1.5 h-1.5 rounded-full", isActive ? "opacity-100" : "bg-muted-foreground/20")} 
+                <div
+                  key={m}
+                  className={cn("w-1.5 h-1.5 rounded-full", isActive ? "opacity-100" : "bg-muted-foreground/20")}
                   style={{ backgroundColor: isActive ? color : undefined }}
                   title={["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"][i]}
                 />
@@ -574,7 +621,8 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
           className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 font-bold hover:bg-muted focus-visible:ring-1 shadow-none shrink-0"
         />
 
-        <div className="flex items-center gap-2 border-l border-border pl-3">
+        <div className="flex items-center gap-1 border-l border-border pl-3">
+          <EditExpenseDialog expense={expense} />
           <button
             type="button"
             onClick={() => {
@@ -590,7 +638,7 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
                 },
               });
             }}
-            className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity rounded-lg hover:bg-destructive/10"
+            className="opacity-60 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity rounded-lg hover:bg-destructive/10"
             aria-label={`Usuń: ${expense.label}`}
           >
             <Trash2 className="w-4 h-4" />

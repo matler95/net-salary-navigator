@@ -1,4 +1,4 @@
-@import "tailwindcss" source(none);
+﻿@import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
 
@@ -95,6 +95,20 @@
 
   /* Sidebar Layout */
   --sidebar-width: 240px;
+
+  /* Semantic Colors */
+  --income:              oklch(0.56 0.14 148);
+  --expense:             oklch(0.58 0.19 25);
+  --savings:             oklch(0.62 0.13 175);
+  --debt:                oklch(0.74 0.13 75);
+  --investment:          oklch(0.55 0.1 250);
+
+  /* Chart Colors */
+  --chart-1:             oklch(0.56 0.13 175);
+  --chart-2:             oklch(0.56 0.14 148);
+  --chart-3:             oklch(0.55 0.1 250);
+  --chart-4:             oklch(0.74 0.13 75);
+  --chart-5:             oklch(0.58 0.19 25);
 }
 
 [data-sidebar-collapsed="true"] {
@@ -136,6 +150,13 @@
   --border:              oklch(1 0 0 / 9%);
   --input:               oklch(1 0 0 / 11%);
   --ring:                oklch(0.62 0.13 175);
+
+  /* Dark Semantic Colors */
+  --income:              oklch(0.62 0.14 148);
+  --expense:             oklch(0.65 0.19 25);
+  --savings:             oklch(0.62 0.13 175);
+  --debt:                oklch(0.76 0.13 75);
+  --investment:          oklch(0.60 0.12 250);
 }
 
 @layer base {
@@ -186,7 +207,7 @@
   }
 }
 
-/* ─── Keyframe animations ─────────────────────────────────────────── */
+/* â”€â”€â”€ Keyframe animations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes count-up {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
@@ -210,7 +231,7 @@
   50%       { opacity: 0.5; }
 }
 
-/* ─── Utility classes ─────────────────────────────────────────────── */
+/* â”€â”€â”€ Utility classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .gradient-text {
   background: var(--gradient-accent);
   -webkit-background-clip: text;
@@ -239,7 +260,7 @@
   animation: pulse-gentle 2s ease-in-out infinite;
 }
 
-/* ─── Sidebar transition helpers ──────────────────────────────────── */
+/* â”€â”€â”€ Sidebar transition helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .sidebar-expanded  { width: 240px; }
 .sidebar-collapsed { width: 64px;  }
 
@@ -254,3 +275,5 @@
   pointer-events: none;
   transition: opacity 0.1s ease, transform 0.1s ease;
 }
+
+

@@ -6,7 +6,7 @@ export interface StatCardProps {
   label: string;
   value: string;
   sub?: React.ReactNode;
-  tone?: "default" | "success" | "destructive" | "warning" | "accent";
+  tone?: "default" | "success" | "destructive" | "warning" | "accent" | "income" | "expense" | "savings" | "debt" | "investment";
   icon?: React.ComponentType<{ className?: string }>;
   trend?: { value: number; label?: string };
   gradient?: boolean;
@@ -21,6 +21,11 @@ const TONE_VALUE: Record<NonNullable<StatCardProps["tone"]>, string> = {
   destructive: "text-destructive",
   warning:     "text-warning-foreground",
   accent:      "text-accent",
+  income:      "text-[var(--income)]",
+  expense:     "text-[var(--expense)]",
+  savings:     "text-[var(--savings)]",
+  debt:        "text-[var(--debt)]",
+  investment:  "text-[var(--investment)]",
 };
 
 const TONE_ICON_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -29,6 +34,11 @@ const TONE_ICON_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
   destructive: "bg-destructive/12 text-destructive/70",
   warning:     "bg-warning/12 text-warning-foreground/70",
   accent:      "bg-accent/12 text-accent/70",
+  income:      "bg-[var(--income)]/12 text-[var(--income)]/70",
+  expense:     "bg-[var(--expense)]/12 text-[var(--expense)]/70",
+  savings:     "bg-[var(--savings)]/12 text-[var(--savings)]/70",
+  debt:        "bg-[var(--debt)]/12 text-[var(--debt)]/70",
+  investment:  "bg-[var(--investment)]/12 text-[var(--investment)]/70",
 };
 
 const TONE_GRADIENT_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -37,6 +47,11 @@ const TONE_GRADIENT_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
   destructive: "from-[oklch(0.58_0.19_25/0.06)] to-transparent",
   warning:     "from-[oklch(0.74_0.13_75/0.07)] to-transparent",
   accent:      "from-[oklch(0.56_0.13_175/0.07)] to-transparent",
+  income:      "from-[oklch(0.65_0.15_150/0.07)] to-transparent",
+  expense:     "from-[oklch(0.60_0.12_30/0.07)] to-transparent",
+  savings:     "from-[oklch(0.60_0.15_210/0.07)] to-transparent",
+  debt:        "from-[oklch(0.55_0.10_270/0.07)] to-transparent",
+  investment:  "from-[oklch(0.70_0.15_180/0.07)] to-transparent",
 };
 
 function useCountUp(active: boolean, rawValue: string): string {

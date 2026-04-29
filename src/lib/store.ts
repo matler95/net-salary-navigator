@@ -59,6 +59,7 @@ export type Investment = {
   tickerPriceDate?: string;
   value: number; // legacy/manual base value fallback
   monthlyContribution: number;
+  totalCostPLN: number; // recorded cost in PLN at the moment of purchase
 };
 
 export type Loan = {
@@ -214,6 +215,7 @@ function loadInitial(): AppState {
             volume: i.volume ?? 0,
             tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
             tickerPriceDate: i.tickerPriceDate ?? "",
+            totalCostPLN: i.totalCostPLN ?? 0,
           }))
         : DEFAULT_STATE.investments,
       loans: parsed.loans

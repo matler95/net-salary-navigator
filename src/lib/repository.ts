@@ -584,6 +584,7 @@ function mapInvestmentToRow(householdId: string, x: Investment) {
     ticker_price_date: x.tickerPriceDate,
     value: x.value,
     monthly_contribution: x.monthlyContribution,
+    total_cost_pln: x.totalCostPLN,
   };
 }
 function mapInvestmentFromRow(row: unknown): Investment {
@@ -599,6 +600,7 @@ function mapInvestmentFromRow(row: unknown): Investment {
     tickerPriceDate: String(r.ticker_price_date ?? ""),
     value: Number(r.value ?? 0),
     monthlyContribution: Number(r.monthly_contribution ?? 0),
+    totalCostPLN: Number(r.total_cost_pln ?? 0),
   };
 }
 function mapLoanToRow(householdId: string, x: Loan) {
