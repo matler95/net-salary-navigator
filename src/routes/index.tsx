@@ -141,6 +141,13 @@ function Dashboard() {
   const selectedMonthExpenses = getExpensesForMonth(selectedMonthIdx);
 
   const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
+
+  const nextMonthIdx = selectedMonthIdx === 12 ? 1 : selectedMonthIdx + 1;
+  const nextMonthNet = useMemo(() =>
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
+    [spouses, nextMonthIdx, globalSettings]
+  );
+  const nextMonthCashflow = nextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
   const totalAssets = totalInvestments + rentalAssets + totalSavings;
   const netWorth = totalAssets - totalLoans;
   const emergencyFundMonths = totalExpenses > 0 ? totalSavings / totalExpenses : 0;
@@ -295,7 +302,7 @@ function Dashboard() {
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <div className="px-3 text-xs font-bold w-28 text-center text-foreground uppercase tracking-wider">
-                {monthLabel(selectedMonthIdx, true)}
+                {monthLabel(selectedMonthIdx, false)}
               </div>
               <button
                 onClick={() => setSelectedMonthIdx((m) => (m === 12 ? 1 : m + 1))}
@@ -315,9 +322,17 @@ function Dashboard() {
                   {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-6">
-                  <div className="flex items-baseline gap-2">
-                    <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-income" : "text-expense")}>
-                      {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow).replace(" zł", "")}
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline gap-2">
+                      <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-income" : "text-expense")}>
+                        {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow).replace(" zł", "")}
+                        <span className="text-xl ml-1">zł</span>
+                      </p>
+                    </div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1.5 opacity-80">
+                      W przyszłym miesiącu: <span className={cn("font-mono", nextMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
+                        {nextMonthCashflow > 0 ? "+" : ""}{formatPLN(nextMonthCashflow)}
+                      </span>
                     </p>
                   </div>
                   <div className="h-16 w-full max-w-[240px] opacity-80 pb-2">
@@ -452,8 +467,8 @@ function Dashboard() {
                 <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
                 <p className="text-[10px] leading-none text-muted-foreground">
                   <span className="font-bold text-foreground">{td.name}</span>:{" "}
-                  {td.monthIndex === -1 
-                    ? "pozostaje w I progu" 
+                  {td.monthIndex === -1
+                    ? "pozostaje w I progu"
                     : `wpada w II próg w ${monthLabel(td.monthIndex + 1).split(" ")[0]}`
                   }
                 </p>

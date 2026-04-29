@@ -68,10 +68,11 @@ export type Loan = {
   principal: number; // remaining principal
   annualRatePct: number;
   monthsRemaining: number;
-  monthlyOverpayment?: number; // optional fixed extra payment / month
-  paymentDayOfMonth?: number; // day of month (1-31) when payment is made
-  lastPaymentDate?: string; // ISO date of last payment
-  mortgageInsuranceMonthly: number; // monthly insurance required by bank
+  monthlyOverpayment?: number;
+  overpaymentType?: "fixed" | "dynamic";
+  paymentDayOfMonth?: number;
+  lastPaymentDate?: string;
+  mortgageInsuranceMonthly: number;
 };
 
 export type Rental = {
@@ -224,6 +225,7 @@ function loadInitial(): AppState {
             ...l,
             monthlyOverpayment: l.monthlyOverpayment ?? 0,
             mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
+            overpaymentType: l.overpaymentType ?? "fixed",
           }))
         : DEFAULT_STATE.loans,
       savings: parsed.savings

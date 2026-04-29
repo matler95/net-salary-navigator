@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -34,6 +35,7 @@ import {
   Plus,
   Trash2,
   ChevronDown,
+  ChevronUp,
   PlusCircle,
   Loader2,
   Search,
@@ -447,7 +449,7 @@ function InvestmentsSection() {
                                   duration: 5000,
                                 });
                               }}
-                              className="text-muted-foreground hover:text-destructive p-1.5"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
                               aria-label={`Usuń ${i.label || i.ticker}`}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -802,7 +804,7 @@ function InvestmentsSummaryView({
                         duration: 5000,
                       });
                     }}
-                    className="text-muted-foreground hover:text-destructive p-1"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
                     aria-label={`Usuń ${i.label || i.ticker}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1169,23 +1171,33 @@ function LoanCard({
     paymentDayOfMonth?: number;
     lastPaymentDate?: string;
     mortgageInsuranceMonthly: number;
+    overpaymentType?: "fixed" | "dynamic";
   };
 }) {
   const [showSchedule, setShowSchedule] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const overpay = loan.monthlyOverpayment ?? 0;
   const paymentInfo = getPaymentDueInfo(loan);
+  const pmt = monthlyPayment(loan.principal, loan.annualRatePct, loan.monthsRemaining);
+  const insurance = loan.mortgageInsuranceMonthly ?? 0;
 
   const scheduleNoOverpay = useMemo(
     () => amortizationSchedule(loan.principal, loan.annualRatePct, loan.monthsRemaining, 0),
     [loan.principal, loan.annualRatePct, loan.monthsRemaining],
   );
   const schedule = useMemo(
-    () => amortizationSchedule(loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay),
-    [loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay],
+    () =>
+      amortizationSchedule(
+        loan.principal,
+        loan.annualRatePct,
+        loan.monthsRemaining,
+        overpay,
+        loan.overpaymentType || "fixed",
+        insurance,
+      ),
+    [loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.overpaymentType, insurance],
   );
 
-  const pmt = monthlyPayment(loan.principal, loan.annualRatePct, loan.monthsRemaining);
-  const insurance = loan.mortgageInsuranceMonthly ?? 0;
   const totalMonthlyCost = pmt + overpay + insurance;
   const interestNoOverpay = loanTotalInterest(
     loan.principal,
@@ -1214,7 +1226,7 @@ function LoanCard({
             className="font-display text-2xl h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none truncate hover:bg-muted/30 rounded-lg px-2 -ml-2"
           />
           <p className="text-xs text-muted-foreground mt-1 px-0.5">
-            {loan.annualRatePct}% · {loan.monthsRemaining} m-cy · <span className="font-bold text-foreground">{formatPLN2(totalMonthlyCost)}/m-c</span>
+            {paymentInfo.needsPayment ? `Termin: ${paymentInfo.nextDate}` : `Następna rata: ${paymentInfo.nextDate}`} · {loan.annualRatePct}% · {loan.monthsRemaining} m-cy · <span className="font-bold text-foreground">{formatPLN2(totalMonthlyCost)}/m-c · </span>
           </p>
         </div>
         <button
@@ -1232,135 +1244,133 @@ function LoanCard({
               duration: 5000,
             });
           }}
-          className="text-muted-foreground hover:text-destructive p-1"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
           aria-label={`Usuń kredyt: ${loan.label}`}
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Payment Status */}
-      {loan.paymentDayOfMonth && (
-        <div
-          className={`rounded-lg p-3 mb-4 flex items-center justify-between ${paymentInfo.needsPayment
-            ? "bg-warning/10 border border-warning/30"
-            : "bg-success/5 border border-success/20"
-            }`}
+      <div className="flex items-center justify-between mb-4 px-0.5">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-accent flex items-center gap-1.5 transition-colors"
         >
-          <div className="flex-1 min-w-0">
-            <p
-              className={`text-[10px] font-bold uppercase tracking-wider ${paymentInfo.needsPayment ? "text-warning-foreground" : "text-success"
-                }`}
-            >
-              {paymentInfo.needsPayment ? "Oczekuje na spłatę" : "✓ Rata opłacona"}
-            </p>
-            <p
-              className={`text-sm font-mono mt-0.5 ${paymentInfo.needsPayment ? "text-foreground font-bold" : "text-muted-foreground"}`}
-            >
-              {paymentInfo.needsPayment ? `Termin: ${paymentInfo.nextDate}` : `Następna: ${paymentInfo.nextDate}`}
-            </p>
-          </div>
+          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {isExpanded ? "Ukryj parametry" : "Edytuj parametry"}
+        </button>
+      </div>
 
-          {paymentInfo.needsPayment && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-[10px] uppercase font-bold tracking-wider border-success/30 hover:bg-success/10 hover:text-success text-success bg-success/5 px-3 rounded-full"
-              onClick={() => {
-                const result = calculateLoanAfterPayment(
-                  loan.principal,
-                  loan.annualRatePct,
-                  loan.monthsRemaining,
-                  overpay,
-                );
-                actions.updateLoan(loan.id, {
-                  principal: result.principal,
-                  monthsRemaining: result.monthsRemaining,
-                  lastPaymentDate: new Date().toISOString().slice(0, 10),
-                });
-                toast.success(`Rata "${loan.label}" opłacona`, {
-                  description: `Nowy kapitał: ${formatPLN(result.principal)}`,
-                });
-              }}
+      {isExpanded && (
+        <div className="grid grid-cols-2 gap-3 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Field label="Kapitał">
+            <LocalNumInput
+              value={loan.principal}
+              onChange={(v) => actions.updateLoan(loan.id, { principal: v })}
+              className="h-10 font-mono tabular-nums"
+              decimals={0}
+            />
+          </Field>
+          <Field label="Oproc. %">
+            <LocalNumInput
+              value={loan.annualRatePct}
+              onChange={(v) => actions.updateLoan(loan.id, { annualRatePct: v })}
+              className="h-10 font-mono tabular-nums"
+              decimals={2}
+            />
+          </Field>
+          <Field label="Pozostałe m-ce">
+            <Input
+              type="number"
+              value={loan.monthsRemaining}
+              onChange={(e) =>
+                actions.updateLoan(loan.id, { monthsRemaining: parseInt(e.target.value) || 0 })
+              }
+              className="h-10 font-mono tabular-nums"
+            />
+          </Field>
+          <Field label={loan.overpaymentType === "dynamic" ? "Suma miesięczna" : "Nadpłata / m-c"}>
+            <div className="flex flex-col gap-1.5">
+              <LocalNumInput
+                value={loan.overpaymentType === "dynamic" ? totalMonthlyCost : overpay}
+                onChange={(v) => {
+                  if (loan.overpaymentType === "dynamic") {
+                    actions.updateLoan(loan.id, { monthlyOverpayment: Math.max(0, v - pmt - insurance) });
+                  } else {
+                    actions.updateLoan(loan.id, { monthlyOverpayment: v });
+                  }
+                }}
+                className="h-10 font-mono tabular-nums text-accent"
+                decimals={0}
+              />
+              <div className="flex gap-1 p-0.5 bg-muted/50 rounded-lg border border-border/50">
+                <button
+                  onClick={() => actions.updateLoan(loan.id, { overpaymentType: "fixed" })}
+                  className={cn(
+                    "flex-1 py-1 text-[9px] uppercase font-bold rounded-md transition-all",
+                    loan.overpaymentType !== "dynamic"
+                      ? "bg-card shadow-sm text-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  Stała
+                </button>
+                <button
+                  onClick={() => actions.updateLoan(loan.id, { overpaymentType: "dynamic" })}
+                  className={cn(
+                    "flex-1 py-1 text-[9px] uppercase font-bold rounded-md transition-all",
+                    loan.overpaymentType === "dynamic"
+                      ? "bg-card shadow-sm text-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  Dyna.
+                </button>
+              </div>
+            </div>
+          </Field>
+          <Field label="Ubezpieczenie">
+            <LocalNumInput
+              value={loan.mortgageInsuranceMonthly}
+              onChange={(v) => actions.updateLoan(loan.id, { mortgageInsuranceMonthly: v })}
+              className="h-10 font-mono tabular-nums"
+              decimals={0}
+            />
+          </Field>
+          <Field label="Dzień płatności">
+            <Select
+              value={loan.paymentDayOfMonth?.toString() ?? ""}
+              onValueChange={(v) =>
+                actions.updateLoan(loan.id, { paymentDayOfMonth: v ? parseInt(v) : undefined })
+              }
             >
-              Zapłać ratę
-            </Button>
-          )}
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Ustaw dzień" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <SelectItem key={day} value={day.toString()}>
+                    Dzień {day}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Field label="Kapitał">
-          <LocalNumInput
-            value={loan.principal}
-            onChange={(v) => actions.updateLoan(loan.id, { principal: v })}
-            className="h-10 font-mono tabular-nums"
-            decimals={0}
-          />
-        </Field>
-        <Field label="Oproc. %">
-          <LocalNumInput
-            value={loan.annualRatePct}
-            onChange={(v) => actions.updateLoan(loan.id, { annualRatePct: v })}
-            className="h-10 font-mono tabular-nums"
-            decimals={2}
-          />
-        </Field>
-        <Field label="Pozostałe m-ce">
-          <Input
-            type="number"
-            value={loan.monthsRemaining}
-            onChange={(e) =>
-              actions.updateLoan(loan.id, { monthsRemaining: parseInt(e.target.value) || 0 })
-            }
-            className="h-10 font-mono tabular-nums"
-          />
-        </Field>
-        <Field label="Nadpłata / m-c">
-          <LocalNumInput
-            value={overpay}
-            onChange={(v) => actions.updateLoan(loan.id, { monthlyOverpayment: v })}
-            className="h-10 font-mono tabular-nums text-accent"
-            decimals={0}
-          />
-        </Field>
-        <Field label="Ubezpieczenie">
-          <LocalNumInput
-            value={loan.mortgageInsuranceMonthly}
-            onChange={(v) => actions.updateLoan(loan.id, { mortgageInsuranceMonthly: v })}
-            className="h-10 font-mono tabular-nums"
-            decimals={0}
-          />
-        </Field>
-        <Field label="Dzień płatności">
-          <Select
-            value={loan.paymentDayOfMonth?.toString() ?? ""}
-            onValueChange={(v) =>
-              actions.updateLoan(loan.id, { paymentDayOfMonth: v ? parseInt(v) : undefined })
-            }
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Ustaw dzień" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                <SelectItem key={day} value={day.toString()}>
-                  Dzień {day}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-
-      <div className="bg-accent/5 rounded-xl p-3 grid grid-cols-3 gap-2 text-center mb-3 border border-accent/20">
+      <div className="bg-accent/5 rounded-xl p-3 grid grid-cols-2 lg:grid-cols-4 gap-2 text-center mb-3 border border-accent/20">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Rata + Ub.</p>
           <p className="font-mono tabular-nums text-sm font-bold text-accent">{formatPLN2(pmt + insurance)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Z nadpłatą</p>
-          <p className="font-mono tabular-nums text-sm font-bold text-accent">{formatPLN2(totalMonthlyCost)}</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+            {loan.overpaymentType === "dynamic" ? "Suma (stała)" : "Z nadpłatą"}
+          </p>
+          <p className="font-mono tabular-nums text-sm font-bold text-accent">
+            {formatPLN2(totalMonthlyCost)}
+          </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Odsetki</p>
@@ -1525,7 +1535,7 @@ function RentalsSection() {
                         duration: 5000,
                       });
                     }}
-                    className="text-muted-foreground hover:text-destructive p-1"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
                     aria-label={`Usuń wynajem: ${r.label}`}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1697,10 +1707,18 @@ function AddLoanDialog() {
     annualRatePct: 7.5,
     monthsRemaining: 240,
     monthlyOverpayment: 0,
+    overpaymentType: "fixed" as "fixed" | "dynamic",
     mortgageInsuranceMonthly: 0,
     paymentDayOfMonth: undefined as number | undefined,
   });
   const [isInsuranceManual, setIsInsuranceManual] = useState(false);
+
+  const draftPmt = monthlyPayment(
+    draft.principal,
+    draft.annualRatePct,
+    draft.monthsRemaining,
+  );
+  const draftTotal = draftPmt + draft.mortgageInsuranceMonthly + draft.monthlyOverpayment;
 
   // Auto-calculate insurance: ~0.2% of principal annually
   useEffect(() => {
@@ -1718,7 +1736,7 @@ function AddLoanDialog() {
           Dodaj kredyt
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Dodaj kredyt / zobowiązanie</DialogTitle>
           <DialogDescription>
@@ -1738,6 +1756,7 @@ function AddLoanDialog() {
               annualRatePct: 7.5,
               monthsRemaining: 240,
               monthlyOverpayment: 0,
+              overpaymentType: "fixed",
               mortgageInsuranceMonthly: 0,
               paymentDayOfMonth: undefined,
             });
@@ -1785,7 +1804,7 @@ function AddLoanDialog() {
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium text-muted-foreground">
+            <label className="text-right text-sm font-medium">
               Ubezpieczenie
             </label>
             <LocalNumInput
@@ -1798,21 +1817,63 @@ function AddLoanDialog() {
               decimals={0}
             />
             {!isInsuranceManual && draft.principal > 0 && (
-              <p className="col-start-2 col-span-3 text-[10px] text-muted-foreground -mt-3 italic">
+              <p className="col-start-2 col-span-3 text-[10px] -mt-3 italic">
                 Sugerowane: ~0.2% kapitału rocznie
               </p>
             )}
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium text-muted-foreground">
-              Nadpłata
+            <label className="text-right text-sm font-medium">
+              {draft.overpaymentType === "dynamic" ? "Suma miesięczna" : "Nadpłata / m-c"}
             </label>
             <LocalNumInput
-              value={draft.monthlyOverpayment}
-              onChange={(v) => setDraft({ ...draft, monthlyOverpayment: v })}
+              value={draft.overpaymentType === "dynamic" ? draftTotal : draft.monthlyOverpayment}
+              onChange={(v) => {
+                if (draft.overpaymentType === "dynamic") {
+                  setDraft({ ...draft, monthlyOverpayment: Math.max(0, v - draftPmt - draft.mortgageInsuranceMonthly) });
+                } else {
+                  setDraft({ ...draft, monthlyOverpayment: v });
+                }
+              }}
               className="col-span-3 font-mono tabular-nums h-10"
               decimals={0}
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">
+              Model nadpłaty
+            </label>
+            <div className="col-span-3 grid grid-cols-2 gap-1 p-1 bg-muted/50 rounded-xl border border-border/50">
+              <button
+                type="button"
+                onClick={() => setDraft({ ...draft, overpaymentType: "fixed" })}
+                className={cn(
+                  "py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all",
+                  draft.overpaymentType === "fixed"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                Stała kwota
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraft({ ...draft, overpaymentType: "dynamic" })}
+                className={cn(
+                  "py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all",
+                  draft.overpaymentType === "dynamic"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                Dynamiczna
+              </button>
+            </div>
+            {draft.overpaymentType === "dynamic" && (
+              <p className="col-start-2 col-span-3 text-[10px] text-muted-foreground -mt-3 italic leading-tight">
+                Stała suma wydatków: raty będą spadać, a nadpłaty rosnąć.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Dzień płatności</label>
@@ -2251,7 +2312,7 @@ function SavingsSummaryView({
                             duration: 5000,
                           });
                         }}
-                        className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                        className="text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors px-2 py-1 rounded-lg flex items-center gap-1"
                         aria-label={`Usuń lokatę: ${a.bank}`}
                       >
                         <Trash2 className="w-3 h-3" /> Usuń
@@ -2369,7 +2430,7 @@ function SavingsSummaryView({
                             duration: 5000,
                           });
                         }}
-                        className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                        className="text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors px-2 py-1 rounded-lg flex items-center gap-1"
                         aria-label={`Usuń konto: ${a.bank}`}
                       >
                         <Trash2 className="w-3 h-3" /> Usuń
@@ -2526,7 +2587,7 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
                 duration: 5000,
               });
             }}
-            className="text-muted-foreground hover:text-destructive p-1"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
             aria-label={`Usuń lokatę: ${account.bank}`}
             title="Usuń"
           >

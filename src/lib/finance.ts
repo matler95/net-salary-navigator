@@ -51,19 +51,32 @@ export function amortizationSchedule(
   annualRatePct: number,
   months: number,
   monthlyOverpayment = 0,
+  overpaymentType: "fixed" | "dynamic" = "fixed",
+  insurance = 0,
 ): AmortRow[] {
   const rows: AmortRow[] = [];
   if (principal <= 0 || months <= 0) return rows;
   const r = annualRatePct / 100 / 12;
-  const pmt = monthlyPayment(principal, annualRatePct, months);
+  const initialPmt = monthlyPayment(principal, annualRatePct, months);
+  const targetTotal = initialPmt + insurance + monthlyOverpayment;
+
   let balance = principal;
   let m = 0;
-  const maxMonths = months + 12; // safety
+  const maxMonths = months + 24; // extra safety
   while (balance > 0.01 && m < maxMonths) {
     m++;
     const interest = balance * r;
-    let principalPart = pmt - interest;
-    let overpayment = monthlyOverpayment;
+    const currentPmt =
+      overpaymentType === "dynamic"
+        ? monthlyPayment(balance, annualRatePct, months - m + 1)
+        : initialPmt;
+
+    let principalPart = currentPmt - interest;
+    let overpayment =
+      overpaymentType === "dynamic"
+        ? Math.max(0, targetTotal - insurance - currentPmt)
+        : monthlyOverpayment;
+
     if (principalPart + overpayment > balance) {
       // last month
       overpayment = Math.max(0, balance - principalPart);
@@ -75,7 +88,7 @@ export function amortizationSchedule(
     balance = Math.max(0, balance - principalPart - overpayment);
     rows.push({
       month: m,
-      payment: round2(pmt + overpayment),
+      payment: round2(currentPmt + overpayment),
       interest: round2(interest),
       principal: round2(principalPart),
       overpayment: round2(overpayment),
