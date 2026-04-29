@@ -12,6 +12,7 @@ import {
   ChevronRight,
   LogOut,
   Menu,
+  House,
 } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
@@ -230,8 +231,8 @@ export function AppShell() {
         {/* Household name */}
         {!collapsed && householdName && (
           <div className="px-4 py-2 border-b border-border/50">
-            <p className="text-[11px] text-muted-foreground truncate font-medium">
-              🏠 {householdName}
+            <p className="text-[11px] text-muted-foreground truncate font-medium inline-flex items-center gap-2">
+              <House className="w-3 h-3" /> {householdName}
             </p>
           </div>
         )}
