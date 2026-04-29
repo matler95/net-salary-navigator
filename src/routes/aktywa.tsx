@@ -884,7 +884,7 @@ function AddInvestmentDialog() {
           Dodaj inwestycję
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Dodaj inwestycję</DialogTitle>
           <DialogDescription>
@@ -1051,7 +1051,7 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
           <PlusCircle className="w-4 h-4" />
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Dokup: {investment.label}</DialogTitle>
           <DialogDescription>
@@ -1911,7 +1911,7 @@ function AddRentalDialog() {
           Dodaj nieruchomość
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Dodaj wynajem / nieruchomość</DialogTitle>
           <DialogDescription>Wprowadź dane lokalu na wynajem i oblicz cashflow.</DialogDescription>
@@ -2895,7 +2895,7 @@ function EditSavingsDialog({ account }: { account: SavingsAccount }) {
           <Pencil className="w-3 h-3" /> Edytuj
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Edytuj konto / lokatę</DialogTitle>
           <DialogDescription>Zmień saldo lub inne parametry konta.</DialogDescription>

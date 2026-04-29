@@ -479,7 +479,30 @@ export async function createInvite(email: string): Promise<string | null> {
       "Nie udało się zapisać zaproszenia w bazie. Sprawdź konfigurację polityk RLS tabeli household_invites.",
     );
   }
-  return `${window.location.origin}/invite?invite=${invite.token}`;
+
+  const inviteLink = `${typeof window !== "undefined" ? window.location.origin : ""}/invite?invite=${invite.token}`;
+
+  // Send invite email via Supabase admin API
+  try {
+    const response = await fetch("/api/invite/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        redirectUrl: inviteLink,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Failed to send invite email:", await response.text());
+      // Continue anyway - the invite is created in the database even if email fails
+    }
+  } catch (error) {
+    console.error("Error sending invite email:", error);
+    // Continue anyway - the invite is created in the database even if email fails
+  }
+
+  return inviteLink;
 }
 
 export async function acceptInvite(token: string, session: Session): Promise<{ success: boolean; error?: string }> {

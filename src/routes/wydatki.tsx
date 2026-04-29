@@ -8,6 +8,7 @@ import {
   type Frequency,
 } from "@/lib/finance";
 import { cn } from "@/lib/utils";
+import { getCategoryColor } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -67,23 +68,6 @@ const FREQUENCIES: Frequency[] = [
   "annual",
   "oneoff",
 ];
-
-const CATEGORY_COLORS = [
-  "var(--accent)",
-  "oklch(0.62 0.14 148)",
-  "oklch(0.74 0.13 75)",
-  "oklch(0.58 0.19 25)",
-  "oklch(0.52 0.018 210)",
-  "oklch(0.80 0.12 180)",
-];
-
-function getCategoryColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length];
-}
 
 function getCategoryIcon(name: string) {
   const n = name.toLowerCase();
@@ -175,7 +159,7 @@ function ExpensesPage() {
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6 animate-fade-up">
+        <div className="grid lg:grid-cols-2 gap-6 items-start auto-rows-max animate-fade-up" style={{ gridAutoFlow: 'column' }}>
           {grouped.map((g) => {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
@@ -202,14 +186,16 @@ function ExpensesPage() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3 flex-1">
                           <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl relative"
                             style={{ 
                               backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, 
                               color,
-                              transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)'
                             }}
                           >
-                            <ChevronDown className="h-5 w-5" />
+                            <Icon className="h-5 w-5" />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full flex items-center justify-center opacity-80">
+                              <ChevronDown className="h-1.5 w-1.5 text-accent-foreground transition-transform" style={{ transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+                            </div>
                           </div>
                           <div className="flex-1">
                             <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
@@ -622,6 +608,26 @@ function EditExpenseDialog({ expense }: { expense: Expense }) {
 }
 
 function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
+  const [localAmount, setLocalAmount] = useState(formatLocaleAmount(expense.amount));
+
+  useEffect(() => {
+    const parsedLocal = parseLocaleAmount(localAmount);
+    if (parsedLocal !== expense.amount) {
+      setLocalAmount(formatLocaleAmount(expense.amount));
+    }
+  }, [expense.amount]);
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalAmount(raw);
+    const parsed = parseLocaleAmount(raw);
+    actions.updateExpense(expense.id, { amount: parsed });
+  };
+
+  const handleAmountBlur = () => {
+    setLocalAmount(formatLocaleAmount(expense.amount));
+  };
+
   return (
     <div className="group flex flex-col md:flex-row md:items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-muted/40 transition-colors border border-transparent hover:border-border">
       <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -661,10 +667,9 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
         <Input
           type="text"
           inputMode="decimal"
-          value={formatLocaleAmount(expense.amount)}
-          onChange={(e) =>
-            actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
-          }
+          value={localAmount}
+          onChange={handleAmountChange}
+          onBlur={handleAmountBlur}
           placeholder="0"
           className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 font-bold hover:bg-muted focus-visible:ring-1 shadow-none shrink-0"
         />

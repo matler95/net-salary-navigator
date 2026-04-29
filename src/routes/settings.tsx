@@ -158,7 +158,7 @@ function SettingsPage() {
       }
       setInviteLink(link);
       setInviteRecipient(recipient);
-      toast.success("Zaproszenie utworzone.");
+      toast.success(`Email zaproszenia wysłany na ${recipient}`);
       setEmail("");
       await refreshHouseholdInfo();
     } catch (error) {
@@ -343,13 +343,13 @@ function SettingsPage() {
                      className="flex-1 rounded-xl"
                    />
                    <Button type="submit" className="rounded-xl px-6" disabled={loading}>
-                      Utwórz link
+                      {loading ? "Wysyłanie..." : "Wyślij zaproszenie"}
                    </Button>
                 </form>
 
                 {inviteLink && (
                   <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10 space-y-3 animate-in zoom-in-95 duration-300">
-                    <p className="text-xs font-bold text-accent uppercase tracking-wider">Link zaproszenia gotowy:</p>
+                    <p className="text-xs font-bold text-accent uppercase tracking-wider">✓ Email wysłany. Link do backup:</p>
                     <div className="flex gap-2">
                        <Input readOnly value={inviteLink} className="bg-background text-xs font-mono" />
                        <Button size="sm" onClick={() => {
