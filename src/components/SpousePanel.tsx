@@ -317,7 +317,7 @@ export function SpousePanel({
         {/* RIGHT COLUMN (Results on desktop, top on mobile) */}
         <div className="order-first lg:order-last space-y-6">
           {/* Hero Result */}
-          <div className="rounded-2xl p-6 bg-primary text-primary-foreground shadow-[var(--shadow-warm)]">
+          <div className="rounded-2xl p-6 bg-accent text-accent-foreground shadow-[var(--shadow-warm)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
               Na rękę
             </p>
@@ -353,11 +353,11 @@ export function SpousePanel({
               {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-blue-500 transition-all duration-500" title="PPK" />}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 text-[10px] uppercase font-semibold text-muted-foreground">
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success"/> Netto ({pctNet.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400"/> ZUS ({pctZus.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400"/> Zdrow. ({pctHealth.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive"/> PIT ({pctPit.toFixed(1)}%)</span>
-              {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> PPK</span>}
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> ZUS ({pctZus.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}%)</span>
+              {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /> PPK</span>}
             </div>
 
             <div className="space-y-1">
@@ -397,8 +397,8 @@ export function SpousePanel({
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-3 text-center font-medium">
-                {thresholdPct >= 100 
-                  ? "Przekroczono II próg podatkowy!" 
+                {thresholdPct >= 100
+                  ? "Przekroczono II próg podatkowy!"
                   : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`
                 }
               </p>
@@ -451,9 +451,9 @@ export function SpousePanel({
           <Separator className="my-6" />
 
           {/* Collapsibles */}
-          <SectionGroup 
-            title="Benefity i dodatki" 
-            icon={Gift} 
+          <SectionGroup
+            title="Benefity i dodatki"
+            icon={Gift}
             activeIndicator={hasBenefits}
             summary={hasBenefits ? formatPLN(spouse.inputs.benefitsTaxable + spouse.inputs.lunchAllowance + spouse.inputs.remoteAllowance + (spouse.inputs.companyCarEnabled ? (spouse.inputs.companyCarMode === "statutory" ? parseInt(spouse.inputs.companyCarStatutoryValue) : spouse.inputs.companyCarManualAmount) : 0)) : null}
           >
@@ -467,14 +467,14 @@ export function SpousePanel({
                 label="Bony żywieniowe"
                 value={spouse.inputs.lunchAllowance}
                 onChange={(n) => set("lunchAllowance", n)}
-                hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success"/> ZUS-free do 450 zł</span>}
+                hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success" /> ZUS-free do 450 zł</span>}
               />
             </div>
             <NumberField
               label="Praca zdalna (razem)"
               value={spouse.inputs.remoteAllowance}
               onChange={(n) => set("remoteAllowance", n)}
-              hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success"/> PIT/ZUS-free</span>}
+              hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success" /> PIT/ZUS-free</span>}
             />
             <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
               <ToggleRow
@@ -571,7 +571,7 @@ export function SpousePanel({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="bg-accent-soft/30 rounded-xl p-4 border border-accent/20 mt-4">
               <ToggleRow
                 label="Autorskie KUP (50%)"
@@ -607,9 +607,9 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup 
-            title="PPK" 
-            icon={PiggyBank} 
+          <SectionGroup
+            title="PPK"
+            icon={PiggyBank}
             activeIndicator={hasPpk}
             summary={hasPpk ? `${spouse.inputs.ppkEmployeeRate}% / ${spouse.inputs.ppkEmployerRate}%` : null}
           >
@@ -647,9 +647,9 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup 
-            title="Premia i Bonusy" 
-            icon={Zap} 
+          <SectionGroup
+            title="Premia i Bonusy"
+            icon={Zap}
             activeIndicator={hasBonus}
             summary={hasBonus ? formatPLN(spouse.inputs.bonusOverrideGross ?? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))) : null}
           >
@@ -695,13 +695,13 @@ export function SpousePanel({
                       Oblicz z rocznej podstawy
                     </Label>
                     <p className="text-[11px] text-muted-foreground font-medium">
-                      {spouse.inputs.bonusOverrideGross === null 
-                        ? `Obliczono: ${formatPLN(spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))}` 
+                      {spouse.inputs.bonusOverrideGross === null
+                        ? `Obliczono: ${formatPLN(spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))}`
                         : "Podajesz kwotę ręcznie poniżej"}
                     </p>
                   </div>
-                  <Switch 
-                    checked={spouse.inputs.bonusOverrideGross === null} 
+                  <Switch
+                    checked={spouse.inputs.bonusOverrideGross === null}
                     onCheckedChange={(v) => set("bonusOverrideGross", v ? null : (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)))}
                   />
                 </div>
