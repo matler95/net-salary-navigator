@@ -1580,19 +1580,7 @@ function RentalsSection() {
                       className="h-10 font-mono tabular-nums"
                     />
                   </Field>
-                  <Field label="Pustostan %">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={r.vacancyRatePct}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          vacancyRatePct: parseLocaleAmount(e.target.value),
-                        })
-                      }
-                      className="h-10 font-mono tabular-nums"
-                    />
-                  </Field>
+
                   <Field label="Podatek %">
                     <Input
                       type="text"
@@ -1911,7 +1899,6 @@ function AddRentalDialog() {
     monthlyRent: 0,
     monthlyCosts: 0,
     monthlyMortgage: 0,
-    vacancyRatePct: 5,
     taxRatePct: 8.5,
     marketValue: 0,
   });
@@ -1940,7 +1927,6 @@ function AddRentalDialog() {
               monthlyRent: 0,
               monthlyCosts: 0,
               monthlyMortgage: 0,
-              vacancyRatePct: 5,
               taxRatePct: 8.5,
               marketValue: 0,
             });

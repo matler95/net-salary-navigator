@@ -103,13 +103,12 @@ export interface RentalInput {
   monthlyRent: number;
   monthlyCosts: number;
   monthlyMortgage: number;
-  vacancyRatePct: number;
   taxRatePct: number;
 }
 
 export function rentalCashflow(r: RentalInput) {
   const grossRent = r.monthlyRent;
-  const effectiveRent = grossRent * (1 - r.vacancyRatePct / 100);
+  const effectiveRent = grossRent;
   const tax = effectiveRent * (r.taxRatePct / 100);
   const cashflow = effectiveRent - r.monthlyCosts - r.monthlyMortgage - tax;
   return {
@@ -269,7 +268,8 @@ export interface RealEstateScenario {
   purchasePrice: number;
   downPaymentPct: number; // e.g. 20
   renovationCost: number;
-  closingCostsPct: number; // notarial, PCC 2%, agency etc. ≈ 4–6%
+  marketType: "wtórny" | "pierwotny";
+  hasAgency: boolean;
   // Mortgage
   mortgageRatePct: number; // annual %
   mortgageYears: number;
@@ -279,7 +279,6 @@ export interface RealEstateScenario {
   // Rent
   monthlyRent: number;
   monthlyCosts: number; // czynsz admin., zarządzanie, ubezpieczenie /m-c
-  vacancyRatePct: number;
   taxRatePct: number; // 8.5% ryczałt
   // Long-term
   rentGrowthPct: number; // annual %
@@ -329,7 +328,8 @@ export interface RealEstateYearPoint {
 
 export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const downPayment = s.purchasePrice * (s.downPaymentPct / 100);
-  const closingCosts = s.purchasePrice * (s.closingCostsPct / 100);
+  const calculatedClosingCostsPct = (s.marketType === "wtórny" ? 2.5 : 0.5) + (s.hasAgency ? 2 : 0);
+  const closingCosts = s.purchasePrice * (calculatedClosingCostsPct / 100);
   const loanAmount = Math.max(0, s.purchasePrice - downPayment);
   const bankCommission = loanAmount * ((s.bankCommissionPct || 0) / 100);
   const totalUpfront = downPayment + s.renovationCost + closingCosts + bankCommission;
@@ -353,7 +353,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   // Total cost including insurance
   const totalMonthlyMortgageCost = monthlyPmt + (s.mortgageInsuranceMonthly || 0);
 
-  const effectiveRent = s.monthlyRent * (1 - s.vacancyRatePct / 100);
+  const effectiveRent = s.monthlyRent;
   const monthlyTax = effectiveRent * (s.taxRatePct / 100);
   const monthlyCashflow = effectiveRent - s.monthlyCosts - totalMonthlyMortgageCost - monthlyTax;
   const annualCashflow = monthlyCashflow * 12;
@@ -370,7 +370,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   let propertyValue = s.purchasePrice;
   for (let y = 1; y <= s.holdingYears; y++) {
     const rentYear = s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
-    const effectiveYear = rentYear * (1 - s.vacancyRatePct / 100);
+    const effectiveYear = rentYear;
     const taxYear = effectiveYear * (s.taxRatePct / 100);
     const costsYear = s.monthlyCosts * 12;
     const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
@@ -490,11 +490,11 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
 /**
  * Minimum monthly rent (gross, from tenant) at which monthly cash-flow = 0.
- * Solves: rent*(1−vacancy%)*(1−tax%) = mortgage + insurance + monthlyCosts
+ * Solves: rent*(1−tax%) = mortgage + insurance + monthlyCosts
  */
 export function minBreakEvenRent(s: RealEstateScenario, r: RealEstateResult): number {
   const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts;
-  const factor = (1 - s.vacancyRatePct / 100) * (1 - s.taxRatePct / 100);
+  const factor = (1 - s.taxRatePct / 100);
   return factor > 0 ? round2(totalFixed / factor) : 0;
 }
 

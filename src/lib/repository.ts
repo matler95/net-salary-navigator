@@ -614,6 +614,7 @@ function mapLoanToRow(householdId: string, x: Loan) {
     monthly_overpayment: x.monthlyOverpayment,
     payment_day_of_month: x.paymentDayOfMonth,
     last_payment_date: x.lastPaymentDate,
+    mortgage_insurance_monthly: x.mortgageInsuranceMonthly,
   };
 }
 function mapLoanFromRow(row: unknown): Loan {
@@ -627,6 +628,7 @@ function mapLoanFromRow(row: unknown): Loan {
     monthlyOverpayment: Number(r.monthly_overpayment ?? 0),
     paymentDayOfMonth: r.payment_day_of_month ? Number(r.payment_day_of_month) : undefined,
     lastPaymentDate: r.last_payment_date ? String(r.last_payment_date) : undefined,
+    mortgageInsuranceMonthly: Number(r.mortgage_insurance_monthly ?? 0),
   };
 }
 function mapRentalToRow(householdId: string, x: Rental) {
@@ -637,7 +639,6 @@ function mapRentalToRow(householdId: string, x: Rental) {
     monthly_rent: x.monthlyRent,
     monthly_costs: x.monthlyCosts,
     monthly_mortgage: x.monthlyMortgage,
-    vacancy_rate_pct: x.vacancyRatePct,
     tax_rate_pct: x.taxRatePct,
     market_value: x.marketValue,
   };
@@ -650,7 +651,6 @@ function mapRentalFromRow(row: unknown): Rental {
     monthlyRent: Number(r.monthly_rent ?? 0),
     monthlyCosts: Number(r.monthly_costs ?? 0),
     monthlyMortgage: Number(r.monthly_mortgage ?? 0),
-    vacancyRatePct: Number(r.vacancy_rate_pct ?? 0),
     taxRatePct: Number(r.tax_rate_pct ?? 8.5),
     marketValue: Number(r.market_value ?? 0),
   };

@@ -81,7 +81,6 @@ export type Rental = {
   monthlyRent: number;
   monthlyCosts: number;
   monthlyMortgage: number;
-  vacancyRatePct: number;
   taxRatePct: number; // 8.5 default
   marketValue: number;
 };
