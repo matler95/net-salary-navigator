@@ -222,7 +222,7 @@ function InvitePage() {
                   </Button>
                   <Link
                     to="/login"
-                    search={{ invite: token, register: undefined }}
+                    search={{ invite: token || undefined, register: undefined }}
                     className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     Zmień konto
@@ -286,7 +286,7 @@ function InvitePage() {
                   <p>Masz już konto? Zaloguj się, aby dokończyć proces dołączenia do gospodarstwa.</p>
                   <Link
                     to="/login"
-                    search={{ invite: token, register: undefined }}
+                    search={{ invite: token || undefined, register: undefined }}
                     className="inline-flex items-center justify-center rounded-full bg-background border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Zaloguj się
