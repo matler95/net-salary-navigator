@@ -159,7 +159,7 @@ function ExpensesPage() {
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6 items-start auto-rows-max animate-fade-up" style={{ gridAutoFlow: 'column' }}>
+        <div className="grid lg:grid-cols-2 gap-6 animate-fade-up">
           {grouped.map((g) => {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
