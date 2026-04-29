@@ -178,6 +178,18 @@ export async function updateHouseholdName(householdId: string, name: string): Pr
   return true;
 }
 
+export async function deleteHousehold(householdId: string): Promise<boolean> {
+  const supabase = await getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase.from("households").delete().eq("id", householdId);
+  if (error) {
+    console.error("Error deleting household:", error);
+    return false;
+  }
+  return true;
+}
+
 export async function ensureHouseholdForSession(
   session: Session,
   preferredHouseholdId?: string | null,

@@ -105,6 +105,7 @@ export type GlobalSettings = {
   pitFirstRate: number; // in %
   pitSecondRate: number; // in %
   taxFreeAmountAnnual: number;
+  targetEmergencyFundMonths: number;
 };
 
 export type AppState = {
@@ -141,6 +142,7 @@ const DEFAULT_STATE: AppState = {
     pitFirstRate: 12,
     pitSecondRate: 32,
     taxFreeAmountAnnual: 30000,
+    targetEmergencyFundMonths: 6,
   },
 };
 
@@ -822,4 +824,21 @@ export const actions = {
   reset() {
     setState(() => DEFAULT_STATE);
   },
+  async updateProfile(nickname: string) {
+    const { updateUserMetadata } = await import("./repository");
+    const success = await updateUserMetadata({ nickname });
+    if (success) {
+      // Profile is typically handled by Supabase session, but we can trigger a refresh if needed
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("household:meta-change"));
+      }
+    }
+    return success;
+  },
+  clearAllData() {
+    setState(() => ({
+      ...DEFAULT_STATE,
+      spouses: state.spouses.map(s => ({ ...s, inputs: { ...DEFAULT_SALARY_INPUTS } })),
+    }));
+  }
 };

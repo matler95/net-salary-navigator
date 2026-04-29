@@ -275,7 +275,8 @@ function Dashboard() {
     );
   }
 
-  const nickname = session?.user.user_metadata?.nickname?.trim() || "Cześć";
+  const userNickname = session?.user.user_metadata?.nickname?.trim();
+  const greetingName = userNickname || session?.user.email?.split("@")[0] || "użytkowniku";
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-up">
@@ -289,7 +290,7 @@ function Dashboard() {
                 S
               </div>
               <p className="font-display text-xl italic text-foreground/80">
-                {greeting()}, {nickname}!
+                {greeting()}, {greetingName}!
               </p>
             </div>
 
@@ -415,10 +416,12 @@ function Dashboard() {
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
-                    <ShieldPlus className="h-3.5 w-3.5 text-success" />
+                    <ShieldPlus className={cn("h-3.5 w-3.5", emergencyFundMonths >= globalSettings.targetEmergencyFundMonths ? "text-success" : "text-orange-500")} />
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Poduszka</p>
                   </div>
-                  <p className="font-mono text-sm font-bold text-foreground">{emergencyFundMonths.toFixed(1)} mies.</p>
+                  <p className="font-mono text-sm font-bold text-foreground">
+                    {emergencyFundMonths.toFixed(1)} / {globalSettings.targetEmergencyFundMonths} <span className="text-[10px] font-normal text-muted-foreground ml-0.5">m-cy</span>
+                  </p>
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">

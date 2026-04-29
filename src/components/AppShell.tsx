@@ -24,6 +24,7 @@ import {
 } from "@/lib/store";
 import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const NAV = [
   { to: "/",             label: "Przegląd",    icon: LayoutDashboard },
@@ -375,6 +376,7 @@ export function AppShell() {
         {/* Unified Outlet container */}
         <main id="main-content" className="flex-1 pb-20 md:pb-6">
           <Outlet />
+          <Toaster position="top-right" expand={false} richColors />
         </main>
 
         <footer className="border-t border-border px-4 py-3 pb-6 md:px-6 md:py-4 md:pb-4">
