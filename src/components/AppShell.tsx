@@ -1,19 +1,19 @@
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { 
-  RefreshCw, 
-  LayoutDashboard, 
-  Banknote, 
-  ShoppingBag, 
-  PieChart, 
-  Calculator, 
+import {
+  RefreshCw,
+  LayoutDashboard,
+  Banknote,
+  ShoppingBag,
+  PieChart,
+  Calculator,
   Settings,
   User,
   ChevronLeft,
   ChevronRight,
   Leaf,
   LogOut,
-  Menu
+  Menu,
 } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import {
@@ -139,9 +139,12 @@ export function AppShell() {
           <div className="w-12 h-12 rounded-2xl bg-[var(--gradient-accent)] flex items-center justify-center text-accent-foreground mb-6 shadow-md">
             <Leaf className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-display italic font-semibold mb-4 tracking-tight">Zaloguj się, aby kontynuować</h1>
+          <h1 className="text-3xl font-display italic font-semibold mb-4 tracking-tight">
+            Zaloguj się, aby kontynuować
+          </h1>
           <p className="mb-8 text-muted-foreground leading-relaxed">
-            Twoje finanse są bezpieczne. Aby zobaczyć swój pulpit i zarządzać budżetem, zaloguj się do swojego konta.
+            Twoje finanse są bezpieczne. Aby zobaczyć swój pulpit i zarządzać budżetem, zaloguj się
+            do swojego konta.
           </p>
           <Link
             to="/login"
@@ -159,7 +162,7 @@ export function AppShell() {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Sidebar for Desktop */}
       {isAuthenticated && (
-        <aside 
+        <aside
           className={`hidden md:flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out ${
             sidebarCollapsed ? "w-20" : "w-64"
           } shrink-0 sticky top-0 h-screen z-30`}
@@ -175,12 +178,16 @@ export function AppShell() {
                 </span>
               )}
             </Link>
-            <button 
+            <button
               onClick={toggleSidebar}
               className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
               aria-label={sidebarCollapsed ? "Rozwiń pasek" : "Zwiń pasek"}
             >
-              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
             </button>
           </div>
 
@@ -193,12 +200,14 @@ export function AppShell() {
                   key={n.to}
                   to={n.to}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                    active 
-                      ? "bg-accent text-accent-foreground shadow-md" 
+                    active
+                      ? "bg-accent text-accent-foreground shadow-md"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 shrink-0 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
+                  <Icon
+                    className={`w-5 h-5 shrink-0 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`}
+                  />
                   {!sidebarCollapsed && (
                     <span className="font-medium text-sm truncate animate-in fade-in duration-300">
                       {n.label}
@@ -215,14 +224,19 @@ export function AppShell() {
           </nav>
 
           <div className="p-3 border-t border-border space-y-1">
-            <div className={`flex items-center gap-3 px-3 py-2 rounded-xl bg-accent-soft/30 mb-2 ${sidebarCollapsed ? "justify-center" : ""}`}>
+            <div
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl bg-accent-soft/30 mb-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+            >
               <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent shrink-0 border border-accent/20">
-                {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
+                {(session?.user.user_metadata?.nickname ||
+                  session?.user.email ||
+                  "?")[0].toUpperCase()}
               </div>
               {!sidebarCollapsed && (
                 <div className="min-w-0 flex-1 animate-in fade-in duration-300">
                   <p className="text-xs font-semibold truncate leading-none mb-1">
-                    {session?.user.user_metadata?.nickname?.trim() || session?.user.email?.split("@")[0]}
+                    {session?.user.user_metadata?.nickname?.trim() ||
+                      session?.user.email?.split("@")[0]}
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate leading-none">
                     {householdName ?? "Gospodarstwo"}
@@ -230,7 +244,7 @@ export function AppShell() {
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={() => void handleRefresh()}
               disabled={refreshing}
@@ -248,7 +262,11 @@ export function AppShell() {
               title="Wyloguj"
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              {!sidebarCollapsed && <span className="text-xs font-medium">{signOutInProgress ? "Wychodzę…" : "Wyloguj"}</span>}
+              {!sidebarCollapsed && (
+                <span className="text-xs font-medium">
+                  {signOutInProgress ? "Wychodzę…" : "Wyloguj"}
+                </span>
+              )}
             </button>
           </div>
         </aside>
@@ -263,7 +281,7 @@ export function AppShell() {
             </div>
             <span className="font-display italic font-semibold text-lg tracking-tight">Saldeo</span>
           </Link>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => void handleRefresh()}
@@ -273,7 +291,9 @@ export function AppShell() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent border border-accent/20">
-              {(session?.user.user_metadata?.nickname || session?.user.email || "?")[0].toUpperCase()}
+              {(session?.user.user_metadata?.nickname ||
+                session?.user.email ||
+                "?")[0].toUpperCase()}
             </div>
           </div>
         </div>
@@ -283,7 +303,7 @@ export function AppShell() {
         <main className="flex-1 pb-24 md:pb-0">
           <Outlet />
         </main>
-        
+
         <footer className="border-t border-border mt-auto">
           <div className="max-w-7xl mx-auto px-6 py-8 text-xs text-muted-foreground flex flex-col sm:flex-row justify-between gap-4 items-center">
             <p>© 2025 Saldeo · Twoje finanse, po ludzku.</p>
@@ -307,15 +327,17 @@ export function AppShell() {
                 key={n.to}
                 to={n.to}
                 className={`flex flex-col items-center gap-1.5 flex-1 min-w-0 py-1 rounded-2xl transition-all duration-200 active:scale-90 ${
-                  active
-                    ? "text-accent"
-                    : "text-muted-foreground"
+                  active ? "text-accent" : "text-muted-foreground"
                 }`}
               >
-                <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-accent/10" : ""}`}>
+                <div
+                  className={`p-1.5 rounded-xl transition-colors ${active ? "bg-accent/10" : ""}`}
+                >
                   <Icon className={`w-6 h-6 ${active ? "stroke-[2.5px]" : "stroke-[1.5px]"}`} />
                 </div>
-                <span className={`text-[10px] font-semibold tracking-tight truncate w-full text-center ${active ? "text-accent" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-[10px] font-semibold tracking-tight truncate w-full text-center ${active ? "text-accent" : "text-muted-foreground"}`}
+                >
                   {n.label}
                 </span>
               </Link>
@@ -326,4 +348,3 @@ export function AppShell() {
     </div>
   );
 }
-

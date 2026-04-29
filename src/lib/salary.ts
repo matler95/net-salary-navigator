@@ -147,7 +147,7 @@ export function calculateSalary(
   const lunchAllowanceZusable = Math.max(0, lunchAllowance - LUNCH_ZUS_EXEMPT_LIMIT);
 
   const zusBase = gross + benefitsTaxable + companyCarTaxable + lunchAllowanceZusable;
-  
+
   // ZUS Limit (30-krotność) applies to pension and disability only
   const remainingLimit = Math.max(0, ZUS_LIMIT_ANNUAL - cumulativeZusBaseBefore);
   const zusBaseForLimited = Math.min(zusBase, remainingLimit);
@@ -240,8 +240,8 @@ export function calculateSalary(
   };
 }
 
-/** 
- * Returns the full 12-month breakdown, 
+/**
+ * Returns the full 12-month breakdown,
  * accounting for threshold crossing and bonuses.
  */
 export function calculateAnnualBreakdown(
@@ -306,7 +306,7 @@ export function calculateAnnualBreakdown(
   return months;
 }
 
-/** 
+/**
  * Returns the breakdown for a specific month (1-12).
  */
 /** Returns the arithmetic average of monthly net salaries over 12 months. */
@@ -319,7 +319,7 @@ export function calculateAnnualAverageNet(
   return round2(totalNet / 12);
 }
 
-/** 
+/**
  * Returns the breakdown for a specific month (1-12).
  */
 export function calculateSalaryForMonth(
@@ -424,7 +424,7 @@ export function parseLocaleAmount(raw: string): number {
 export function formatLocaleAmount(value: number, decimals: number = 2): string {
   if (value === undefined || value === null || !Number.isFinite(value)) return "";
   if (value === 0) return "0";
-  // Return the number formatted with up to 'decimals' fractional digits, 
+  // Return the number formatted with up to 'decimals' fractional digits,
   // but removing trailing zeros and the decimal point if it's an integer.
   const s = value.toFixed(decimals);
   if (s.indexOf(".") === -1) return s;

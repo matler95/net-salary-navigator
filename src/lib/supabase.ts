@@ -5,7 +5,7 @@ let supabaseInstance: SupabaseClient | null = null;
 
 export async function getSupabase() {
   if (supabaseInstance) return supabaseInstance;
-  
+
   if (typeof window === "undefined") return null;
 
   try {

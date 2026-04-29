@@ -5,7 +5,13 @@ import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { calculateAnnualAverageNet, formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
+import {
+  calculateAnnualAverageNet,
+  formatPLN,
+  formatPLN2,
+  parseLocaleAmount,
+  formatLocaleAmount,
+} from "@/lib/salary";
 import { useAppState } from "@/lib/store";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -48,7 +54,6 @@ export const Route = createFileRoute("/kalkulatory")({
   component: CalculatorsPage,
 });
 
-
 function CalculatorsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-12">
@@ -56,17 +61,20 @@ function CalculatorsPage() {
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-             <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
-                Analiza Scenariuszy
-             </div>
-             <div className="w-1 h-1 rounded-full bg-border" />
-             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                <Calculator className="w-3.5 h-3.5" />
-                Interaktywne symulacje
-             </div>
+            <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
+              Analiza Scenariuszy
+            </div>
+            <div className="w-1 h-1 rounded-full bg-border" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <Calculator className="w-3.5 h-3.5" />
+              Interaktywne symulacje
+            </div>
           </div>
           <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight">
-            Przewiduj <span className="italic text-accent decoration-accent/30 underline underline-offset-8">przyszłość</span>
+            Przewiduj{" "}
+            <span className="italic text-accent decoration-accent/30 underline underline-offset-8">
+              przyszłość
+            </span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
             Sprawdź ile naprawdę zarobi twój portfel ETF i czy mieszkanie na wynajem ma sens — z
@@ -77,14 +85,14 @@ function CalculatorsPage() {
 
       <Tabs defaultValue="realestate" className="space-y-10">
         <TabsList className="bg-card border border-border p-1.5 rounded-[1.5rem] shadow-sm h-auto inline-flex">
-          <TabsTrigger 
-            value="realestate" 
+          <TabsTrigger
+            value="realestate"
             className="rounded-xl px-6 py-2.5 text-sm font-semibold data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2"
           >
             <Home className="w-4 h-4" />
             Wynajem Nieruchomości
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="portfolio"
             className="rounded-xl px-6 py-2.5 text-sm font-semibold data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-md transition-all flex items-center gap-2"
           >
@@ -103,7 +111,6 @@ function CalculatorsPage() {
     </div>
   );
 }
-
 
 /* ============================================================
    PORTFOLIO CALCULATOR
@@ -134,12 +141,12 @@ function PortfolioCalculator() {
   const budgetImpact = useMemo(() => {
     const totalNetIncome = spouses.reduce(
       (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
-      0
+      0,
     );
     const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);
     const existingLoanPayments = loans.reduce(
       (sum, l) => sum + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
-      0
+      0,
     );
 
     const currentDisposable = totalNetIncome - totalExpenses - existingLoanPayments;
@@ -155,7 +162,6 @@ function PortfolioCalculator() {
   return (
     <div className="grid lg:grid-cols-[380px,1fr] gap-6">
       <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm space-y-6 h-fit">
-
         <h2 className="font-display text-xl">Założenia</h2>
 
         <NumField
@@ -227,7 +233,6 @@ function PortfolioCalculator() {
         </div>
 
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
-
           <h3 className="font-display text-lg mb-1">Wzrost portfela</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wpłaty (kapitał) vs wartość rynkowa vs realna wartość po inflacji
@@ -286,18 +291,19 @@ function PortfolioCalculator() {
 
         {/* BUDGET IMPACT SECTION */}
         <div className="bg-gradient-to-br from-accent/5 to-accent/10 rounded-[2rem] p-8 border border-accent/20 shadow-sm relative overflow-hidden">
-
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <Wallet className="w-24 h-24 text-accent" />
           </div>
-          
+
           <h3 className="font-display text-xl mb-4 flex items-center gap-2 text-accent">
             Wpływ na domowy budżet
           </h3>
-          
+
           <div className="grid sm:grid-cols-2 gap-6 relative z-10">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income po inwestycji</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Disposable Income po inwestycji
+              </p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-display font-bold">
                   {formatPLN(budgetImpact.remainingAfterInvestment)}
@@ -312,11 +318,14 @@ function PortfolioCalculator() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Stopa oszczędności</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Stopa oszczędności
+              </p>
               <p className="text-2xl font-display font-bold">
-                {budgetImpact.totalNetIncome > 0 
-                  ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(0) 
-                  : 0}%
+                {budgetImpact.totalNetIncome > 0
+                  ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(0)
+                  : 0}
+                %
               </p>
               <p className="text-[10px] text-muted-foreground">
                 Procent dochodu netto przeznaczany na ten cel.
@@ -325,8 +334,11 @@ function PortfolioCalculator() {
           </div>
 
           <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
-            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta wpłata 
-            stanowi {budgetImpact.totalNetIncome > 0 ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(1) : 0}% Twojego budżetu netto."
+            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta wpłata stanowi{" "}
+            {budgetImpact.totalNetIncome > 0
+              ? ((inputs.monthlyContribution / budgetImpact.totalNetIncome) * 100).toFixed(1)
+              : 0}
+            % Twojego budżetu netto."
           </div>
         </div>
       </div>
@@ -369,12 +381,12 @@ function RealEstateCalculator() {
   const budgetImpact = useMemo(() => {
     const totalNetIncome = spouses.reduce(
       (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
-      0
+      0,
     );
     const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);
     const existingLoanPayments = loans.reduce(
       (sum, l) => sum + monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining),
-      0
+      0,
     );
 
     const currentDisposable = totalNetIncome - totalExpenses - existingLoanPayments;
@@ -394,7 +406,6 @@ function RealEstateCalculator() {
     <div className="grid lg:grid-cols-[400px,1fr] gap-6">
       {/* Inputs */}
       <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm space-y-8 h-fit">
-
         <div>
           <h2 className="font-display text-xl mb-3">Zakup</h2>
           <div className="space-y-3">
@@ -456,7 +467,7 @@ function RealEstateCalculator() {
                 Raty malejące
               </button>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
               <SliderField
                 label="Oprocentowanie"
@@ -573,7 +584,11 @@ function RealEstateCalculator() {
           <StatCard
             label="Miesięczna rata"
             value={formatPLN2(r.monthlyPmt)}
-            sub={s.mortgageInsuranceMonthly > 0 ? `+ ${s.mortgageInsuranceMonthly} zł ubezp.` : `Kredyt: ${formatPLN(r.loanAmount)}`}
+            sub={
+              s.mortgageInsuranceMonthly > 0
+                ? `+ ${s.mortgageInsuranceMonthly} zł ubezp.`
+                : `Kredyt: ${formatPLN(r.loanAmount)}`
+            }
           />
           <StatCard
             label={r.monthlyCashflow >= 0 ? "Zysk na czysto" : "Strata miesięczna"}
@@ -585,7 +600,9 @@ function RealEstateCalculator() {
             label="Cash-on-cash"
             value={`${r.cashOnCashPct.toFixed(1)}%`}
             sub={`ROI z samej gotówki`}
-            tone={r.cashOnCashPct >= 5 ? "success" : r.cashOnCashPct > 0 ? "default" : "destructive"}
+            tone={
+              r.cashOnCashPct >= 5 ? "success" : r.cashOnCashPct > 0 ? "default" : "destructive"
+            }
           />
         </div>
 
@@ -603,7 +620,6 @@ function RealEstateCalculator() {
 
         {/* Cashflow & equity chart */}
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
-
           <h3 className="font-display text-lg mb-1">Skumulowany wynik vs kapitał własny</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wartość mieszkania rośnie, kredyt maleje — kapitał własny to różnica.
@@ -653,7 +669,6 @@ function RealEstateCalculator() {
 
         {/* Annual cashflow bar */}
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
-
           <h3 className="font-display text-lg mb-1">Roczny wynik (zysk / strata)</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Po kosztach, racie i podatku. Czynsz rośnie {s.rentGrowthPct}% rocznie.
@@ -686,7 +701,6 @@ function RealEstateCalculator() {
         <div className="grid sm:grid-cols-2 gap-4">
           {/* Detailed Summary */}
           <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
-
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-success" />
               Podsumowanie po {s.holdingYears} latach
@@ -697,15 +711,25 @@ function RealEstateCalculator() {
                 <span className="font-mono font-semibold">{formatPLN(r.totalUpfront)}</span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className="text-muted-foreground">{r.totalCashflow >= 0 ? "Skumulowany zysk" : "Skumulowana strata"}</span>
-                <span className={`font-mono font-semibold ${r.totalCashflow >= 0 ? "text-success" : "text-destructive"}`}>
-                  {r.totalCashflow >= 0 ? "+" : ""}{formatPLN(r.totalCashflow)}
+                <span className="text-muted-foreground">
+                  {r.totalCashflow >= 0 ? "Skumulowany zysk" : "Skumulowana strata"}
+                </span>
+                <span
+                  className={`font-mono font-semibold ${r.totalCashflow >= 0 ? "text-success" : "text-destructive"}`}
+                >
+                  {r.totalCashflow >= 0 ? "+" : ""}
+                  {formatPLN(r.totalCashflow)}
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className="text-muted-foreground">Spłacony kapitał w kredycie</span>
                 <span className="font-mono font-semibold text-success">
-                  +{formatPLN(r.finalEquity - (s.purchasePrice * s.appreciationPct * s.holdingYears / 100) - r.downPayment)} 
+                  +
+                  {formatPLN(
+                    r.finalEquity -
+                      (s.purchasePrice * s.appreciationPct * s.holdingYears) / 100 -
+                      r.downPayment,
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
@@ -718,11 +742,15 @@ function RealEstateCalculator() {
               <div className="flex justify-between items-center pt-1">
                 <span className="font-bold">Łączny zysk (netto)</span>
                 <div className="text-right">
-                  <p className={`font-display text-2xl ${r.totalReturn >= 0 ? "text-success" : "text-destructive"}`}>
+                  <p
+                    className={`font-display text-2xl ${r.totalReturn >= 0 ? "text-success" : "text-destructive"}`}
+                  >
                     {formatPLN(r.totalReturn)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {r.totalReturnPct >= 0 ? "+" : ""}{r.totalReturnPct.toFixed(0)}% {r.totalReturnPct >= 0 ? "zwrotu" : "straty"} z kapitału
+                    {r.totalReturnPct >= 0 ? "+" : ""}
+                    {r.totalReturnPct.toFixed(0)}% {r.totalReturnPct >= 0 ? "zwrotu" : "straty"} z
+                    kapitału
                   </p>
                 </div>
               </div>
@@ -731,7 +759,6 @@ function RealEstateCalculator() {
 
           {/* Mortgage Breakdown */}
           <div className="bg-card rounded-[2rem] p-8 border border-border shadow-warm">
-
             <h3 className="font-display text-lg mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
               Koszty kredytu ({s.holdingYears} lat)
@@ -739,7 +766,9 @@ function RealEstateCalculator() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-baseline">
                 <span className="text-muted-foreground">Suma zapłaconych odsetek</span>
-                <span className="font-mono font-semibold text-destructive">{formatPLN(r.totalInterestPaid)}</span>
+                <span className="font-mono font-semibold text-destructive">
+                  {formatPLN(r.totalInterestPaid)}
+                </span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className="text-muted-foreground">Prowizje i ubezpieczenia</span>
@@ -749,13 +778,15 @@ function RealEstateCalculator() {
               </div>
               <div className="flex justify-between items-baseline">
                 <span className="text-muted-foreground">Średni koszt miesięczny (RRSO eq.)</span>
-                <span className="font-mono font-semibold">{formatPLN2(r.totalMortgageCost / (s.holdingYears * 12))}</span>
+                <span className="font-mono font-semibold">
+                  {formatPLN2(r.totalMortgageCost / (s.holdingYears * 12))}
+                </span>
               </div>
               <Separator />
               <div className="pt-1">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Kredyt na <span className="font-bold">{formatPLN(r.loanAmount)}</span> ({s.mortgageYears} lat). 
-                  Pozostały kapitał do spłaty po {s.holdingYears} latach: 
+                  Kredyt na <span className="font-bold">{formatPLN(r.loanAmount)}</span> (
+                  {s.mortgageYears} lat). Pozostały kapitał do spłaty po {s.holdingYears} latach:
                   <span className="font-mono font-bold block text-lg mt-1">
                     {formatPLN(r.yearly[r.yearly.length - 1].loanBalance)}
                   </span>
@@ -770,20 +801,25 @@ function RealEstateCalculator() {
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <Wallet className="w-24 h-24 text-accent" />
           </div>
-          
+
           <h3 className="font-display text-xl mb-4 flex items-center gap-2 text-accent">
             Wpływ na domowy budżet
           </h3>
-          
+
           <div className="grid sm:grid-cols-3 gap-6 relative z-10">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Disposable Income</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Disposable Income
+              </p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-display font-bold">
                   {formatPLN(budgetImpact.newDisposable)}
                 </p>
-                <span className={`text-xs font-bold ${r.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}>
-                  ({r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)})
+                <span
+                  className={`text-xs font-bold ${r.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}
+                >
+                  ({r.monthlyCashflow >= 0 ? "+" : ""}
+                  {formatPLN(r.monthlyCashflow)})
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground">
@@ -793,7 +829,9 @@ function RealEstateCalculator() {
 
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Wskaźnik DTI</p>
-              <p className={`text-2xl font-display font-bold ${budgetImpact.totalDTI > 40 ? "text-destructive" : "text-foreground"}`}>
+              <p
+                className={`text-2xl font-display font-bold ${budgetImpact.totalDTI > 40 ? "text-destructive" : "text-foreground"}`}
+              >
                 {budgetImpact.totalDTI.toFixed(1)}%
               </p>
               <p className="text-[10px] text-muted-foreground">
@@ -802,11 +840,14 @@ function RealEstateCalculator() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Stopa oszczędności</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Stopa oszczędności
+              </p>
               <p className="text-2xl font-display font-bold">
-                {budgetImpact.totalNetIncome > 0 
-                  ? ((budgetImpact.newDisposable / budgetImpact.totalNetIncome) * 100).toFixed(0) 
-                  : 0}%
+                {budgetImpact.totalNetIncome > 0
+                  ? ((budgetImpact.newDisposable / budgetImpact.totalNetIncome) * 100).toFixed(0)
+                  : 0}
+                %
               </p>
               <p className="text-[10px] text-muted-foreground">
                 Procent dochodu, który możesz odkładać lub inwestować dalej.
@@ -815,11 +856,11 @@ function RealEstateCalculator() {
           </div>
 
           <div className="mt-4 p-3 bg-background/50 rounded-xl border border-accent/10 text-sm text-muted-foreground italic">
-            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja 
-            {r.monthlyCashflow >= 0 
-              ? ` zwiększa Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%` 
-              : ` pochłania ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}% Twojego budżetu`
-            }."
+            "Przy dochodach {formatPLN(budgetImpact.totalNetIncome)} miesięcznie, ta inwestycja
+            {r.monthlyCashflow >= 0
+              ? ` zwiększa Twoją nadwyżkę o ${((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}%`
+              : ` pochłania ${Math.abs((r.monthlyCashflow / budgetImpact.totalNetIncome) * 100).toFixed(1)}% Twojego budżetu`}
+            ."
           </div>
         </div>
       </div>
@@ -908,8 +949,6 @@ function SliderField({
     </div>
   );
 }
-
-
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (

@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
-import { 
-  X, 
-  TrendingUp, 
-  Wallet, 
-  Landmark, 
-  ChevronLeft, 
-  ChevronRight, 
+import { useCallback, useMemo, useState, useEffect } from "react";
+import {
+  X,
+  TrendingUp,
+  Wallet,
+  Landmark,
+  ChevronLeft,
+  ChevronRight,
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
@@ -14,7 +14,7 @@ import {
   Plus,
   BarChart3,
   PieChart as PieIcon,
-  CreditCard
+  CreditCard,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -90,7 +90,7 @@ function Dashboard() {
   // Month Navigation
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(new Date().getMonth() + 1);
   const navigateMonth = (dir: "prev" | "next") => {
-    setSelectedMonthIdx(prev => {
+    setSelectedMonthIdx((prev) => {
       if (dir === "prev") return prev === 1 ? 12 : prev - 1;
       return prev === 12 ? 1 : prev + 1;
     });
@@ -118,26 +118,37 @@ function Dashboard() {
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
 
-  const totalSelectedMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net, 0),
-    [spouses, selectedMonthIdx, globalSettings]
+  const totalSelectedMonthNet = useMemo(
+    () =>
+      spouses.reduce(
+        (sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net,
+        0,
+      ),
+    [spouses, selectedMonthIdx, globalSettings],
   );
 
-  const getExpensesForMonth = (mIdx: number) => {
-    return expenses.reduce((sum, e) => {
-      if (isExpenseInMonth(e, mIdx)) return sum + e.amount;
-      return sum;
-    }, 0);
-  };
-
-  const selectedMonthExpenses = getExpensesForMonth(selectedMonthIdx);
-  const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
-
-  const totalAnnualAvgNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
-    [spouses, globalSettings]
+  const getExpensesForMonth = useCallback(
+    (mIdx: number) => {
+      return expenses.reduce((sum, e) => {
+        if (isExpenseInMonth(e, mIdx)) return sum + e.amount;
+        return sum;
+      }, 0);
+    },
+    [expenses],
   );
-  
+
+  const selectedMonthExpenses = useMemo(
+    () => getExpensesForMonth(selectedMonthIdx),
+    [getExpensesForMonth, selectedMonthIdx],
+  );
+  const selectedMonthCashflow =
+    totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
+
+  const totalAnnualAvgNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    [spouses, globalSettings],
+  );
+
   const annualAvgCashflow = totalAnnualAvgNet + rentalNet - totalExpenses - monthlyLoanPmt;
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
 
@@ -190,19 +201,28 @@ function Dashboard() {
       return {
         month: monthLabel(month),
         "Suma nadwyżek": Math.round(cumulativeSurplus),
-        "Gotówka": includeSavings ? totalSavings : 0,
-        "Inwestycje": includeInvestments ? totalInvestments : 0,
+        Gotówka: includeSavings ? totalSavings : 0,
+        Inwestycje: includeInvestments ? totalInvestments : 0,
       };
     });
-  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments]);
+  }, [
+    spouses,
+    expenses,
+    rentalNet,
+    monthlyLoanPmt,
+    includeSavings,
+    includeInvestments,
+    totalSavings,
+    totalInvestments,
+  ]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10 pb-32 sm:pb-8">
       {/* Hero Section */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-card border border-border p-8 sm:p-12 shadow-warm animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-accent/5 to-transparent pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -215,18 +235,31 @@ function Dashboard() {
                 {monthLabel(selectedMonthIdx, true)} 2025
               </div>
             </div>
-            <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight leading-tight">
-              {greeting()}, <span className="italic text-accent">{session?.user.user_metadata?.nickname || "użytkowniku"}!</span>
+            <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight leading-tight max-w-[280px] sm:max-w-none">
+              {greeting()},{" "}
+              <span className="italic text-accent">
+                {session?.user.user_metadata?.nickname || "użytkowniku"}!
+              </span>
             </h1>
-            <p className="text-muted-foreground text-lg max-w-xl leading-relaxed">
-              Twoje saldo miesiąca wynosi <span className="text-foreground font-semibold underline decoration-accent/30 underline-offset-4">{formatPLN(selectedMonthCashflow)}</span>. 
-              {selectedMonthCashflow >= 0 ? " To dobry czas na planowanie kolejnych inwestycji." : " Przyjrzyj się wydatkom w tym miesiącu."}
+            <p className="text-muted-foreground text-lg max-w-xl leading-relaxed hidden sm:block">
+              Twoje saldo miesiąca wynosi{" "}
+              <span className="text-foreground font-semibold underline decoration-accent/30 underline-offset-4">
+                {formatPLN(selectedMonthCashflow)}
+              </span>
+              .
+              {selectedMonthCashflow >= 0
+                ? " To dobry czas na planowanie kolejnych inwestycji."
+                : " Przyjrzyj się wydatkom w tym miesiącu."}
             </p>
           </div>
 
-          <div className="bg-background/50 backdrop-blur-md border border-border/50 rounded-3xl p-8 shadow-xl flex flex-col items-center text-center min-w-[240px]">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">Saldo Miesiąca</p>
-            <div className={`font-display text-5xl font-bold tabular-nums mb-2 ${selectedMonthCashflow >= 0 ? "text-success" : "text-destructive"}`}>
+          <div className="bg-background/50 backdrop-blur-md border border-border/50 rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col items-center text-center min-w-[220px]">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">
+              Saldo Miesiąca
+            </p>
+            <div
+              className={`font-display text-4xl sm:text-5xl font-bold tabular-nums mb-2 ${selectedMonthCashflow >= 0 ? "text-success" : "text-destructive"}`}
+            >
               {formatPLN(selectedMonthCashflow)}
             </div>
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -240,20 +273,20 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Month Navigator Overlay */}
-        <div className="absolute top-6 right-6 flex items-center bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-1 shadow-sm">
-          <button 
+        {/* Month Navigator Overlay - Responsive Positioning */}
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-1 shadow-sm">
+          <button
             onClick={() => navigateMonth("prev")}
-            className="p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
+            className="p-1.5 sm:p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <div className="px-4 text-xs font-bold uppercase tracking-wider text-foreground select-none min-w-[100px] text-center">
+          <div className="px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-foreground select-none min-w-[70px] sm:min-w-[100px] text-center">
             {monthLabel(selectedMonthIdx, true)}
           </div>
-          <button 
+          <button
             onClick={() => navigateMonth("next")}
-            className="p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
+            className="p-1.5 sm:p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -295,7 +328,7 @@ function Dashboard() {
           sub={`Przeciętnie w 2025`}
           delta={{
             value: formatPLN(Math.abs(annualAvgCashflow - selectedMonthCashflow)),
-            isPositive: selectedMonthCashflow > annualAvgCashflow
+            isPositive: selectedMonthCashflow > annualAvgCashflow,
           }}
         />
       </section>
@@ -312,12 +345,22 @@ function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-3 bg-background/50 p-1.5 rounded-2xl border border-border">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${includeSavings ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`} onClick={() => setIncludeSavings(!includeSavings)}>
-                <div className={`w-2 h-2 rounded-full ${includeSavings ? "bg-success" : "bg-muted"}`} />
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${includeSavings ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+                onClick={() => setIncludeSavings(!includeSavings)}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${includeSavings ? "bg-success" : "bg-muted"}`}
+                />
                 <span className="text-[10px] font-bold uppercase tracking-wider">Gotówka</span>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${includeInvestments ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`} onClick={() => setIncludeInvestments(!includeInvestments)}>
-                <div className={`w-2 h-2 rounded-full ${includeInvestments ? "bg-blue-500" : "bg-muted"}`} />
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${includeInvestments ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+                onClick={() => setIncludeInvestments(!includeInvestments)}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${includeInvestments ? "bg-blue-500" : "bg-muted"}`}
+                />
                 <span className="text-[10px] font-bold uppercase tracking-wider">Giełda</span>
               </div>
             </div>
@@ -336,17 +379,21 @@ function Dashboard() {
                     <stop offset="95%" stopColor="#5b8c7a" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="6 6" stroke="oklch(0.9 0.012 90)" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} 
+                <CartesianGrid
+                  strokeDasharray="6 6"
+                  stroke="oklch(0.9 0.012 90)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   dy={10}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                 />
@@ -355,12 +402,18 @@ function Dashboard() {
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-card border border-border p-4 rounded-2xl shadow-xl animate-in zoom-in-95 duration-200">
-                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">{label}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">
+                            {label}
+                          </p>
                           <div className="space-y-1.5">
                             {payload.map((p, i) => (
                               <div key={i} className="flex items-center justify-between gap-8">
-                                <span className="text-xs text-muted-foreground font-medium">{p.name}:</span>
-                                <span className="text-xs font-bold text-foreground">{formatPLN(p.value as number)}</span>
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  {p.name}:
+                                </span>
+                                <span className="text-xs font-bold text-foreground">
+                                  {formatPLN(p.value as number)}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -384,9 +437,8 @@ function Dashboard() {
                   dataKey="Inwestycje"
                   stackId="1"
                   stroke="#3a5e8c"
-                  fillOpacity={1}
-                  fill="#3a5e8c"
                   fillOpacity={0.05}
+                  fill="#3a5e8c"
                   strokeWidth={2}
                 />
                 <Area
@@ -410,7 +462,7 @@ function Dashboard() {
             <h2 className="font-display text-2xl font-semibold mb-2">Wydatki</h2>
             <p className="text-sm text-muted-foreground">Podział kategorii miesięcznie</p>
           </div>
-          
+
           <div className="flex-1 min-h-[240px]">
             {byCategory.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
@@ -435,7 +487,11 @@ function Dashboard() {
                     stroke="none"
                   >
                     {byCategory.map((_, idx) => (
-                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} className="hover:opacity-80 transition-opacity" />
+                      <Cell
+                        key={idx}
+                        fill={COLORS[idx % COLORS.length]}
+                        className="hover:opacity-80 transition-opacity"
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -443,7 +499,9 @@ function Dashboard() {
                       if (active && payload && payload.length) {
                         return (
                           <div className="bg-card border border-border px-3 py-2 rounded-xl shadow-lg">
-                            <span className="text-[10px] font-bold text-foreground">{payload[0].name}: {formatPLN(payload[0].value as number)}</span>
+                            <span className="text-[10px] font-bold text-foreground">
+                              {payload[0].name}: {formatPLN(payload[0].value as number)}
+                            </span>
                           </div>
                         );
                       }
@@ -459,8 +517,13 @@ function Dashboard() {
             {byCategory.slice(0, 5).map((c, i) => (
               <div key={i} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[120px]">{c.name}</span>
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                  />
+                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[120px]">
+                    {c.name}
+                  </span>
                 </div>
                 <span className="text-xs font-bold">{formatPLN(c.value)}</span>
               </div>
@@ -488,19 +551,36 @@ function Dashboard() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={projection} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="6 6" stroke="oklch(0.9 0.012 90)" vertical={false} />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 cursor={{ fill: "oklch(0.56 0.14 175 / 0.05)" }}
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
                       <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2 tracking-widest">{label}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2 tracking-widest">
+                          {label}
+                        </p>
                         {payload.map((p, i) => (
                           <div key={i} className="flex items-center justify-between gap-6">
-                            <span className="text-xs font-medium" style={{ color: p.fill }}>{p.name}:</span>
-                            <span className="text-xs font-bold">{formatPLN(p.value as number)}</span>
+                            <span className="text-xs font-medium" style={{ color: p.fill }}>
+                              {p.name}:
+                            </span>
+                            <span className="text-xs font-bold">
+                              {formatPLN(p.value as number)}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -514,7 +594,13 @@ function Dashboard() {
                 stroke="#c84026"
                 strokeDasharray="8 4"
                 strokeWidth={2}
-                label={{ value: "120k", position: "insideTopRight", fill: "#c84026", fontSize: 10, fontWeight: "bold" }}
+                label={{
+                  value: "120k",
+                  position: "insideTopRight",
+                  fill: "#c84026",
+                  fontSize: 10,
+                  fontWeight: "bold",
+                }}
               />
               {spouses.map((spouse, idx) => (
                 <Bar
@@ -537,20 +623,31 @@ function Dashboard() {
             let monthIndex = -1;
             for (let i = 0; i < 12; i++) {
               cumulative += breakdown[i].taxBase;
-              if (cumulative > 120000) { monthIndex = i; break; }
+              if (cumulative > 120000) {
+                monthIndex = i;
+                break;
+              }
             }
-            
+
             return (
-              <div key={s.id} className="flex flex-col p-4 rounded-3xl bg-background/50 border border-border/50">
+              <div
+                key={s.id}
+                className="flex flex-col p-4 rounded-3xl bg-background/50 border border-border/50"
+              >
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-sm" style={{ backgroundColor: COLORS[idx % COLORS.length] }}>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-sm"
+                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                  >
                     {s.name[0].toUpperCase()}
                   </div>
                   <span className="font-semibold">{s.name}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">Status progu:</span>
-                  <span className={`text-xs font-bold ${monthIndex === -1 ? "text-muted-foreground" : "text-destructive"}`}>
+                  <span
+                    className={`text-xs font-bold ${monthIndex === -1 ? "text-muted-foreground" : "text-destructive"}`}
+                  >
                     {monthIndex === -1 ? "Bez zmian" : `${monthLabel(monthIndex + 1, true)}`}
                   </span>
                 </div>
@@ -563,17 +660,26 @@ function Dashboard() {
       {/* Floating Action Bar - Mobile Only */}
       <div className="md:hidden fixed bottom-24 left-4 right-4 z-40 animate-in slide-in-from-bottom-8 duration-500 pointer-events-none">
         <div className="bg-foreground text-background rounded-2xl p-2 shadow-2xl flex items-center justify-around gap-2 pointer-events-auto">
-          <Link to="/wynagrodzenia" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors">
+          <Link
+            to="/wynagrodzenia"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors"
+          >
             <Plus className="w-4 h-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Zarobki</span>
           </Link>
           <div className="w-px h-6 bg-background/10" />
-          <Link to="/wydatki" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors">
+          <Link
+            to="/wydatki"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors"
+          >
             <Plus className="w-4 h-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Wydatki</span>
           </Link>
           <div className="w-px h-6 bg-background/10" />
-          <Link to="/aktywa" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors">
+          <Link
+            to="/aktywa"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-background/10 transition-colors"
+          >
             <Plus className="w-4 h-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Majątek</span>
           </Link>
@@ -584,7 +690,20 @@ function Dashboard() {
 }
 
 function monthLabel(m: number, full = false) {
-  const short = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
+  const short = [
+    "Sty",
+    "Lut",
+    "Mar",
+    "Kwi",
+    "Maj",
+    "Cze",
+    "Lip",
+    "Sie",
+    "Wrz",
+    "Paź",
+    "Lis",
+    "Gru",
+  ];
   const long = [
     "Styczeń",
     "Luty",
@@ -608,4 +727,3 @@ function greeting() {
   if (h < 18) return "Cześć";
   return "Dobry wieczór";
 }
-

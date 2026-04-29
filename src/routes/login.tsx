@@ -15,7 +15,6 @@ export const Route = createFileRoute("/login")({
   }),
 });
 
-
 type InviteContext = {
   household_id: string;
   household_name: string;
@@ -82,12 +81,15 @@ function LoginPage() {
     const run = async () => {
       const pendingInvite =
         search.invite ??
-        (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
+        (typeof window !== "undefined"
+          ? (window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined)
+          : undefined);
 
       if (pendingInvite) {
         const result = await acceptInvite(pendingInvite, session);
         if (!cancelled && result.success) {
-          if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+          if (typeof window !== "undefined")
+            window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           await router.navigate({ to: "/" });
           return;
         } else if (!cancelled && typeof window !== "undefined") {
@@ -114,14 +116,18 @@ function LoginPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) return "Nieprawidłowy format email.";
     if (!password) return "Podaj hasło.";
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków.";
-    if (mode === "register" && !hasInvite && !householdName.trim()) return "Podaj nazwę gospodarstwa.";
+    if (mode === "register" && !hasInvite && !householdName.trim())
+      return "Podaj nazwę gospodarstwa.";
     return null;
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (cooldownSeconds > 0) {
-      setStatus({ msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`, type: "error" });
+      setStatus({
+        msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`,
+        type: "error",
+      });
       return;
     }
 
@@ -146,7 +152,7 @@ function LoginPage() {
     const pendingInvite =
       search.invite ??
       (typeof window !== "undefined"
-        ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined
+        ? (window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined)
         : undefined);
 
     try {
@@ -158,7 +164,12 @@ function LoginPage() {
         if (error) {
           console.log("Auth error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
+          if (
+            message.includes("too many requests") ||
+            message.includes("429") ||
+            message.includes("rate limit") ||
+            message.includes("exceeded")
+          ) {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
@@ -177,15 +188,14 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+            if (typeof window !== "undefined")
+              window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             await initCloudSync(data.session);
           }
         }
         setStatus({
-          msg: hasInvite
-            ? "Zalogowano i dołączono do gospodarstwa."
-            : "Zalogowano pomyślnie.",
+          msg: hasInvite ? "Zalogowano i dołączono do gospodarstwa." : "Zalogowano pomyślnie.",
           type: "success",
         });
         await router.navigate({ to: "/" });
@@ -196,7 +206,9 @@ function LoginPage() {
           options: {
             data: nickname ? { nickname } : undefined,
             ...(hasInvite && search.invite
-              ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
+              ? {
+                  emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}`,
+                }
               : {}),
           },
         };
@@ -204,7 +216,11 @@ function LoginPage() {
         if (error) {
           console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
+          if (
+            message.includes("already registered") ||
+            message.includes("duplicate") ||
+            message.includes("email already in use")
+          ) {
             setMode("login");
             setStatus({
               msg: "Konto już istnieje. Zaloguj się, aby dokończyć dołączenie do gospodarstwa.",
@@ -212,7 +228,12 @@ function LoginPage() {
             });
             return;
           }
-          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
+          if (
+            message.includes("too many requests") ||
+            message.includes("429") ||
+            message.includes("rate limit") ||
+            message.includes("exceeded")
+          ) {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
@@ -230,7 +251,8 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+            if (typeof window !== "undefined")
+              window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
           }
@@ -290,9 +312,9 @@ function LoginPage() {
           ) : (
             <>
               <p className="mt-2">
-                Użyj tego samego adresu email, na który wysłano zaproszenie.
-                Jeśli już masz konto, zaloguj się, aby dołączyć do gospodarstwa.
-                Jeśli nie masz konta, utwórz je tym adresem — wystarczy podać hasło.
+                Użyj tego samego adresu email, na który wysłano zaproszenie. Jeśli już masz konto,
+                zaloguj się, aby dołączyć do gospodarstwa. Jeśli nie masz konta, utwórz je tym
+                adresem — wystarczy podać hasło.
               </p>
               {inviteContext?.household_name ? (
                 <p className="mt-2 text-sm text-foreground/80">
@@ -319,7 +341,8 @@ function LoginPage() {
         />
         {hasInvite && inviteEmail && (
           <p className="text-xs text-muted-foreground">
-            Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego adresu.
+            Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego
+            adresu.
           </p>
         )}
         <Input
@@ -355,10 +378,10 @@ function LoginPage() {
           {loading
             ? "Proszę czekać…"
             : cooldownSeconds > 0
-            ? `Poczekaj ${cooldownSeconds}s`
-            : mode === "login"
-            ? "Zaloguj"
-            : "Utwórz konto"}
+              ? `Poczekaj ${cooldownSeconds}s`
+              : mode === "login"
+                ? "Zaloguj"
+                : "Utwórz konto"}
         </Button>
         {cooldownSeconds > 0 && (
           <Button
@@ -422,7 +445,12 @@ function translateAuthError(msg: string): string {
   if (m.includes("password should be at least")) {
     return "Hasło jest za krótkie (minimum 6 znaków).";
   }
-  if (m.includes("too many requests") || m.includes("429") || m.includes("rate limit") || m.includes("exceeded")) {
+  if (
+    m.includes("too many requests") ||
+    m.includes("429") ||
+    m.includes("rate limit") ||
+    m.includes("exceeded")
+  ) {
     return "Zbyt wiele prób. Serwer Supabase tymczasowo blokuje rejestrację z tego adresu IP. Spróbuj ponownie za kilka minut lub użyj innego adresu email.";
   }
   if (m.includes("network") || m.includes("fetch")) {

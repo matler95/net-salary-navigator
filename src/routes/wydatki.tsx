@@ -20,12 +20,13 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw } from "lucide-react";
+import { Trash2, Plus, RotateCcw, Zap } from "lucide-react";
 import { useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 
@@ -104,21 +105,24 @@ function ExpensesPage() {
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-             <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
-                Planowanie wydatków
-             </div>
-             <div className="w-1 h-1 rounded-full bg-border" />
-             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                <Calendar className="w-3.5 h-3.5" />
-                Ujęcie miesięczne i roczne
-             </div>
+            <div className="px-3 py-1 rounded-full bg-accent-soft text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/10">
+              Planowanie wydatków
+            </div>
+            <div className="w-1 h-1 rounded-full bg-border" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <Calendar className="w-3.5 h-3.5" />
+              Ujęcie miesięczne i roczne
+            </div>
           </div>
           <h1 className="font-display text-4xl sm:text-6xl font-semibold tracking-tight">
-            Twoje <span className="italic text-accent decoration-accent/30 underline underline-offset-8">koszty</span>
+            Twoje{" "}
+            <span className="italic text-accent decoration-accent/30 underline underline-offset-8">
+              koszty
+            </span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
-            Zarządzaj domowym budżetem. Dodawaj wydatki stałe, subskrypcje i koszty jednorazowe, 
-            a my wyliczymy ich średni wpływ na Twój miesięczny portfel.
+            Zarządzaj domowym budżetem. Dodawaj wydatki stałe, subskrypcje i koszty jednorazowe, a
+            my wyliczymy ich średni wpływ na Twój miesięczny portfel.
           </p>
         </div>
 
@@ -129,27 +133,27 @@ function ExpensesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          label="Średnio miesięcznie" 
-          value={monthlyTotal} 
+        <StatCard
+          label="Średnio miesięcznie"
+          value={monthlyTotal}
           icon={<Receipt className="w-5 h-5" />}
           description="Suma uśredniona"
         />
-        <StatCard 
-          label="Rocznie razem" 
-          value={annualTotal} 
+        <StatCard
+          label="Rocznie razem"
+          value={annualTotal}
           icon={<TrendingDown className="w-5 h-5" />}
           description="Wszystkie koszty w roku"
         />
-        <StatCard 
-          label="Najdroższa kategoria" 
-          value={grouped[0]?.monthly || 0} 
+        <StatCard
+          label="Najdroższa kategoria"
+          value={grouped[0]?.monthly || 0}
           description={grouped[0]?.category || "Brak danych"}
           icon={<Wallet className="w-5 h-5" />}
         />
-        <StatCard 
-          label="Jednorazowe" 
-          value={oneoffTotal} 
+        <StatCard
+          label="Jednorazowe"
+          value={oneoffTotal}
           description="Wydatki incydentalne"
           icon={<Plus className="w-5 h-5" />}
         />
@@ -158,7 +162,7 @@ function ExpensesPage() {
       {grouped.length === 0 ? (
         <div className="bg-card rounded-[2rem] p-20 text-center border border-dashed border-border shadow-sm">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-             <Plus className="w-8 h-8 text-muted-foreground" />
+            <Plus className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-xl font-semibold mb-2">Brak wpisanych wydatków</h3>
           <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
@@ -175,10 +179,10 @@ function ExpensesPage() {
             >
               <div className="flex items-baseline justify-between mb-8 gap-2">
                 <div className="space-y-1">
-                   <h3 className="font-display text-2xl font-bold">{g.category}</h3>
-                   <div className="px-2.5 py-0.5 rounded-full bg-muted text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-fit">
-                      {g.items.length} {g.items.length === 1 ? "pozycja" : "pozycje"}
-                   </div>
+                  <h3 className="font-display text-2xl font-bold">{g.category}</h3>
+                  <div className="px-2.5 py-0.5 rounded-full bg-muted text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-fit">
+                    {g.items.length} {g.items.length === 1 ? "pozycja" : "pozycje"}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="font-display text-2xl font-bold text-accent">
@@ -194,10 +198,10 @@ function ExpensesPage() {
                   <ExpenseRow key={e.id} expense={e} />
                 ))}
               </div>
-              
+
               <div className="mt-8 pt-6 border-t border-border flex justify-between items-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                 <span>Roczne obciążenie:</span>
-                 <span className="font-mono text-foreground">{formatPLN(g.annual)}</span>
+                <span>Roczne obciążenie:</span>
+                <span className="font-mono text-foreground">{formatPLN(g.annual)}</span>
               </div>
             </div>
           ))}
@@ -206,7 +210,6 @@ function ExpensesPage() {
     </div>
   );
 }
-
 
 function MonthSelector({
   selectedMonths,
@@ -362,7 +365,9 @@ function AddExpenseDialog() {
   const [amount, setAmount] = useState(0);
   const [amountInput, setAmountInput] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("monthly");
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+  ]);
 
   const handleReset = () => {
     setCategory("Mieszkanie");
@@ -415,7 +420,8 @@ function AddExpenseDialog() {
         <DialogHeader>
           <DialogTitle>Dodaj wydatek</DialogTitle>
           <DialogDescription>
-            Wprowadź dane nowego wydatku. Możesz wybrać kategorię, częstotliwość i konkretne miesiące płatności.
+            Wprowadź dane nowego wydatku. Możesz wybrać kategorię, częstotliwość i konkretne
+            miesiące płatności.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -490,7 +496,7 @@ function AddExpenseDialog() {
                 </Select>
               )}
             </div>
-            
+
             <div>
               <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 Nazwa
@@ -502,7 +508,7 @@ function AddExpenseDialog() {
                 className="mt-1 h-10"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
@@ -521,12 +527,15 @@ function AddExpenseDialog() {
                   className="mt-1 h-10 font-mono tabular-nums"
                 />
               </div>
-              
+
               <div>
                 <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                   Okres
                 </label>
-                <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
+                <Select
+                  value={frequency}
+                  onValueChange={(v) => handleFrequencyChange(v as Frequency)}
+                >
                   <SelectTrigger className="mt-1 h-10">
                     <SelectValue />
                   </SelectTrigger>
@@ -554,9 +563,9 @@ function AddExpenseDialog() {
               </div>
             )}
           </div>
-        <DialogFooter>
-          <Button type="submit">Zapisz wydatek</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="submit">Zapisz wydatek</Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -566,9 +575,9 @@ function AddExpenseDialog() {
 function ExpenseRow({ expense }: { expense: Expense }) {
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-3 group p-4 rounded-2xl hover:bg-accent-soft/50 transition-all border border-transparent hover:border-accent/10">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-white transition-colors">
-           <Receipt className="w-4 h-4 text-muted-foreground group-hover:text-accent" />
+      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-white transition-colors hidden sm:flex">
+          <Receipt className="w-4 h-4 text-muted-foreground group-hover:text-accent" />
         </div>
         <div className="flex-1 min-w-0">
           <Input
@@ -577,27 +586,28 @@ function ExpenseRow({ expense }: { expense: Expense }) {
             className="h-auto w-full bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none font-semibold text-sm truncate"
           />
           <div className="flex items-center gap-2 mt-0.5">
-             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                {FREQUENCY_LABELS[expense.frequency]}
-             </span>
-             {expense.frequency !== "monthly" && (
-                <span className="text-[10px] font-bold text-accent">
-                   ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/mc
-                </span>
-             )}
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {FREQUENCY_LABELS[expense.frequency]}
+            </span>
+            {expense.frequency !== "monthly" && (
+              <span className="text-[10px] font-bold text-accent truncate">
+                ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/mc
+              </span>
+            )}
           </div>
         </div>
-        <div className="shrink-0">
-           <Input
-             type="text"
-             inputMode="decimal"
-             value={formatLocaleAmount(expense.amount)}
-             onChange={(e) =>
-               actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
-             }
-             placeholder="0"
-             className="h-auto w-24 font-mono font-bold text-sm text-right bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none shrink-0"
-           />
+        <div className="shrink-0 flex items-center gap-1">
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={formatLocaleAmount(expense.amount)}
+            onChange={(e) =>
+              actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
+            }
+            placeholder="0"
+            className="h-auto w-20 sm:w-24 font-mono font-bold text-sm text-right bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
+          />
+          <span className="text-[10px] font-bold text-muted-foreground">zł</span>
         </div>
       </div>
 
@@ -662,9 +672,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
                 <div className="py-4">
                   <MonthSelector
                     frequency={expense.frequency}
-                    selectedMonths={
-                      expense.months || (expense.month ? [expense.month] : [1])
-                    }
+                    selectedMonths={expense.months || (expense.month ? [expense.month] : [1])}
                     onChange={(m) => actions.updateExpense(expense.id, { months: m, month: m[0] })}
                   />
                 </div>
@@ -683,7 +691,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
                 label: "Cofnij",
                 onClick: () => {
                   const { id, ...rest } = expenseCopy;
-                  actions.addExpense(rest as any);
+                  actions.addExpense(rest);
                 },
               },
               duration: 5000,
@@ -698,5 +706,3 @@ function ExpenseRow({ expense }: { expense: Expense }) {
     </div>
   );
 }
-
-

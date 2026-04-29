@@ -22,11 +22,13 @@ export function useAuthSession() {
         setLoading(false);
       });
 
-      const { data: authListener } = client.auth.onAuthStateChange((_event: any, nextSession: any) => {
-        if (!active) return;
-        setSession(nextSession ?? null);
-        setLoading(false);
-      });
+      const { data: authListener } = client.auth.onAuthStateChange(
+        (_event: any, nextSession: any) => {
+          if (!active) return;
+          setSession(nextSession ?? null);
+          setLoading(false);
+        },
+      );
 
       return () => {
         active = false;

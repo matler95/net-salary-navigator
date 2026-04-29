@@ -35,7 +35,9 @@ function InvitePage() {
   const [registering, setRegistering] = useState(false);
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
-  const [status, setStatus] = useState<{ msg: string; type: "error" | "info" | "success" } | null>(null);
+  const [status, setStatus] = useState<{ msg: string; type: "error" | "info" | "success" } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!token || typeof window === "undefined") return;
@@ -115,7 +117,11 @@ function InvitePage() {
 
     if (error) {
       const message = error.message.toLowerCase();
-      if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
+      if (
+        message.includes("already registered") ||
+        message.includes("duplicate") ||
+        message.includes("email already in use")
+      ) {
         await router.navigate({ to: "/login", search: { invite: token } });
         return;
       }
@@ -128,7 +134,9 @@ function InvitePage() {
       const accepted = await acceptInvite(token, signUpData.session);
       if (!accepted.success) {
         setStatus({
-          msg: accepted.error ?? "Nie udało się dołączyć do gospodarstwa. Spróbuj zalogować się na ten sam email.",
+          msg:
+            accepted.error ??
+            "Nie udało się dołączyć do gospodarstwa. Spróbuj zalogować się na ten sam email.",
           type: "error",
         });
         setRegistering(false);
@@ -158,9 +166,14 @@ function InvitePage() {
     return (
       <main className="max-w-xl mx-auto px-4 py-20 text-center">
         <h1 className="text-3xl font-display">Brak zaproszenia</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Ten link nie zawiera poprawnego tokenu zaproszenia.</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Ten link nie zawiera poprawnego tokenu zaproszenia.
+        </p>
         <div className="mt-6">
-          <Link to="/" className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link
+            to="/"
+            className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
             Przejdź do aplikacji
           </Link>
         </div>
@@ -172,16 +185,23 @@ function InvitePage() {
   const householdName = invite?.household_name ?? "gospodarstwo";
   const alreadyJoined = invite?.status === "accepted";
   const inviteExpired = invite?.status !== "pending" && !invite?.is_valid;
-  const wrongAccount = isAuthenticated && session?.user.email && inviteEmail && session.user.email.toLowerCase() !== inviteEmail.toLowerCase();
+  const wrongAccount =
+    isAuthenticated &&
+    session?.user.email &&
+    inviteEmail &&
+    session.user.email.toLowerCase() !== inviteEmail.toLowerCase();
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-16">
       <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.24em] text-accent font-semibold">Zaproszenie</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-accent font-semibold">
+            Zaproszenie
+          </p>
           <h1 className="mt-3 text-3xl font-display">Dołącz do gospodarstwa</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Zaproszenie dla <strong>{inviteEmail}</strong> do gospodarstwa <strong>{householdName}</strong>.
+            Zaproszenie dla <strong>{inviteEmail}</strong> do gospodarstwa{" "}
+            <strong>{householdName}</strong>.
           </p>
         </div>
 
@@ -196,7 +216,9 @@ function InvitePage() {
             {status ? (
               <div
                 className={`rounded-2xl border p-4 text-sm ${
-                  status.type === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-muted text-foreground"
+                  status.type === "error"
+                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                    : "border-border bg-muted text-foreground"
                 }`}
               >
                 {status.msg}
@@ -212,7 +234,8 @@ function InvitePage() {
             {wrongAccount ? (
               <div className="rounded-2xl border border-border bg-muted p-6 space-y-4 text-sm text-foreground">
                 <p>
-                  Jesteś zalogowany jako <strong>{session?.user.email}</strong>, a zaproszenie jest wystawione dla <strong>{inviteEmail}</strong>.
+                  Jesteś zalogowany jako <strong>{session?.user.email}</strong>, a zaproszenie jest
+                  wystawione dla <strong>{inviteEmail}</strong>.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button onClick={handleLogoutAndContinue} variant="outline">
@@ -248,8 +271,9 @@ function InvitePage() {
             ) : invite?.is_valid ? (
               <div className="space-y-6">
                 <p className="text-sm text-muted-foreground">
-                  Aby dołączyć do gospodarstwa, ustal tylko hasło dla konta <strong>{inviteEmail}</strong>.
-                  Adres email jest już zablokowany na podstawie zaproszenia.
+                  Aby dołączyć do gospodarstwa, ustal tylko hasło dla konta{" "}
+                  <strong>{inviteEmail}</strong>. Adres email jest już zablokowany na podstawie
+                  zaproszenia.
                 </p>
                 <form className="space-y-4" onSubmit={(e) => void handleRegister(e)}>
                   <Input id="invite-email" type="email" value={inviteEmail} disabled />
@@ -266,7 +290,9 @@ function InvitePage() {
                   </Button>
                 </form>
                 <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>Masz już konto? Zaloguj się, aby dokończyć proces dołączenia do gospodarstwa.</p>
+                  <p>
+                    Masz już konto? Zaloguj się, aby dokończyć proces dołączenia do gospodarstwa.
+                  </p>
                   <Link
                     to="/login"
                     search={{ invite: token }}
@@ -278,7 +304,8 @@ function InvitePage() {
               </div>
             ) : (
               <div className="rounded-2xl border border-border bg-muted p-6 text-sm text-foreground">
-                Nie można obsłużyć tego zaproszenia. Skontaktuj się z osobą, która je wysłała, lub spróbuj ponownie później.
+                Nie można obsłużyć tego zaproszenia. Skontaktuj się z osobą, która je wysłała, lub
+                spróbuj ponownie później.
               </div>
             )}
           </div>

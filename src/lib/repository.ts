@@ -10,7 +10,13 @@ export type HouseholdContext = {
 
 type HouseholdRow = { id: string };
 type MembershipRow = { household_id: string; user_id: string; created_at?: string; role?: string };
-type InviteRow = { id: string; household_id: string; email: string; token: string; expires_at?: string };
+type InviteRow = {
+  id: string;
+  household_id: string;
+  email: string;
+  token: string;
+  expires_at?: string;
+};
 type InviteContext = {
   household_id: string;
   household_name: string;
@@ -29,7 +35,10 @@ export type MemberProfile = {
 
 let creatingHouseholdPromise: Promise<HouseholdContext | null> | null = null;
 
-export async function verifyHouseholdMembership(householdId: string, userId: string): Promise<boolean> {
+export async function verifyHouseholdMembership(
+  householdId: string,
+  userId: string,
+): Promise<boolean> {
   const supabase = await getSupabase();
   if (!supabase) return false;
 
@@ -46,7 +55,9 @@ export async function verifyHouseholdMembership(householdId: string, userId: str
   return true;
 }
 
-export async function loadHouseholdMembers(householdId: string): Promise<{ user_id: string; created_at: string; role: string }[]> {
+export async function loadHouseholdMembers(
+  householdId: string,
+): Promise<{ user_id: string; created_at: string; role: string }[]> {
   const supabase = await getSupabase();
   if (!supabase) return [];
 
@@ -201,7 +212,9 @@ export async function ensureHouseholdForSession(
   const membershipsList = memberships ?? [];
   if (membershipsList.length > 0) {
     if (preferredHouseholdId) {
-      const preferredMembership = membershipsList.find((m) => m.household_id === preferredHouseholdId);
+      const preferredMembership = membershipsList.find(
+        (m) => m.household_id === preferredHouseholdId,
+      );
       if (preferredMembership?.household_id) {
         return { householdId: preferredMembership.household_id, userId };
       }
@@ -257,7 +270,12 @@ export async function ensureHouseholdForSession(
       role: "owner",
     });
 
-    if (insertMemberError && !String(insertMemberError.message ?? "").toLowerCase().includes("duplicate")) {
+    if (
+      insertMemberError &&
+      !String(insertMemberError.message ?? "")
+        .toLowerCase()
+        .includes("duplicate")
+    ) {
       console.error("Fallback membership creation failed:", insertMemberError);
       return null;
     }
@@ -298,13 +316,17 @@ export async function loadHouseholdState(householdId: string): Promise<Household
     supabase.from("loans").select("*").eq("household_id", householdId),
     supabase.from("rentals").select("*").eq("household_id", householdId),
     supabase.from("savings").select("*").eq("household_id", householdId),
-    supabase.from("households").select("name, joint_filing, global_settings").eq("id", householdId).single(),
+    supabase
+      .from("households")
+      .select("name, joint_filing, global_settings")
+      .eq("id", householdId)
+      .single(),
   ]);
 
   const [spouses, expenses, investments, loans, rentals, savings, household] = results;
 
   // Check for errors in any of the requests
-  const errors = results.filter(r => r.error).map(r => r.error);
+  const errors = results.filter((r) => r.error).map((r) => r.error);
   if (errors.length > 0) {
     console.error("Errors loading household data:", errors);
     throw new Error(`Failed to load household data: ${errors[0]?.message}`);
@@ -487,7 +509,7 @@ async function replaceRows(table: string, householdId: string, rows: Record<stri
   // Backup existing data first
   const { data: backupData, error: backupError } = await supabase
     .from(table)
-    .select('*')
+    .select("*")
     .eq("household_id", householdId);
 
   if (backupError) {
@@ -497,7 +519,10 @@ async function replaceRows(table: string, householdId: string, rows: Record<stri
 
   try {
     // Delete existing data
-    const { error: deleteError } = await supabase.from(table).delete().eq("household_id", householdId);
+    const { error: deleteError } = await supabase
+      .from(table)
+      .delete()
+      .eq("household_id", householdId);
     if (deleteError) {
       console.error(`Error deleting from ${table}:`, deleteError);
       throw deleteError;
@@ -548,7 +573,7 @@ function mapSpouseFromRow(row: unknown): Spouse {
   };
 }
 function mapExpenseToRow(householdId: string, x: Expense) {
-  return { 
+  return {
     id: x.id,
     household_id: householdId,
     category: x.category,

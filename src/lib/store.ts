@@ -23,7 +23,7 @@ import { migrateLocalToCloudOnce } from "./migration";
 import { getSupabase } from "./supabase";
 
 // Simple debounce utility
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
   let timeout: NodeJS.Timeout | null = null;
   return ((...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
@@ -147,8 +147,8 @@ const listeners = new Set<() => void>();
 let cloudSyncEnabled = false;
 let activeHouseholdId: string | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-let syncInProgress = false;   // guards syncFromCloud
-let initInProgress = false;   // guards initCloudSync (separate to avoid blocking acceptInvite)
+let syncInProgress = false; // guards syncFromCloud
+let initInProgress = false; // guards initCloudSync (separate to avoid blocking acceptInvite)
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 let cachedMembers: MemberProfile[] = [];
@@ -157,7 +157,7 @@ let memberCacheUnsubscribe: (() => void) | null = null;
 
 // Build a Set of user IDs from cached members for FK validation
 function buildMemberIdSet(members: MemberProfile[]): Set<string> {
-  return new Set(members.map(m => m.user_id));
+  return new Set(members.map((m) => m.user_id));
 }
 
 export function getCachedMembers(): MemberProfile[] {
@@ -220,7 +220,7 @@ function loadInitial(): AppState {
         ? parsed.loans.map((l) => ({ ...l, monthlyOverpayment: l.monthlyOverpayment ?? 0 }))
         : DEFAULT_STATE.loans,
       savings: parsed.savings
-        ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
+        ? parsed.savings.map((a) => ({ ...a, ratePct: a.ratePct ?? 0 }))
         : DEFAULT_STATE.savings,
       globalSettings: parsed.globalSettings
         ? { ...DEFAULT_STATE.globalSettings, ...parsed.globalSettings }
@@ -335,7 +335,11 @@ export async function initCloudSync(
     // Verify user is still a member of this household before proceeding
     const isMember = await verifyHouseholdMembership(household.householdId, session.user.id);
     if (!isMember) {
-      console.warn("User is no longer a member of household", household.householdId, "- clearing local state");
+      console.warn(
+        "User is no longer a member of household",
+        household.householdId,
+        "- clearing local state",
+      );
       activeHouseholdId = null;
       cloudSyncEnabled = false;
       if (typeof window !== "undefined") {
@@ -360,10 +364,13 @@ export async function initCloudSync(
         if (!activeHouseholdId) return;
         try {
           cachedMembers = await loadHouseholdMemberProfiles(activeHouseholdId);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       };
       window.addEventListener("household:meta-change", onMetaChange);
-      memberCacheUnsubscribe = () => window.removeEventListener("household:meta-change", onMetaChange);
+      memberCacheUnsubscribe = () =>
+        window.removeEventListener("household:meta-change", onMetaChange);
     }
 
     // Only migrate local→cloud when the user is initialising their OWN new household.
@@ -371,7 +378,11 @@ export async function initCloudSync(
     // invite — never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
       try {
-        await migrateLocalToCloudOnce(household.householdId, state, buildMemberIdSet(cachedMembers));
+        await migrateLocalToCloudOnce(
+          household.householdId,
+          state,
+          buildMemberIdSet(cachedMembers),
+        );
       } catch (err) {
         console.error("initCloudSync: migration failed, continuing to load cloud state:", err);
       }
@@ -472,7 +483,10 @@ export async function createInvite(email: string): Promise<string | null> {
   return `${window.location.origin}/invite?invite=${invite.token}`;
 }
 
-export async function acceptInvite(token: string, session: Session): Promise<{ success: boolean; error?: string }> {
+export async function acceptInvite(
+  token: string,
+  session: Session,
+): Promise<{ success: boolean; error?: string }> {
   const { householdId, error } = await acceptHouseholdInvite(token, session);
   if (!householdId) {
     return { success: false, error };
