@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
-import { calculateAnnualAverageNet } from "@/lib/salary";
+import { calculateMemberAnnualAverageNet } from "@/lib/salary";
 import {
   getExpenseMonthlyAverage,
   monthlyPayment,
@@ -122,7 +122,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
 
   const budgetImpact = useMemo(() => {
     const totalNetIncome = spouses.reduce(
-      (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
+      (sum, sp) => sum + calculateMemberAnnualAverageNet(sp, globalSettings),
       0
     );
     const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);

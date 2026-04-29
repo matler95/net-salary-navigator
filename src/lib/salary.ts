@@ -1,53 +1,18 @@
 /**
- * Polish UoP net salary engine - 2025.
- *
- * Adds autorskie koszty uzyskania przychodu (50% KUP):
- *   - User specifies % of gross treated as honorarium (creative work).
- *   - 50% KUP applies to that portion of income MINUS the ZUS share attributable to it.
- *     (PIT income for that part = grossPart − zusPart, then 50% deducted as KUP.)
- *   - Annual cap: 120 000 PLN of 50% KUP per year (we apply 1/12 = 10 000 PLN monthly cap by default,
- *     toggleable via `autorskiKupCapMonthly`).
- *   - The remaining (non-creative) part still uses standard / out-of-town KUP (or none).
- *
- * Joint filing helper (`computeJointFiling`) averages the couple's annual taxable bases,
- * computes PIT once on the average using both thresholds, then doubles it.
+ * Polish UoP and B2B net salary engine - 2026.
  */
 
-export interface SalaryInputs {
-  gross: number;
-  benefitsTaxable: number;
-  companyCarEnabled: boolean;
-  companyCarMode: "statutory" | "manual";
-  companyCarStatutoryValue: "250" | "400";
-  companyCarManualAmount: number;
-  lunchAllowance: number;
-  remoteAllowance: number;
-  whfDays: number;
-  whfDailyRate: number;
-  ppkEmployeeRate: number;
-  ppkEmployerRate: number;
-  kupType: "standard" | "outOfTown" | "none";
-  pit2: boolean;
-  outsideFirstThreshold: boolean;
-  age26Exempt: boolean;
-  /** 0–100 - % of `gross` paid as honorarium with 50% KUP. */
-  autorskiSharePct: number;
-  /** Monthly cap on 50% KUP deduction (default 10 000 = 120 000 / 12). */
-  autorskiKupCapMonthly: number;
-  // Bonus fields
-  bonusMonth: number; // 1-12, 0 means no bonus
-  bonusPct: number; // % of annual base salary (12 * gross)
-  bonusPaid: boolean;
-  bonusOverrideGross: number | null; // manual value if not null
-}
+import {
+  type SalaryInputs,
+  type B2BInputs,
+  type Income,
+  type Spouse,
+  type GlobalSettings,
+  type SalaryBreakdown,
+  type B2BBreakdown,
+} from "./salary.types";
 
-export type GlobalSettings = {
-  avgSalaryForecast: number;
-  pitThresholdAnnual: number;
-  pitFirstRate: number; // in % (e.g. 12)
-  pitSecondRate: number; // in % (e.g. 32)
-  taxFreeAmountAnnual: number;
-};
+export * from "./salary.types";
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   avgSalaryForecast: 8673,
@@ -57,50 +22,30 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   taxFreeAmountAnnual: 30000,
 };
 
-export interface SalaryBreakdown {
-  gross: number;
-  benefitsTaxable: number;
-  companyCarTaxable: number;
-  lunchAllowance: number;
-  remoteAllowance: number;
-  zusBase: number;
-  pension: number;
-  disability: number;
-  sickness: number;
-  zusTotal: number;
-  healthBase: number;
-  health: number;
-  ppkEmployee: number;
-  ppkEmployer: number;
-  kupStandard: number;
-  kupAutorski: number;
-  kupTotal: number;
-  taxFreeAllowance: number;
-  taxBase: number;
-  pit: number;
-  net: number;
-  totalEmployerCost: number;
-  /** Annual taxable base (×12) - used for second-threshold projection. */
-  annualTaxBase: number;
-}
-
 const ZUS_PENSION = 0.0976;
 const ZUS_DISABILITY = 0.015;
 const ZUS_SICKNESS = 0.0245;
-const ZUS_EMPLOYEE_TOTAL = ZUS_PENSION + ZUS_DISABILITY + ZUS_SICKNESS; // 0.1371
 const HEALTH_RATE = 0.09;
-
-const ZUS_EMPLOYER_RATES = 0.0976 + 0.065 + 0.0167 + 0.0245 + 0.001;
-
-const FIRST_THRESHOLD_ANNUAL = 120000;
-const FIRST_THRESHOLD_MONTHLY_TAX_FREE = 300;
-const FIRST_RATE = 0.12;
-const SECOND_RATE = 0.32;
-const LUNCH_ZUS_EXEMPT_LIMIT = 450;
-const ZUS_LIMIT_ANNUAL = 253350; // 2025 limit for pension and disability caps
 
 const KUP_STANDARD = 250;
 const KUP_OUT_OF_TOWN = 300;
+
+// B2B 2026 Constants
+const B2B_ZUS_BASE_FULL = 5652.60;
+const B2B_MIN_WAGE_2026 = 4806;
+const B2B_ZUS_BASE_PREFERENTIAL = B2B_MIN_WAGE_2026 * 0.3; // 1441.80
+
+const B2B_ZUS_PENSION = 0.1952;
+const B2B_ZUS_DISABILITY = 0.08;
+const B2B_ZUS_SICKNESS = 0.0245;
+const B2B_ZUS_ACCIDENT = 0.0167;
+const B2B_ZUS_LABOR_FUND = 0.0245;
+
+const B2B_HEALTH_RYCZALT_BASE = 9228.66; // Based on search 2026 results
+const B2B_LINIOWY_PIT = 0.19;
+const B2B_LINIOWY_HEALTH_LIMIT = 12900; // 2025/2026 limit
+
+const LUNCH_ZUS_EXEMPT_LIMIT = 450;
 
 export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   gross: 10000,
@@ -127,6 +72,17 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   bonusOverrideGross: null,
 };
 
+export const DEFAULT_B2B_INPUTS: B2BInputs = {
+  revenueNet: 15000,
+  taxType: "ryczalt",
+  ryczaltRate: 12,
+  expensesNet: 0,
+  zusType: "full",
+  voluntarySickness: true,
+  vatRate: 23,
+  hasPpk: false,
+};
+
 export function calculateSalary(
   i: SalaryInputs,
   cumulativeZusBaseBefore: number = 0,
@@ -148,13 +104,12 @@ export function calculateSalary(
 
   const zusBase = gross + benefitsTaxable + companyCarTaxable + lunchAllowanceZusable;
 
-  // ZUS Limit (30-krotność) applies to pension and disability only
   const remainingLimit = Math.max(0, ZUS_LIMIT_ANNUAL - cumulativeZusBaseBefore);
   const zusBaseForLimited = Math.min(zusBase, remainingLimit);
 
   const pension = round2(zusBaseForLimited * ZUS_PENSION);
   const disability = round2(zusBaseForLimited * ZUS_DISABILITY);
-  const sickness = round2(zusBase * ZUS_SICKNESS); // Sickness is NOT capped
+  const sickness = round2(zusBase * ZUS_SICKNESS);
   const zusTotal = round2(pension + disability + sickness);
 
   const healthBase = zusBase - zusTotal;
@@ -166,10 +121,8 @@ export function calculateSalary(
   const kupStandardBase =
     i.kupType === "standard" ? KUP_STANDARD : i.kupType === "outOfTown" ? KUP_OUT_OF_TOWN : 0;
 
-  // Autorskie KUP: 50% of (creative-portion gross − ZUS attributable to creative portion)
   const autorskiSharePct = clamp(i.autorskiSharePct, 0, 100);
   const creativeShare = autorskiSharePct / 100;
-  // Standard KUP only applies to non-creative part (proportionally)
   const kupStandard = round2(kupStandardBase * (1 - creativeShare));
 
   const creativeGross = gross * creativeShare;
@@ -240,10 +193,114 @@ export function calculateSalary(
   };
 }
 
-/** 
- * Returns the full 12-month breakdown, 
- * accounting for threshold crossing and bonuses.
- */
+export function calculateB2B(
+  i: B2BInputs,
+  cumulativeRevenueBefore: number = 0,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): B2BBreakdown {
+  const FIRST_RATE = settings.pitFirstRate / 100;
+  const SECOND_RATE = settings.pitSecondRate / 100;
+  const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+  const taxFreeAllowanceAnnual = settings.taxFreeAmountAnnual;
+
+  const revenueNet = Math.max(0, i.revenueNet);
+  const expensesNet = Math.max(0, i.expensesNet);
+  const vat = round2(revenueNet * (i.vatRate / 100));
+  const revenueGross = round2(revenueNet + vat);
+
+  // Social Insurance (ZUS)
+  let zusBase = 0;
+  if (i.zusType === "full") zusBase = B2B_ZUS_BASE_FULL;
+  else if (i.zusType === "preferential") zusBase = B2B_ZUS_BASE_PREFERENTIAL;
+  else if (i.zusType === "small") {
+    zusBase = (B2B_ZUS_BASE_FULL + B2B_ZUS_BASE_PREFERENTIAL) / 2;
+  }
+
+  const pension = i.zusType !== "start" ? round2(zusBase * B2B_ZUS_PENSION) : 0;
+  const disability = i.zusType !== "start" ? round2(zusBase * B2B_ZUS_DISABILITY) : 0;
+  const sickness = i.zusType !== "start" && i.voluntarySickness ? round2(zusBase * B2B_ZUS_SICKNESS) : 0;
+  const accident = i.zusType !== "start" ? round2(zusBase * B2B_ZUS_ACCIDENT) : 0;
+  const laborFund = i.zusType === "full" ? round2(zusBase * B2B_ZUS_LABOR_FUND) : 0;
+
+  const zusTotal = round2(pension + disability + sickness + accident + laborFund);
+
+  // Health Insurance
+  let health = 0;
+  let healthBase = 0;
+  const currentAnnualRevenue = cumulativeRevenueBefore + revenueNet;
+
+  if (i.taxType === "ryczalt") {
+    if (currentAnnualRevenue <= 60000) health = 498.35;
+    else if (currentAnnualRevenue <= 300000) health = 830.58;
+    else health = 1495.04;
+    healthBase = health / 0.09;
+  } else if (i.taxType === "liniowy") {
+    healthBase = Math.max(0, revenueNet - expensesNet - zusTotal);
+    health = Math.max(432.54, round2(healthBase * 0.049));
+  } else {
+    healthBase = Math.max(0, revenueNet - expensesNet - zusTotal);
+    health = Math.max(432.54, round2(healthBase * 0.09));
+  }
+
+  // Tax (PIT)
+  let pit = 0;
+  let taxBase = 0;
+
+  if (i.taxType === "ryczalt") {
+    const healthDeduction = health * 0.5;
+    taxBase = Math.max(0, Math.round(revenueNet - healthDeduction));
+    pit = Math.round(taxBase * (i.ryczaltRate / 100));
+  } else if (i.taxType === "liniowy") {
+    const incomeBeforeHealthDeduction = Math.max(0, revenueNet - expensesNet - zusTotal);
+    taxBase = Math.max(0, Math.round(incomeBeforeHealthDeduction - Math.min(health, B2B_LINIOWY_HEALTH_LIMIT / 12)));
+    pit = Math.round(taxBase * B2B_LINIOWY_PIT);
+  } else {
+    taxBase = Math.round(Math.max(0, revenueNet - expensesNet - zusTotal));
+    const annualBase = taxBase * 12;
+    const annualPit = calculateAnnualPit(annualBase, taxFreeAllowanceAnnual, FIRST_THRESHOLD_ANNUAL, FIRST_RATE, SECOND_RATE);
+    pit = Math.round(annualPit / 12);
+  }
+
+  const net = round2(revenueNet - zusTotal - health - pit - expensesNet);
+  const totalCost = round2(zusTotal + health + pit + expensesNet);
+
+  return {
+    revenueNet,
+    revenueGross,
+    vat,
+    expensesNet,
+    zusBase,
+    pension,
+    disability,
+    sickness,
+    accident,
+    laborFund,
+    zusTotal,
+    healthBase,
+    health,
+    taxBase,
+    pit,
+    net,
+    totalCost,
+    annualTaxBase: taxBase * 12,
+  };
+}
+
+function calculateAnnualPit(
+  annualBase: number,
+  taxFreeAmount: number,
+  threshold: number,
+  rate1: number,
+  rate2: number
+): number {
+  if (annualBase <= threshold) {
+    return Math.max(0, annualBase * rate1 - (taxFreeAmount * rate1));
+  }
+  const pit1 = threshold * rate1 - (taxFreeAmount * rate1);
+  const pit2 = (annualBase - threshold) * rate2;
+  return Math.max(0, pit1 + pit2);
+}
+
 export function calculateAnnualBreakdown(
   i: SalaryInputs,
   settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
@@ -280,7 +337,6 @@ export function calculateAnnualBreakdown(
       cumulativeTaxBase += at32.taxBase;
       cumulativeZusBase += at32.zusBase;
     } else {
-      // Crossing month: mixed rates
       const baseAt12 = FIRST_THRESHOLD_ANNUAL - cumulativeTaxBase;
       const baseAt32 = baseCalc.taxBase - baseAt12;
 
@@ -306,22 +362,84 @@ export function calculateAnnualBreakdown(
   return months;
 }
 
-/** 
- * Returns the breakdown for a specific month (1-12).
- */
-/** Returns the arithmetic average of monthly net salaries over 12 months. */
-export function calculateAnnualAverageNet(
-  i: SalaryInputs,
+export function calculateIncomeAnnualBreakdown(
+  inc: Income,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): (SalaryBreakdown | B2BBreakdown)[] {
+  if (inc.type === "UoP" && inc.uopInputs) {
+    return calculateAnnualBreakdown(inc.uopInputs, settings);
+  } else if (inc.type === "B2B" && inc.b2bInputs) {
+    const months: B2BBreakdown[] = [];
+    let cumulativeRevenue = 0;
+    for (let m = 1; m <= 12; m++) {
+      const calc = calculateB2B(inc.b2bInputs, cumulativeRevenue, settings);
+      months.push(calc);
+      cumulativeRevenue += calc.revenueNet;
+    }
+    return months;
+  }
+  return [];
+}
+
+export function calculateMemberAnnualAverageNet(
+  spouse: Spouse,
   settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
 ): number {
-  const months = calculateAnnualBreakdown(i, settings);
-  const totalNet = months.reduce((sum, m) => sum + m.net, 0);
+  const annual = calculateSpouseAnnualBreakdown(spouse, settings);
+  const totalNet = annual.reduce((sum, m) => sum + m.net, 0);
   return round2(totalNet / 12);
 }
 
-/** 
- * Returns the breakdown for a specific month (1-12).
- */
+export function calculateSpouseAnnualBreakdown(
+  spouse: Spouse,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): (SalaryBreakdown | B2BBreakdown)[] {
+  if (!spouse.incomes || spouse.incomes.length === 0) {
+    return Array.from({ length: 12 }, () => ({ net: 0, taxBase: 0 } as any));
+  }
+
+  const result = Array.from({ length: 12 }, () => ({
+    gross: 0,
+    revenueNet: 0,
+    net: 0,
+    taxBase: 0,
+    zusTotal: 0,
+    health: 0,
+    pit: 0,
+  } as any));
+
+  for (const inc of spouse.incomes) {
+    const incMonths = calculateIncomeAnnualBreakdown(inc, settings);
+    incMonths.forEach((m, idx) => {
+      result[idx].net += m.net;
+      result[idx].taxBase += m.taxBase;
+      result[idx].zusTotal += m.zusTotal;
+      result[idx].health += m.health;
+      result[idx].pit += m.pit;
+      if ("gross" in m) result[idx].gross += m.gross;
+      if ("revenueNet" in m) result[idx].revenueNet += m.revenueNet;
+    });
+  }
+
+  return result;
+}
+
+export function calculateSpouseForMonth(
+  spouse: Spouse,
+  monthIdx: number,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): SalaryBreakdown | B2BBreakdown {
+  const annual = calculateSpouseAnnualBreakdown(spouse, settings);
+  return annual[Math.min(11, Math.max(0, monthIdx - 1))];
+}
+
+export function isEligibleForJointFiling(spouse: Spouse): boolean {
+  if (!spouse.incomes) return true;
+  return !spouse.incomes.some(inc => 
+    inc.type === "B2B" && inc.b2bInputs && (inc.b2bInputs.taxType === "ryczalt" || inc.b2bInputs.taxType === "liniowy")
+  );
+}
+
 export function calculateSalaryForMonth(
   i: SalaryInputs,
   monthIdx: number,
@@ -331,22 +449,29 @@ export function calculateSalaryForMonth(
   return months[Math.min(11, Math.max(0, monthIdx - 1))];
 }
 
-/** Joint filing: PIT computed on averaged annual base × 2. Returns tax saved vs individual. */
 export function computeJointFiling(
-  aInputs: SalaryInputs,
-  bInputs: SalaryInputs,
+  aMember: Spouse,
+  bMember: Spouse,
   settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
-): { jointAnnualPit: number; individualAnnualPit: number; savings: number } {
+): { jointAnnualPit: number; individualAnnualPit: number; savings: number } | null {
+  if (!isEligibleForJointFiling(aMember) || !isEligibleForJointFiling(bMember)) return null;
+
   const FIRST_RATE = settings.pitFirstRate / 100;
   const SECOND_RATE = settings.pitSecondRate / 100;
   const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
   const annualTaxFreeAmount = settings.taxFreeAmountAnnual * FIRST_RATE;
 
-  const aBreakdown = calculateAnnualBreakdown(aInputs, settings);
-  const bBreakdown = calculateAnnualBreakdown(bInputs, settings);
+  const getAnnualBase = (spouse: Spouse) => {
+    let totalBase = 0;
+    for (const inc of spouse.incomes) {
+      const months = calculateIncomeAnnualBreakdown(inc, settings);
+      totalBase += months.reduce((sum, m) => sum + m.taxBase, 0);
+    }
+    return totalBase;
+  };
 
-  const aAnnualBase = aBreakdown.reduce((s, m) => s + m.taxBase, 0);
-  const bAnnualBase = bBreakdown.reduce((s, m) => s + m.taxBase, 0);
+  const aAnnualBase = getAnnualBase(aMember);
+  const bAnnualBase = getAnnualBase(bMember);
 
   const annualPit = (base: number) => {
     const taxable = Math.max(0, base);
@@ -369,8 +494,7 @@ export function computeJointFiling(
   };
 }
 
-/** Cumulative annual tax base by month - used for second-threshold progression chart. */
-export function thresholdProjection(monthlyTaxBase: number): {
+export function thresholdProjection(monthlyTaxBase: number, threshold: number): {
   month: number;
   cumulative: number;
   threshold: number;
@@ -378,11 +502,9 @@ export function thresholdProjection(monthlyTaxBase: number): {
   return Array.from({ length: 12 }, (_, idx) => ({
     month: idx + 1,
     cumulative: round2(monthlyTaxBase * (idx + 1)),
-    threshold: FIRST_THRESHOLD_ANNUAL,
+    threshold,
   }));
 }
-
-export const FIRST_THRESHOLD = FIRST_THRESHOLD_ANNUAL;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -424,8 +546,6 @@ export function parseLocaleAmount(raw: string): number {
 export function formatLocaleAmount(value: number, decimals: number = 2): string {
   if (value === undefined || value === null || !Number.isFinite(value)) return "";
   if (value === 0) return "0";
-  // Return the number formatted with up to 'decimals' fractional digits, 
-  // but removing trailing zeros and the decimal point if it's an integer.
   const s = value.toFixed(decimals);
   if (s.indexOf(".") === -1) return s;
   return s.replace(/\.?0+$/, "").replace(".", ",");

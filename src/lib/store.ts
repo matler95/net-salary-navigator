@@ -5,7 +5,16 @@
 
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { DEFAULT_SALARY_INPUTS, type SalaryInputs } from "./salary";
+import { 
+  DEFAULT_SALARY_INPUTS, 
+  DEFAULT_B2B_INPUTS,
+  type SalaryInputs, 
+  type Income, 
+  type Spouse, 
+  type IncomeType,
+  type SalaryBreakdown,
+  type B2BBreakdown
+} from "./salary";
 import type { Frequency } from "./finance";
 import type { InvestmentCurrency } from "./fx";
 import {
@@ -31,12 +40,7 @@ function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
   }) as T;
 }
 
-export type Spouse = {
-  id: string;
-  name: string;
-  inputs: SalaryInputs;
-  assignedUserId?: string;
-};
+// Spouse and Income types are now in salary.types.ts (exported via salary.ts)
 
 export type Expense = {
   id: string;
@@ -201,11 +205,30 @@ function loadInitial(): AppState {
       ...DEFAULT_STATE,
       ...parsed,
       spouses: parsed.spouses?.length
-        ? parsed.spouses.map((s) => ({
-          ...s,
-          inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
-          assignedUserId: s.assignedUserId,
-        }))
+        ? parsed.spouses.map((s: any) => {
+          // Migration: if s.inputs exists, move it to incomes
+          if (s.inputs && !s.incomes) {
+            return {
+              id: s.id,
+              name: s.name,
+              assignedUserId: s.assignedUserId,
+              incomes: [{
+                id: uid(),
+                type: "UoP",
+                label: "Umowa o pracę",
+                uopInputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs }
+              }]
+            };
+          }
+          return {
+            ...s,
+            incomes: s.incomes?.map((inc: any) => ({
+              ...inc,
+              uopInputs: inc.uopInputs ? { ...DEFAULT_SALARY_INPUTS, ...inc.uopInputs } : undefined,
+              b2bInputs: inc.b2bInputs ? { ...DEFAULT_B2B_INPUTS, ...inc.b2bInputs } : undefined,
+            })) || []
+          };
+        })
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses
         ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
@@ -718,7 +741,14 @@ export const actions = {
         {
           id: uid(),
           name: `Małżonek ${s.spouses.length + 1}`,
-          inputs: { ...DEFAULT_SALARY_INPUTS, gross: 8000 },
+          incomes: [
+            {
+              id: uid(),
+              type: "UoP",
+              label: "Umowa o pracę",
+              uopInputs: { ...DEFAULT_SALARY_INPUTS, gross: 8000 },
+            },
+          ],
         },
       ],
     }));
@@ -736,11 +766,53 @@ export const actions = {
       spouses: s.spouses.map((sp) => (sp.id === id ? { ...sp, ...patch } : sp)),
     }));
   },
-  updateSpouseInputs(id: string, patch: Partial<SalaryInputs>) {
+  updateSpouseIncome(spouseId: string, incomeId: string, patch: Partial<Income>) {
     setState((s) => ({
       ...s,
       spouses: s.spouses.map((sp) =>
-        sp.id === id ? { ...sp, inputs: { ...sp.inputs, ...patch } } : sp,
+        sp.id === spouseId
+          ? {
+              ...sp,
+              incomes: sp.incomes.map((inc) =>
+                inc.id === incomeId ? { ...inc, ...patch } : inc,
+              ),
+            }
+          : sp,
+      ),
+    }));
+  },
+  addIncome(spouseId: string, type: IncomeType) {
+    setState((s) => ({
+      ...s,
+      spouses: s.spouses.map((sp) =>
+        sp.id === spouseId
+          ? {
+              ...sp,
+              incomes: [
+                ...sp.incomes,
+                {
+                  id: uid(),
+                  type,
+                  label: type === "UoP" ? "Dodatkowa UoP" : "Kontrakt B2B",
+                  uopInputs: type === "UoP" ? { ...DEFAULT_SALARY_INPUTS } : undefined,
+                  b2bInputs: type === "B2B" ? { ...DEFAULT_B2B_INPUTS } : undefined,
+                },
+              ],
+            }
+          : sp,
+      ),
+    }));
+  },
+  removeIncome(spouseId: string, incomeId: string) {
+    setState((s) => ({
+      ...s,
+      spouses: s.spouses.map((sp) =>
+        sp.id === spouseId
+          ? {
+              ...sp,
+              incomes: sp.incomes.filter((inc) => inc.id !== incomeId),
+            }
+          : sp,
       ),
     }));
   },

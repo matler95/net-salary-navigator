@@ -34,10 +34,9 @@ import {
 } from "recharts";
 import { useAppState } from "@/lib/store";
 import {
-  calculateSalary,
-  calculateAnnualAverageNet,
-  calculateAnnualBreakdown,
-  calculateSalaryForMonth,
+  calculateMemberAnnualAverageNet,
+  calculateSpouseAnnualBreakdown,
+  calculateSpouseForMonth,
   computeJointFiling,
   formatPLN,
   formatPLN2,
@@ -100,17 +99,17 @@ function Dashboard() {
 
   // -- Core calcs
   const breakdowns = useMemo(
-    () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs, 0, globalSettings) })),
-    [spouses, globalSettings],
+    () => spouses.map((s) => ({ spouse: s, r: calculateSpouseForMonth(s, selectedMonthIdx, globalSettings) })),
+    [spouses, selectedMonthIdx, globalSettings],
   );
 
   const totalAnnualAvgNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    spouses.reduce((sum, s) => sum + calculateMemberAnnualAverageNet(s, globalSettings), 0),
     [spouses, globalSettings]
   );
 
   const totalSelectedMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net, 0),
+    spouses.reduce((sum, s) => sum + calculateSpouseForMonth(s, selectedMonthIdx, globalSettings).net, 0),
     [spouses, selectedMonthIdx, globalSettings]
   );
 
@@ -144,7 +143,7 @@ function Dashboard() {
 
   const nextMonthIdx = selectedMonthIdx === 12 ? 1 : selectedMonthIdx + 1;
   const nextMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
+    spouses.reduce((sum, s) => sum + calculateSpouseForMonth(s, nextMonthIdx, globalSettings).net, 0),
     [spouses, nextMonthIdx, globalSettings]
   );
   const nextMonthCashflow = nextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
@@ -162,7 +161,7 @@ function Dashboard() {
   }, [expenses]);
 
   const projection = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    const annualBreakdowns = spouses.map((s) => calculateSpouseAnnualBreakdown(s, globalSettings));
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const point: Record<string, number | string> = { month: monthLabel(month) };
@@ -180,7 +179,7 @@ function Dashboard() {
   const [includeInvestments, setIncludeInvestments] = useState(false);
 
   const cumulativeData = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    const annualBreakdowns = spouses.map((s) => calculateSpouseAnnualBreakdown(s, globalSettings));
     let cumulativeSurplus = 0;
 
     return Array.from({ length: 12 }, (_, idx) => {
@@ -202,7 +201,7 @@ function Dashboard() {
 
   // -- 7-month sparkline for cashflow
   const cashflowSparkline = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    const annualBreakdowns = spouses.map((s) => calculateSpouseAnnualBreakdown(s, globalSettings));
     return Array.from({ length: 7 }, (_, i) => {
       // Current month + up to 6 months ahead (looping around year if needed, but for simplicity we'll just do 1-12 based)
       // Actually let's just show Jan-Jul or the last 7 months of projection.
@@ -219,7 +218,7 @@ function Dashboard() {
 
   const thresholdDates = useMemo(() => {
     return spouses.map((s) => {
-      const breakdown = calculateAnnualBreakdown(s.inputs, globalSettings);
+      const breakdown = calculateSpouseAnnualBreakdown(s, globalSettings);
       let cumulative = 0;
       let monthIndex = -1;
       for (let i = 0; i < 12; i++) {

@@ -5,7 +5,12 @@ import { SpousePanel } from "@/components/SpousePanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw, Users, UserPlus, PartyPopper, ReceiptText } from "lucide-react";
-import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
+import { 
+  calculateMemberAnnualAverageNet, 
+  computeJointFiling, 
+  isEligibleForJointFiling,
+  formatPLN 
+} from "@/lib/salary";
 import { getActiveHouseholdId } from "@/lib/store";
 import { useAuthSession } from "@/lib/auth";
 import {
@@ -60,8 +65,10 @@ function SalariesPage() {
       }));
   }, [session?.user.id]);
 
-  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
+  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateMemberAnnualAverageNet(s, globalSettings), 0);
+  
+  const canJointFile = spouses.length === 2 && isEligibleForJointFiling(spouses[0]) && isEligibleForJointFiling(spouses[1]);
+  const joint = spouses.length === 2 ? computeJointFiling(spouses[0], spouses[1], globalSettings) : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
@@ -80,15 +87,21 @@ function SalariesPage() {
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {spouses.length >= 2 && (
-            <div className="flex items-center gap-3 bg-accent-soft/30 border border-accent/20 rounded-xl px-4 py-2.5 shadow-sm transition-colors hover:bg-accent-soft/50 cursor-pointer" onClick={() => actions.setJointFiling(!jointFiling)}>
-              <div className="bg-accent/10 p-1.5 rounded-lg text-accent">
-                <Users className="w-4 h-4" />
+              <div 
+                className={cn(
+                  "flex items-center gap-3 border rounded-xl px-4 py-2.5 shadow-sm transition-all",
+                  !canJointFile ? "bg-muted/50 opacity-60 grayscale cursor-not-allowed border-dashed" : "bg-accent-soft/30 border-accent/20 hover:bg-accent-soft/50 cursor-pointer"
+                )} 
+                onClick={() => canJointFile && actions.setJointFiling(!jointFiling)}
+              >
+                <div className={cn("p-1.5 rounded-lg", !canJointFile ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent")}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="flex-1 pr-2">
+                  <p className="text-sm font-semibold">Rozliczenie wspólne</p>
+                </div>
+                <Switch checked={jointFiling && canJointFile} disabled={!canJointFile} />
               </div>
-              <div className="flex-1 pr-2">
-                <p className="text-sm font-semibold">Rozliczenie wspólne</p>
-              </div>
-              <Switch checked={jointFiling} />
-            </div>
           )}
 
           <Button

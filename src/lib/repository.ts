@@ -1,6 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
-import type { AppState, Expense, Investment, Loan, Rental, SavingsAccount, SavingsAccountType, Spouse } from "./store";
-import { DEFAULT_SALARY_INPUTS } from "./salary";
+import type { AppState, Expense, Investment, Loan, Rental, SavingsAccount, SavingsAccountType } from "./store";
+import { DEFAULT_SALARY_INPUTS, type Spouse, type Income } from "./salary";
 import { getSupabase } from "./supabase";
 
 export type HouseholdContext = {
@@ -568,18 +568,35 @@ function mapSpouseToRow(householdId: string, spouse: Spouse, validMemberIds?: Se
     id: spouse.id,
     household_id: householdId,
     name: spouse.name,
-    inputs: spouse.inputs,
+    // We store the incomes array in the 'inputs' column for now to maintain schema compatibility
+    inputs: spouse.incomes,
     assigned_user_id: assignedUserId,
   };
 }
 function mapSpouseFromRow(row: unknown): Spouse {
   const r = asRecord(row);
+  const rawInputs = r.inputs;
+  
+  // If it's already an array, use it as incomes
+  if (Array.isArray(rawInputs)) {
+    return {
+      id: String(r.id ?? ""),
+      name: String(r.name ?? "Małżonek"),
+      incomes: rawInputs as Income[],
+      assignedUserId: r.assigned_user_id ? String(r.assigned_user_id) : undefined,
+    };
+  }
+
+  // If it's the old object, return it as incomes (store.ts will migrate it if needed, 
+  // but we can also handle it here for safety)
   return {
     id: String(r.id ?? ""),
     name: String(r.name ?? "Małżonek"),
-    inputs: { ...DEFAULT_SALARY_INPUTS, ...asRecord(r.inputs) },
+    incomes: [], // store.ts will handle migration if incomes is empty but inputs exists
     assignedUserId: r.assigned_user_id ? String(r.assigned_user_id) : undefined,
-  };
+    // Keep the old inputs so store.ts migration can find it
+    ...({ inputs: rawInputs } as any),
+  } as Spouse;
 }
 function mapExpenseToRow(householdId: string, x: Expense) {
   return { 
