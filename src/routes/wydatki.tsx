@@ -27,9 +27,10 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil } from "lucide-react";
+import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil, ChevronDown } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 export const Route = createFileRoute("/wydatki")({
   head: () => ({
@@ -99,6 +100,17 @@ function getCategoryIcon(name: string) {
 
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
 
   const monthlyTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0), [expenses]);
   const annualTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0), [expenses]);
@@ -168,56 +180,72 @@ function ExpensesPage() {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
             const pct = monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100) : 0;
+            const isExpanded = expandedCategories.has(g.category);
 
             return (
-              <div
+              <Collapsible
                 key={g.category}
-                className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
+                open={isExpanded}
+                onOpenChange={() => toggleCategory(g.category)}
               >
-                {/* Accent border left */}
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
-                  style={{ backgroundColor: color }}
-                />
+                  className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
+                >
+                  {/* Accent border left */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
+                    style={{ backgroundColor: color }}
+                  />
 
-                <div className="flex items-start justify-between mb-5 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full text-left hover:opacity-80 transition-opacity cursor-pointer">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform"
+                            style={{ 
+                              backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, 
+                              color,
+                              transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)'
+                            }}
+                          >
+                            <ChevronDown className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display text-2xl tabular-nums leading-none mb-1">
+                            {formatPLN2(g.monthly)}
+                          </p>
+                          <span
+                            className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
+                          >
+                            {pct.toFixed(0)}% sumy
+                          </span>
+                        </div>
                       </div>
+                    </button>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
+                      {g.items.map((e) => (
+                        <ExpenseRow key={e.id} expense={e} color={color} />
+                      ))}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-display text-2xl tabular-nums leading-none mb-1">
-                      {formatPLN2(g.monthly)}
-                    </p>
-                    <span
-                      className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                      style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
-                    >
-                      {pct.toFixed(0)}% sumy
-                    </span>
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  {g.items.map((e) => (
-                    <ExpenseRow key={e.id} expense={e} color={color} />
-                  ))}
+                    <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
+                      <AddExpenseDialog defaultCategory={g.category} variant="ghost" />
+                    </div>
+                  </CollapsibleContent>
                 </div>
-
-                <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
-                  <AddExpenseDialog defaultCategory={g.category} variant="ghost" />
-                </div>
-              </div>
+              </Collapsible>
             );
           })}
         </div>
