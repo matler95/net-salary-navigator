@@ -123,23 +123,32 @@ function ExpensesPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex-1">
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
-            Wydatki
+            Wydatki (mies.)
           </p>
-          <div className="flex items-baseline gap-3">
-            <h1 className="font-display text-5xl sm:text-6xl tabular-nums animate-count-up">
-              {formatPLN(monthlyTotal).replace(" zł", "")}
-            </h1>
-            <span className="text-xl sm:text-2xl text-muted-foreground font-medium">zł / m-c</span>
+          <h1 className="font-display text-4xl sm:text-5xl">
+            Gdzie uciekają <span className="italic text-accent">pieniądze?</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
+            Śledź swoje stałe i zmienne koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej projekcji budżetu i znalezienie potencjalnych oszczędności.
+          </p>
+          <div className="flex items-baseline gap-4 mt-6">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-4xl tabular-nums animate-count-up">
+                {formatPLN(monthlyTotal).replace(" zł", "")}
+              </span>
+              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">zł / m-c</span>
+            </div>
+            <div className="h-8 w-px bg-border mx-2" />
+            <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+              Rocznie: <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md text-foreground">{formatPLN(annualTotal)}</span>
+              {oneoffTotal > 0 && (
+                <>
+                  <span className="opacity-50">•</span>
+                  <span>Jednorazowe: <span className="font-mono tabular-nums text-foreground">{formatPLN(oneoffTotal)}</span></span>
+                </>
+              )}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground mt-3 font-medium flex items-center gap-2">
-            Rocznie: <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md">{formatPLN(annualTotal)}</span>
-            {oneoffTotal > 0 && (
-              <>
-                <span className="opacity-50">•</span>
-                <span>Jednorazowe: <span className="font-mono tabular-nums">{formatPLN(oneoffTotal)}</span></span>
-              </>
-            )}
-          </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <AddExpenseDialog />
@@ -151,11 +160,10 @@ function ExpensesPage() {
           icon={ShoppingBag}
           title="Jeszcze nie śledzisz wydatków"
           description="Zacznij od największych kategorii — czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
-          action={<AddExpenseDialog />}
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 animate-fade-up">
           {grouped.map((g) => {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
@@ -551,7 +559,7 @@ function EditExpenseDialog({ expense }: { expense: Expense }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className="opacity-60 group-hover:opacity-100 text-muted-foreground hover:text-accent p-2 transition-opacity rounded-lg hover:bg-accent/10"
+          className="text-muted-foreground hover:text-accent p-2 transition-colors rounded-lg hover:bg-accent/10"
           aria-label={`Edytuj: ${expense.label}`}
         >
           <Pencil className="w-4 h-4" />
@@ -638,7 +646,7 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
                 },
               });
             }}
-            className="opacity-60 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity rounded-lg hover:bg-destructive/10"
+            className="text-muted-foreground hover:text-destructive p-2 transition-colors rounded-lg hover:bg-destructive/10"
             aria-label={`Usuń: ${expense.label}`}
           >
             <Trash2 className="w-4 h-4" />

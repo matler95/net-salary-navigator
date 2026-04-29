@@ -305,7 +305,7 @@ export function SpousePanel({
             variant="ghost"
             size="icon"
             onClick={() => actions.removeSpouse(spouse.id)}
-            className="text-muted-foreground hover:text-destructive opacity-0 group-hover/panel:opacity-100 transition-opacity"
+            className="text-muted-foreground hover:text-destructive transition-colors"
             title="Usuń"
           >
             <Trash2 className="w-5 h-5" />

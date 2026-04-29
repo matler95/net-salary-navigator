@@ -71,6 +71,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/aktywa")({
@@ -106,49 +107,55 @@ function AssetsPage() {
   const netWorth = totalAssets - totalLoans;
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
 
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
-      <header className="flex flex-col gap-6 relative">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
-            Majątek
-          </p>
-          <h1 className="font-display text-4xl sm:text-5xl">
-            Co masz <span className="italic text-accent">i co jest Twoje</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Zarządzaj swoimi oszczędnościami, portfelem giełdowym, kredytami hipotecznymi i nieruchomościami na wynajem.
-          </p>
-        </div>
-        
-        <div className="flex flex-wrap gap-2 text-sm sticky top-[64px] lg:top-[0px] z-30 bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 border-b border-border shadow-sm mb-2">
-          <button onClick={() => scrollTo('oszczednosci')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Oszczędności</button>
-          <button onClick={() => scrollTo('inwestycje')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Inwestycje</button>
-          <button onClick={() => scrollTo('kredyty')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Kredyty</button>
-          <button onClick={() => scrollTo('wynajem')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Nieruchomości</button>
-        </div>
-      </header>
+      <Tabs defaultValue="oszczednosci" className="space-y-8">
+        <header className="flex flex-col gap-6">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
+              Majątek
+            </p>
+            <h1 className="font-display text-4xl sm:text-5xl">
+              Co masz <span className="italic text-accent">i co jest Twoje</span>
+            </h1>
+            <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
+              Zarządzaj swoimi oszczędnościami, portfelem giełdowym, kredytami hipotecznymi i nieruchomościami na wynajem.
+            </p>
+          </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} tone="investment" animate />
-        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="debt" animate />
-        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "income" : "expense"} animate />
-        <StatCard 
-          label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"} 
-          value={formatPLN(rentalNet)} 
-          tone={rentalNet >= 0 ? "income" : "expense"} 
-          animate
-        />
-      </div>
+          <TabsList className="flex items-center justify-start h-auto p-1 bg-muted/40 border border-border rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar">
+            <TabsTrigger value="oszczednosci" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Oszczędności</TabsTrigger>
+            <TabsTrigger value="inwestycje" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Inwestycje</TabsTrigger>
+            <TabsTrigger value="kredyty" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Kredyty</TabsTrigger>
+            <TabsTrigger value="wynajem" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Nieruchomości</TabsTrigger>
+          </TabsList>
+        </header>
 
-      <div id="oszczednosci" className="scroll-mt-6"><SavingsSection /></div>
-      <div id="inwestycje" className="scroll-mt-6"><InvestmentsSection /></div>
-      <div id="kredyty" className="scroll-mt-6"><LoansSection /></div>
-      <div id="wynajem" className="scroll-mt-6"><RentalsSection /></div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-fade-up">
+          <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} tone="investment" animate />
+          <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="debt" animate />
+          <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "income" : "expense"} animate />
+          <StatCard
+            label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"}
+            value={formatPLN(rentalNet)}
+            tone={rentalNet >= 0 ? "income" : "expense"}
+            animate
+          />
+        </div>
+
+        <TabsContent value="oszczednosci" className="mt-0 focus-visible:outline-none animate-fade-up">
+          <SavingsSection />
+        </TabsContent>
+        <TabsContent value="inwestycje" className="mt-0 focus-visible:outline-none animate-fade-up">
+          <InvestmentsSection />
+        </TabsContent>
+        <TabsContent value="kredyty" className="mt-0 focus-visible:outline-none animate-fade-up">
+          <LoansSection />
+        </TabsContent>
+        <TabsContent value="wynajem" className="mt-0 focus-visible:outline-none animate-fade-up">
+          <RentalsSection />
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }
@@ -250,12 +257,8 @@ function InvestmentsSection() {
   const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Inwestycje</h2>
-          <AddInvestmentDialog />
-        </div>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           {investments.length > 0 && (
             <div className="flex rounded-lg border border-border overflow-hidden text-xs">
@@ -273,9 +276,9 @@ function InvestmentsSection() {
               </button>
             </div>
           )}
-          <div className="text-right">
+          <div className="text-right flex flex-wrap items-center gap-x-3">
             <p className="text-sm text-muted-foreground">
-              Łącznie {formatPLN(total)} 
+              Łącznie {formatPLN(total)}
               {totalCost > 0 && (
                 <span className={totalProfit >= 0 ? "text-income" : "text-expense"}>
                   {" "}({totalProfit >= 0 ? "+" : ""}{formatPLN(totalProfit)} · {totalProfitPct.toFixed(1)}%)
@@ -283,19 +286,17 @@ function InvestmentsSection() {
               )}
               {fxLoading || tickerLoading ? " · aktualizacja..." : ""}
             </p>
-            <div className="flex gap-1 justify-end mt-0.5">
+            <div className="flex gap-1 justify-end">
               {!!rates.asOf && (
                 <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                  Kursy FX z: {rates.asOf}
-                </span>
-              )}
-              {!!tickerPrices.asOf && (
-                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                  Ticker z: {tickerPrices.asOf}
+                  FX: {rates.asOf}
                 </span>
               )}
             </div>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <AddInvestmentDialog />
         </div>
       </div>
 
@@ -304,7 +305,6 @@ function InvestmentsSection() {
           icon={PieChartIcon}
           title="Brak inwestycji"
           description="Dodaj swoje akcje, ETFy lub krypto, aby śledzić wartość portfela i jego strukturę w czasie rzeczywistym."
-          action={<AddInvestmentDialog />}
           className="my-8"
         />
       ) : (
@@ -320,140 +320,140 @@ function InvestmentsSection() {
           )}
 
           {view === "list" && investments.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Nazwa</th>
-                <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Typ</th>
-                <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Ticker</th>
-                <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Waluta</th>
-                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Wolumen</th>
-                <th className="text-right px-4 py-3 font-medium">Wartość</th>
-                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Zysk / Strata</th>
-                <th className="text-right px-4 py-3 font-medium hidden md:table-cell">%</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {investmentValues.map((i) => {
-                const portfolioPct = total > 0 ? (i.valuePLN / total) * 100 : 0;
-                return (
-                  <tr key={i.id} className="border-t border-border group hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2">
-                      <Input
-                        value={i.label}
-                        onChange={(e) => actions.updateInvestment(i.id, { label: e.target.value })}
-                        className="h-10 bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none font-medium"
-                      />
-                    </td>
-                    <td className="px-4 py-2 hidden md:table-cell text-muted-foreground text-xs">{i.type}</td>
-                    <td className="px-4 py-2 hidden lg:table-cell">
-                      <Input
-                        value={i.ticker ?? ""}
-                        onChange={(e) =>
-                          actions.updateInvestment(i.id, {
-                            ticker: e.target.value.trim().toLowerCase(),
-                          })
-                        }
-                        placeholder="np. vwce.de"
-                        className="h-10 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2 hidden lg:table-cell">
-                      <Select
-                        value={i.currency}
-                        onValueChange={(v) =>
-                          actions.updateInvestment(i.id, { currency: v as InvestmentCurrency })
-                        }
-                      >
-                        <SelectTrigger className="h-10 w-[88px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(["PLN", "EUR", "USD", "GBP"] as InvestmentCurrency[]).map((c) => (
-                            <SelectItem key={c} value={c} className="text-xs">
-                              {c}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-4 py-2 hidden sm:table-cell">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={formatLocaleAmount(i.volume ?? 0, 4)}
-                        onChange={(e) =>
-                          actions.updateInvestment(i.id, {
-                            volume: parseLocaleAmount(e.target.value),
-                          })
-                        }
-                        className="h-10 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <p className="text-sm font-mono font-semibold tabular-nums">
-                        {i.valuePLN > 0 ? formatPLN(i.valuePLN) : "—"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), i.cur)}
-                      </p>
-                    </td>
-                    <td className="px-4 py-2 text-right hidden sm:table-cell">
-                      {i.totalCostPLN > 0 ? (
-                        <div className={i.profitPLN >= 0 ? "text-income" : "text-expense"}>
-                          <p className="text-xs font-mono font-semibold tabular-nums">
-                            {i.profitPLN >= 0 ? "+" : ""}{formatPLN2(i.profitPLN)}
-                          </p>
-                          <p className="text-[10px] font-bold">
-                            {i.profitPct.toFixed(1)}%
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden md:table-cell text-xs">
-                      {portfolioPct.toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-2 w-28">
-                      <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <BuyMoreDialog
-                          investment={i}
-                          currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined}
-                        />
-                        <button
-                          onClick={() => {
-                            const copy = { ...i };
-                            actions.removeInvestment(i.id);
-                            toast(`Usunięto inwestycję: ${i.label || i.ticker}`, {
-                              action: {
-                                label: "Cofnij",
-                                onClick: () => {
-                                  const { id, ...rest } = copy;
-                                  actions.addInvestment(rest as any);
-                                },
-                              },
-                              duration: 5000,
-                            });
-                          }}
-                          className="text-muted-foreground hover:text-destructive p-1.5"
-                          aria-label={`Usuń ${i.label || i.ticker}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden animate-fade-up">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Nazwa</th>
+                    <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Typ</th>
+                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Ticker</th>
+                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Waluta</th>
+                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Wolumen</th>
+                    <th className="text-right px-4 py-3 font-medium">Wartość</th>
+                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Zysk / Strata</th>
+                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">%</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {investmentValues.map((i) => {
+                    const portfolioPct = total > 0 ? (i.valuePLN / total) * 100 : 0;
+                    return (
+                      <tr key={i.id} className="border-t border-border group hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-2">
+                          <Input
+                            value={i.label}
+                            onChange={(e) => actions.updateInvestment(i.id, { label: e.target.value })}
+                            className="h-10 bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none font-medium"
+                          />
+                        </td>
+                        <td className="px-4 py-2 hidden md:table-cell text-muted-foreground text-xs">{i.type}</td>
+                        <td className="px-4 py-2 hidden lg:table-cell">
+                          <Input
+                            value={i.ticker ?? ""}
+                            onChange={(e) =>
+                              actions.updateInvestment(i.id, {
+                                ticker: e.target.value.trim().toLowerCase(),
+                              })
+                            }
+                            placeholder="np. vwce.de"
+                            className="h-10 w-[122px] font-mono text-xs bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                          />
+                        </td>
+                        <td className="px-4 py-2 hidden lg:table-cell">
+                          <Select
+                            value={i.currency}
+                            onValueChange={(v) =>
+                              actions.updateInvestment(i.id, { currency: v as InvestmentCurrency })
+                            }
+                          >
+                            <SelectTrigger className="h-10 w-[88px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["PLN", "EUR", "USD", "GBP"] as InvestmentCurrency[]).map((c) => (
+                                <SelectItem key={c} value={c} className="text-xs">
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-4 py-2 hidden sm:table-cell">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={formatLocaleAmount(i.volume ?? 0, 4)}
+                            onChange={(e) =>
+                              actions.updateInvestment(i.id, {
+                                volume: parseLocaleAmount(e.target.value),
+                              })
+                            }
+                            className="h-10 text-right font-mono tabular-nums bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none"
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <p className="text-sm font-mono font-semibold tabular-nums">
+                            {i.valuePLN > 0 ? formatPLN(i.valuePLN) : "—"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), i.cur)}
+                          </p>
+                        </td>
+                        <td className="px-4 py-2 text-right hidden sm:table-cell">
+                          {i.totalCostPLN > 0 ? (
+                            <div className={i.profitPLN >= 0 ? "text-income" : "text-expense"}>
+                              <p className="text-xs font-mono font-semibold tabular-nums">
+                                {i.profitPLN >= 0 ? "+" : ""}{formatPLN2(i.profitPLN)}
+                              </p>
+                              <p className="text-[10px] font-bold">
+                                {i.profitPct.toFixed(1)}%
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden md:table-cell text-xs">
+                          {portfolioPct.toFixed(1)}%
+                        </td>
+                        <td className="px-4 py-2 w-28">
+                          <div className="flex items-center justify-end gap-1">
+                            <BuyMoreDialog
+                              investment={i}
+                              currentPrice={i.ticker ? tickerPrices.byTicker[i.ticker] : undefined}
+                            />
+                            <button
+                              onClick={() => {
+                                const copy = { ...i };
+                                actions.removeInvestment(i.id);
+                                toast(`Usunięto inwestycję: ${i.label || i.ticker}`, {
+                                  action: {
+                                    label: "Cofnij",
+                                    onClick: () => {
+                                      const { id, ...rest } = copy;
+                                      actions.addInvestment(rest as any);
+                                    },
+                                  },
+                                  duration: 5000,
+                                });
+                              }}
+                              className="text-muted-foreground hover:text-destructive p-1.5"
+                              aria-label={`Usuń ${i.label || i.ticker}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
-    </>
-  )}
       <p className="text-xs text-muted-foreground">
         Kursy walut: NBP (PLN/EUR/USD/GBP), odświeżane raz dziennie. Ticker: kurs bieżący via Yahoo
         Finance, cache dobowy.
@@ -480,6 +480,9 @@ function InvestmentsSummaryView({
     currency: InvestmentCurrency;
     monthlyContribution: number;
     valuePLN: number;
+    profitPLN: number;
+    profitPct: number;
+    totalCostPLN: number;
   }>;
   total: number;
   effectiveCurrency: (i: any) => InvestmentCurrency;
@@ -491,6 +494,10 @@ function InvestmentsSummaryView({
     0,
   );
   const unvalued = investmentValues.filter((i) => i.valuePLN === 0).length;
+
+  const totalProfit = investmentValues.reduce((s, i) => s + i.profitPLN, 0);
+  const totalCost = investmentValues.reduce((s, i) => s + i.totalCostPLN, 0);
+  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   // Donut chart data — top 6 + "Inne"
   const donutData = useMemo(() => {
@@ -546,7 +553,7 @@ function InvestmentsSummaryView({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-up">
       {/* Top KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
@@ -805,6 +812,7 @@ function InvestmentsSummaryView({
 }
 
 function AddInvestmentDialog() {
+  const { rates } = useDailyFxRates();
   const [open, setOpen] = useState(false);
   const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency, volume: 0, price: 0 };
   const [draft, setDraft] = useState(EMPTY);
@@ -878,7 +886,7 @@ function AddInvestmentDialog() {
             e.preventDefault();
             const ticker = draft.ticker.trim();
             if (!ticker || draft.volume <= 0) return;
-            
+
             // To account for currency effects, we store the cost in PLN at the moment of adding.
             const totalCostPLN = convertToPLN(draft.volume * draft.price, draft.currency, rates);
 
@@ -1020,6 +1028,7 @@ function AddInvestmentDialog() {
 }
 
 function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentPrice?: number }) {
+  const { rates } = useDailyFxRates();
   const [open, setOpen] = useState(false);
   const [addedVolume, setAddedVolume] = useState("");
   const [buyPrice, setBuyPrice] = useState(currentPrice ? String(currentPrice) : "");
@@ -1049,7 +1058,7 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
             const currentAvg = investment.tickerPriceAtAdd || 0;
             const newTotalVol = currentVol + additionalVol;
             const newAvgPrice = (currentVol * currentAvg + additionalVol * newPrice) / newTotalVol;
-            
+
             // Record cost in PLN
             const purchaseCostPLN = convertToPLN(additionalVol * newPrice, investment.currency, rates);
             const newTotalCostPLN = (investment.totalCostPLN || 0) + purchaseCostPLN;
@@ -1109,15 +1118,14 @@ function LoansSection() {
   );
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Kredyty</h2>
-          <AddLoanDialog />
-        </div>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
           Łącznie {formatPLN(totalDebt)} · raty {formatPLN(totalPmt)}/m-c (z nadpłatą)
         </p>
+        <div className="flex items-center gap-3">
+          <AddLoanDialog />
+        </div>
       </div>
 
       {loans.length === 0 ? (
@@ -1125,11 +1133,10 @@ function LoansSection() {
           icon={Landmark}
           title="Brak kredytów"
           description="Dodaj swoje kredyty hipoteczne lub gotówkowe, aby śledzić saldo zadłużenia i automatycznie planować spłaty."
-          action={<AddLoanDialog />}
           className="my-8"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-4 animate-fade-up">
           {loans.map((l) => (
             <LoanCard key={l.id} loan={l} />
           ))}
@@ -1217,17 +1224,15 @@ function LoanCard({
       {/* Payment Status */}
       {loan.paymentDayOfMonth && (
         <div
-          className={`rounded-lg p-3 mb-4 flex items-center justify-between ${
-            paymentInfo.needsPayment
-              ? "bg-warning/10 border border-warning/30"
-              : "bg-success/5 border border-success/20"
-          }`}
+          className={`rounded-lg p-3 mb-4 flex items-center justify-between ${paymentInfo.needsPayment
+            ? "bg-warning/10 border border-warning/30"
+            : "bg-success/5 border border-success/20"
+            }`}
         >
           <div className="flex-1 min-w-0">
             <p
-              className={`text-[10px] font-bold uppercase tracking-wider ${
-                paymentInfo.needsPayment ? "text-warning-foreground" : "text-success"
-              }`}
+              className={`text-[10px] font-bold uppercase tracking-wider ${paymentInfo.needsPayment ? "text-warning-foreground" : "text-success"
+                }`}
             >
               {paymentInfo.needsPayment ? "Oczekuje na spłatę" : "✓ Rata opłacona"}
             </p>
@@ -1442,14 +1447,13 @@ function RentalsSection() {
   const totalValue = rentals.reduce((s, r) => s + r.marketValue, 0);
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Mieszkania na wynajem</h2>
-          <AddRentalDialog />
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground mt-1">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 text-muted-foreground">
           {formatPLN(totalValue)} · {totalCashflow >= 0 ? "zysk" : "strata"} {formatPLN(totalCashflow)}/m-c
+        </div>
+        <div className="flex items-center gap-3">
+          <AddRentalDialog />
         </div>
       </div>
 
@@ -1458,11 +1462,10 @@ function RentalsSection() {
           icon={Building2}
           title="Brak nieruchomości"
           description="Zarządzasz mieszkaniami na wynajem? Dodaj je tutaj, aby śledzić rentowność, koszty i miesięczny zysk na czysto."
-          action={<AddRentalDialog />}
           className="my-8"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-4 animate-fade-up">
           {rentals.map((r) => {
             const cf = rentalCashflow(r);
             const yieldPct = r.marketValue > 0 ? (cf.annualCashflow / r.marketValue) * 100 : 0;
@@ -1566,11 +1569,10 @@ function RentalsSection() {
                 </div>
 
                 <div
-                  className={`rounded-xl p-3 grid grid-cols-3 gap-2 text-center ${
-                    cf.cashflow >= 0
-                      ? "bg-success/10 border border-success/30"
-                      : "bg-destructive/10 border border-destructive/30"
-                  }`}
+                  className={`rounded-xl p-3 grid grid-cols-3 gap-2 text-center ${cf.cashflow >= 0
+                    ? "bg-success/10 border border-success/30"
+                    : "bg-destructive/10 border border-destructive/30"
+                    }`}
                 >
                   <div>
                     <p className="text-xs text-muted-foreground">{cf.cashflow >= 0 ? "Zysk" : "Strata"} / m-c</p>
@@ -1906,13 +1908,10 @@ function SavingsSection() {
   const totalNetGain = totalWithInterest - totalBalance;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl">Oszczędności</h2>
-          <AddSavingsDialog />
-        </div>
-        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">Łącznie {formatPLN(totalBalance)}</p>
           {savings.length > 0 && (
             <div className="flex rounded-lg border border-border overflow-hidden text-xs">
               <button
@@ -1929,9 +1928,9 @@ function SavingsSection() {
               </button>
             </div>
           )}
-          {savings.length > 0 && (
-            <p className="text-sm text-muted-foreground">Łącznie {formatPLN(totalBalance)}</p>
-          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <AddSavingsDialog />
         </div>
       </div>
 
@@ -1940,7 +1939,6 @@ function SavingsSection() {
           icon={Wallet}
           title="Brak oszczędności"
           description="Dodaj konta bankowe, oszczędnościowe lub lokaty, aby mieć pełny obraz płynnych środków w swoim budżecie."
-          action={<AddSavingsDialog />}
           className="my-8"
         />
       )}
@@ -1957,7 +1955,7 @@ function SavingsSection() {
 
       {/* LIST VIEW */}
       {view === "list" && savings.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up">
           {savings.map((account) => (
             <SavingsCard key={account.id} account={account} />
           ))}
@@ -1996,14 +1994,14 @@ function SavingsSummaryView({
   const avgRate =
     accounts.filter((a) => a.ratePct > 0).length > 0
       ? accounts
-          .filter((a) => a.ratePct > 0)
-          .reduce((s, a) => s + (a.ratePct * a.balance) / totalBalance, 0)
+        .filter((a) => a.ratePct > 0)
+        .reduce((s, a) => s + (a.ratePct * a.balance) / totalBalance, 0)
       : 0;
 
   const maxRate = Math.max(...savings.map((a) => a.ratePct), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-up">
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
@@ -2122,13 +2120,12 @@ function SavingsSummaryView({
                       <div className="space-y-1">
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              isExpired
-                                ? "bg-destructive"
-                                : isNearExpiry
-                                  ? "bg-warning"
-                                  : "bg-emerald-500"
-                            }`}
+                            className={`h-full rounded-full transition-all ${isExpired
+                              ? "bg-destructive"
+                              : isNearExpiry
+                                ? "bg-warning"
+                                : "bg-emerald-500"
+                              }`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -2281,13 +2278,12 @@ function SavingsSummaryView({
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${
-                              ratePct >= 90
-                                ? "bg-emerald-500"
-                                : ratePct >= 60
-                                  ? "bg-amber-500"
-                                  : "bg-muted-foreground/40"
-                            }`}
+                            className={`h-full rounded-full ${ratePct >= 90
+                              ? "bg-emerald-500"
+                              : ratePct >= 60
+                                ? "bg-amber-500"
+                                : "bg-muted-foreground/40"
+                              }`}
                             style={{ width: `${ratePct}%` }}
                           />
                         </div>
@@ -2366,13 +2362,12 @@ function SavingsSummaryView({
                 >
                   {/* Type badge */}
                   <span
-                    className={`text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${
-                      a.type === "lokata"
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                        : a.type === "oszczędnościowe"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : "bg-muted text-muted-foreground"
-                    }`}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${a.type === "lokata"
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      : a.type === "oszczędnościowe"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                      }`}
                   >
                     {a.type === "lokata" ? "LOK" : a.type === "oszczędnościowe" ? "OSZ" : "ZWY"}
                   </span>
@@ -2432,9 +2427,9 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
   const isLokata = account.type === "lokata";
   const gross =
     isLokata &&
-    account.ratePct > 0 &&
-    account.balance > 0 &&
-    (account.lokataDurationMonths ?? 0) > 0
+      account.ratePct > 0 &&
+      account.balance > 0 &&
+      (account.lokataDurationMonths ?? 0) > 0
       ? lokataGrossInterest(account.balance, account.ratePct, account.lokataDurationMonths!)
       : null;
   const net =
@@ -2453,7 +2448,7 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
           <p className="font-semibold text-sm">{account.bank}</p>
           <p className="text-[11px] text-muted-foreground">{ACCOUNT_TYPE_LABEL[account.type]}</p>
         </div>
-        <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1">
           <EditSavingsDialog account={account} />
           <button
             onClick={() => {
@@ -2590,10 +2585,10 @@ function AddSavingsDialog() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!draft.bank.trim() || numBalance <= 0) return;
-            actions.addSavings({ 
-              ...draft, 
-              balance: numBalance, 
-              ratePct: numRate 
+            actions.addSavings({
+              ...draft,
+              balance: numBalance,
+              ratePct: numRate
             } as any);
             setDraft({
               bank: "",

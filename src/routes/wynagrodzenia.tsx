@@ -130,18 +130,10 @@ function SalariesPage() {
           icon={ReceiptText}
           title="Jeszcze nikogo nie ma"
           description="Dodaj pierwszą osobę, wpisz wynagrodzenie brutto, a Saldeo dokładnie wyliczy ile zostanie na rękę, pomagając w zaplanowaniu budżetu."
-          action={
-            <Button
-              onClick={() => actions.addSpouse()}
-              className="h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:scale-[1.02] active:scale-[0.98] transition-all text-sm font-bold"
-            >
-              <UserPlus className="w-4 h-4 mr-2" /> Dodaj pierwszą osobę
-            </Button>
-          }
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
-        <div className="grid xl:grid-cols-2 gap-6 lg:gap-8">
+        <div className="grid xl:grid-cols-2 gap-6 lg:gap-8 animate-fade-up">
           {spouses.map((s) => (
             <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} memberOptions={members} />
           ))}
