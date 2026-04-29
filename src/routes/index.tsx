@@ -347,14 +347,29 @@ function Dashboard() {
                           tickLine={false}
                           dy={4}
                         />
+                        <Tooltip
+                          formatter={(v: number) => [formatPLN(v), "zysk"]}
+                          contentStyle={{
+                            fontSize: "10px",
+                            borderRadius: "10px",
+                            border: "1px solid var(--border)",
+                            boxShadow: "var(--shadow-warm)",
+                            backgroundColor: "var(--background)",
+                            padding: "4px 8px",
+                          }}
+                          labelStyle={{ fontWeight: "bold", color: "var(--foreground)", marginBottom: "2px" }}
+                          itemStyle={{ padding: 0 }}
+                          cursor={{ stroke: "var(--accent)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                        />
                         <Line
                           type="monotone"
                           dataKey="val"
                           stroke="var(--accent)"
                           strokeWidth={2}
                           dot={false}
+                          activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
                         />
-                        <YAxis hide domain={['auto', 'auto']} />
+                        <YAxis hide domain={["auto", "auto"]} />
                         <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                       </LineChart>
                     </ResponsiveContainer>
