@@ -98,7 +98,7 @@ function LoginPage() {
     const run = async () => {
       // 1. Check for invitation by token or email
       let inviteToken = search.invite ?? (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
-      
+
       if (!inviteToken) {
         const pending = await getPendingInviteForUser();
         if (pending) {
@@ -205,10 +205,10 @@ function LoginPage() {
             // Auto-detect invite for the logged in email if not provided
             const pending = await getPendingInviteForUser();
             if (pending) {
-               await acceptInvite(pending.token, data.session);
-               toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
+              await acceptInvite(pending.token, data.session);
+              toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
             } else {
-               await initCloudSync(data.session);
+              await initCloudSync(data.session);
             }
           }
         }
@@ -264,10 +264,10 @@ function LoginPage() {
           } else {
             const pending = await getPendingInviteForUser();
             if (pending) {
-               await acceptInvite(pending.token, signUpData.session);
-               toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
+              await acceptInvite(pending.token, signUpData.session);
+              toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
             } else {
-               await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
+              await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
             }
           }
           await router.navigate({ to: "/" });
@@ -275,7 +275,7 @@ function LoginPage() {
         }
         setStatus({
           msg: hasInvite
-            ? "Konto utworzone. Sprawdź skrzynkę, potwierdź email, a następnie wróć do aplikacji — zaproszenie zostanie dokończone automatycznie."
+            ? "Konto utworzone. Sprawdź skrzynkę, potwierdź email, a następnie wróć do aplikacji - zaproszenie zostanie dokończone automatycznie."
             : "Konto utworzone. Sprawdź skrzynkę i potwierdź adres email, a następnie zaloguj się.",
           type: "success",
         });
@@ -335,19 +335,19 @@ function LoginPage() {
 
       {hasInvite && (
         <div className="mb-6 rounded-[1.5rem] border border-accent/20 bg-accent/5 p-6 animate-fade-up">
-           <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-accent-foreground shadow-warm">
-                 <Users className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                 <p className="text-sm font-bold text-foreground">Zaproszenie wykryte!</p>
-                 <p className="text-xs text-muted-foreground mt-1">
-                    {detectedInvite 
-                      ? `Zostałeś zaproszony do gospodarstwa ${detectedInvite.household_name}. Zaloguj się, aby dołączyć.`
-                      : `Dołączasz do gospodarstwa ${inviteContext?.household_name ?? "bliskich"}.`}
-                 </p>
-              </div>
-           </div>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-accent-foreground shadow-warm">
+              <Users className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">Zaproszenie wykryte!</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {detectedInvite
+                  ? `Zostałeś zaproszony do gospodarstwa ${detectedInvite.household_name}. Zaloguj się, aby dołączyć.`
+                  : `Dołączasz do gospodarstwa ${inviteContext?.household_name ?? "bliskich"}.`}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -423,10 +423,10 @@ function LoginPage() {
           {loading
             ? "Proszę czekać…"
             : cooldownSeconds > 0
-            ? `Poczekaj ${cooldownSeconds}s`
-            : mode === "login"
-            ? "Zaloguj"
-            : "Utwórz konto"}
+              ? `Poczekaj ${cooldownSeconds}s`
+              : mode === "login"
+                ? "Zaloguj"
+                : "Utwórz konto"}
         </Button>
         {import.meta.env.DEV && cooldownSeconds > 0 && (
           <Button
@@ -459,13 +459,12 @@ function LoginPage() {
         )}
         {status && (
           <p
-            className={`text-xs ${
-              status.type === "error"
+            className={`text-xs ${status.type === "error"
                 ? "text-destructive"
                 : status.type === "success"
                   ? "text-success"
                   : "text-muted-foreground"
-            }`}
+              }`}
           >
             {status.msg}
           </p>
@@ -496,6 +495,6 @@ function translateAuthError(msg: string): string {
   if (m.includes("network") || m.includes("fetch")) {
     return "Błąd sieci. Sprawdź połączenie z internetem.";
   }
-  // Fallback — return original for unknown errors
+  // Fallback - return original for unknown errors
   return msg;
 }

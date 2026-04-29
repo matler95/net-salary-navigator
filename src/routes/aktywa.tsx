@@ -82,7 +82,7 @@ export const Route = createFileRoute("/aktywa")({
   }),
   head: () => ({
     meta: [
-      { title: "Aktywa & długi — Saldeo" },
+      { title: "Aktywa & długi - Saldeo" },
       {
         name: "description",
         content:
@@ -405,7 +405,7 @@ function InvestmentsSection() {
                         </td>
                         <td className="px-4 py-2 text-right">
                           <p className="text-sm font-mono font-semibold tabular-nums">
-                            {i.valuePLN > 0 ? formatPLN(i.valuePLN) : "—"}
+                            {i.valuePLN > 0 ? formatPLN(i.valuePLN) : "-"}
                           </p>
                           <p className="text-[10px] text-muted-foreground font-mono">
                             {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), i.cur)}
@@ -422,7 +422,7 @@ function InvestmentsSection() {
                               </p>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
+                            <span className="text-[10px] text-muted-foreground">-</span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden md:table-cell text-xs">
@@ -510,7 +510,7 @@ function InvestmentsSummaryView({
   const totalCost = investmentValues.reduce((s, i) => s + i.totalCostPLN, 0);
   const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
-  // Donut chart data — top 6 + "Inne"
+  // Donut chart data - top 6 + "Inne"
   const donutData = useMemo(() => {
     const top6 = sorted.filter((i) => i.valuePLN > 0).slice(0, 6);
     const rest = sorted.filter((i) => i.valuePLN > 0).slice(6);
@@ -578,7 +578,7 @@ function InvestmentsSummaryView({
             <TrendingUp className="w-3 h-3" /> Wpłaty / m-c
           </p>
           <p className="text-2xl font-bold tabular-nums font-display">
-            {monthlyContribTotal > 0 ? formatPLN(monthlyContribTotal) : "—"}
+            {monthlyContribTotal > 0 ? formatPLN(monthlyContribTotal) : "-"}
           </p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4 shadow-card">
@@ -607,7 +607,7 @@ function InvestmentsSummaryView({
               </p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">—</p>
+            <p className="text-sm text-muted-foreground">-</p>
           )}
         </div>
       </div>
@@ -747,7 +747,7 @@ function InvestmentsSummaryView({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{i.label}</p>
                   <p className="text-[11px] text-muted-foreground font-mono">
-                    {i.ticker?.toUpperCase() || "—"}
+                    {i.ticker?.toUpperCase() || "-"}
                     {i.volume ? ` · ${i.volume.toLocaleString("pl-PL")} szt.` : ""}
                     {" · "}
                     {effectiveCurrency(i)}
@@ -2684,7 +2684,7 @@ function AddSavingsDialog() {
           <DialogTitle>Dodaj konto / lokatę</DialogTitle>
           <DialogDescription>
             {isLokata
-              ? "Wprowadź dane lokaty — kalkulator wyliczy odsetki netto po podatku Belki."
+              ? "Wprowadź dane lokaty - kalkulator wyliczy odsetki netto po podatku Belki."
               : "Dodaj konto bankowe z opcjonalnym oprocentowaniem."}
           </DialogDescription>
         </DialogHeader>

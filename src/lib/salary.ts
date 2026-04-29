@@ -1,5 +1,5 @@
 /**
- * Polish UoP net salary engine — 2025.
+ * Polish UoP net salary engine - 2025.
  *
  * Adds autorskie koszty uzyskania przychodu (50% KUP):
  *   - User specifies % of gross treated as honorarium (creative work).
@@ -30,7 +30,7 @@ export interface SalaryInputs {
   pit2: boolean;
   outsideFirstThreshold: boolean;
   age26Exempt: boolean;
-  /** 0–100 — % of `gross` paid as honorarium with 50% KUP. */
+  /** 0–100 - % of `gross` paid as honorarium with 50% KUP. */
   autorskiSharePct: number;
   /** Monthly cap on 50% KUP deduction (default 10 000 = 120 000 / 12). */
   autorskiKupCapMonthly: number;
@@ -80,7 +80,7 @@ export interface SalaryBreakdown {
   pit: number;
   net: number;
   totalEmployerCost: number;
-  /** Annual taxable base (×12) — used for second-threshold projection. */
+  /** Annual taxable base (×12) - used for second-threshold projection. */
   annualTaxBase: number;
 }
 
@@ -147,7 +147,7 @@ export function calculateSalary(
   const lunchAllowanceZusable = Math.max(0, lunchAllowance - LUNCH_ZUS_EXEMPT_LIMIT);
 
   const zusBase = gross + benefitsTaxable + companyCarTaxable + lunchAllowanceZusable;
-  
+
   // ZUS Limit (30-krotność) applies to pension and disability only
   const remainingLimit = Math.max(0, ZUS_LIMIT_ANNUAL - cumulativeZusBaseBefore);
   const zusBaseForLimited = Math.min(zusBase, remainingLimit);
@@ -205,12 +205,12 @@ export function calculateSalary(
 
   const totalEmployerCost = round2(
     gross +
-      benefitsTaxable +
-      companyCarTaxable +
-      lunchAllowance +
-      remoteAllowance +
-      employerZus +
-      ppkEmployer,
+    benefitsTaxable +
+    companyCarTaxable +
+    lunchAllowance +
+    remoteAllowance +
+    employerZus +
+    ppkEmployer,
   );
 
   return {
@@ -289,12 +289,12 @@ export function calculateAnnualBreakdown(
       const pit = Math.max(0, Math.round(pitGross - taxFreeAllowance));
       const net = round2(
         baseCalc.gross -
-          baseCalc.zusTotal -
-          baseCalc.health -
-          baseCalc.ppkEmployee -
-          pit +
-          baseCalc.lunchAllowance +
-          baseCalc.remoteAllowance,
+        baseCalc.zusTotal -
+        baseCalc.health -
+        baseCalc.ppkEmployee -
+        pit +
+        baseCalc.lunchAllowance +
+        baseCalc.remoteAllowance,
       );
 
       const crossingMonth = { ...baseCalc, pit, net };
@@ -369,7 +369,7 @@ export function computeJointFiling(
   };
 }
 
-/** Cumulative annual tax base by month — used for second-threshold progression chart. */
+/** Cumulative annual tax base by month - used for second-threshold progression chart. */
 export function thresholdProjection(monthlyTaxBase: number): {
   month: number;
   cumulative: number;

@@ -28,7 +28,7 @@ export async function migrateLocalToCloudOnce(
       await saveHouseholdState(householdId, localState, validMemberIds);
     } catch (err) {
       console.error("migrateLocalToCloudOnce: save failed, will retry next session:", err);
-      return; // don't mark as done — retry next time
+      return; // don't mark as done - retry next time
     }
   }
   window.localStorage.setItem(migrationKey, "done");

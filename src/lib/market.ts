@@ -112,7 +112,7 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
         byTicker: { ...memoryPrices.byTicker },
         currencyByTicker: { ...memoryPrices.currencyByTicker },
       };
-    // Some new tickers need fetching — fall through using memoryPrices as base
+    // Some new tickers need fetching - fall through using memoryPrices as base
   }
 
   // Determine base: either today's memory, today's localStorage, or fresh empty
@@ -189,7 +189,7 @@ async function loadDailyTickerPrices(tickers: string[]): Promise<DailyTickerPric
 function toYahooSymbol(ticker: string): string {
   const t = ticker.trim().toUpperCase();
   if (t.endsWith(".UK")) return t.slice(0, -3) + ".L"; // London
-  if (t.endsWith(".US")) return t.slice(0, -3); // US — no suffix on Yahoo
+  if (t.endsWith(".US")) return t.slice(0, -3); // US - no suffix on Yahoo
   if (t.endsWith(".PL")) return t.slice(0, -3) + ".WA"; // Warsaw
   return t; // .DE, .FR, BTC-USD, etc. work as-is
 }

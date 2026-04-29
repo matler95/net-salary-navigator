@@ -57,7 +57,7 @@ import { useAuthSession } from "@/lib/auth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Przegląd — Saldeo" },
+      { title: "Przegląd - Saldeo" },
       {
         name: "description",
         content: "Przegląd budżetu gospodarstwa: dochody, wydatki, aktywa, oszczędności.",

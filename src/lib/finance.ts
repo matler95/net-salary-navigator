@@ -333,9 +333,9 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const loanAmount = Math.max(0, s.purchasePrice - downPayment);
   const bankCommission = loanAmount * ((s.bankCommissionPct || 0) / 100);
   const totalUpfront = downPayment + s.renovationCost + closingCosts + bankCommission;
-  
+
   const months = Math.max(1, s.mortgageYears * 12);
-  
+
   // Calculate average monthly mortgage payment for the first year (for yield/CF display)
   let monthlyPmt = 0;
   if (s.mortgageType === "decreasing") {
@@ -349,7 +349,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   } else {
     monthlyPmt = monthlyPayment(loanAmount, s.mortgageRatePct, months);
   }
-  
+
   // Total cost including insurance
   const totalMonthlyMortgageCost = monthlyPmt + (s.mortgageInsuranceMonthly || 0);
 
@@ -374,7 +374,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const taxYear = effectiveYear * (s.taxRatePct / 100);
     const costsYear = s.monthlyCosts * 12;
     const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
-    
+
     let pmtYear = 0;
     if (s.mortgageType === "decreasing") {
       // Sum installments for months (y-1)*12 + 1 to y*12
@@ -386,7 +386,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     } else {
       pmtYear = monthlyPmt * 12;
     }
-    
+
     const cf = effectiveYear - costsYear - pmtYear - taxYear - insuranceYear;
     cumulative += cf;
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
@@ -419,7 +419,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     // Interest = (Installment - PrincipalRepayment)
     const prevBalance = idx === 0 ? loanAmount : yearly[idx - 1].loanBalance;
     const principalRepaid = prevBalance - y.loanBalance;
-    
+
     // We need the total pmt for that year
     let pmtYear = 0;
     const yearNum = idx + 1;
@@ -438,7 +438,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const totalInsurancePaid = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
   const totalMortgageCost = totalInterestPaid + bankCommission + totalInsurancePaid;
 
-  // Break-even (cashflow only, no appreciation) — months until cumulative monthly cf > 0 and recoups upfront
+  // Break-even (cashflow only, no appreciation) - months until cumulative monthly cf > 0 and recoups upfront
   let beMonths = Infinity;
   if (monthlyCashflow > 0) {
     beMonths = totalUpfront / monthlyCashflow;
@@ -447,13 +447,13 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
   const totalCashflow = cumulative;
   const totalReturn = totalCashflow + (finalEquity - totalUpfront);
-  
+
   // Invested capital for ROI should include all monthly top-ups if cashflow was negative
   const totalInjections = yearly.reduce((sum, y) => sum + (y.cashflow < 0 ? Math.abs(y.cashflow) : 0), 0);
   const investedCapital = totalUpfront + totalInjections;
-  
+
   const totalReturnPct = investedCapital > 0 ? (totalReturn / investedCapital) * 100 : 0;
-  
+
   // Approximate annualized IRR: ((endValue / start) ^ (1/years) − 1)
   // Here start is totalUpfront, but effectively we are adding money over time.
   // For simplicity, we use the same investedCapital base.

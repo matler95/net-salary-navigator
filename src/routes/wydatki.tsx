@@ -34,7 +34,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/wydatki")({
   head: () => ({
     meta: [
-      { title: "Wydatki — Saldeo" },
+      { title: "Wydatki - Saldeo" },
       {
         name: "description",
         content:
@@ -159,7 +159,7 @@ function ExpensesPage() {
         <EmptyState
           icon={ShoppingBag}
           title="Jeszcze nie śledzisz wydatków"
-          description="Zacznij od największych kategorii — czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
+          description="Zacznij od największych kategorii - czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (

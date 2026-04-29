@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export const Route = createFileRoute("/wynagrodzenia")({
   head: () => ({
     meta: [
-      { title: "Zarobki — Saldeo" },
+      { title: "Zarobki - Saldeo" },
       {
         name: "description",
         content:
@@ -74,7 +74,7 @@ function SalariesPage() {
             Ile zostaje <span className="italic text-accent">w kieszeni?</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Pełne wyliczenie UoP 2025 — ZUS, zdrowotna, PIT, PPK i benefity. Dodaj wszystkich pracujących domowników.
+            Pełne wyliczenie UoP 2025 - ZUS, zdrowotna, PIT, PPK i benefity. Dodaj wszystkich pracujących domowników.
           </p>
         </div>
 

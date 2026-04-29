@@ -27,12 +27,12 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 
 const NAV = [
-  { to: "/",             label: "Przegląd",    icon: LayoutDashboard },
-  { to: "/wynagrodzenia",label: "Zarobki",     icon: Banknote        },
-  { to: "/wydatki",      label: "Wydatki",     icon: ShoppingBag     },
-  { to: "/aktywa",       label: "Majątek",     icon: TrendingUp      },
-  { to: "/kalkulatory",  label: "Kalkulatory", icon: Calculator      },
-  { to: "/settings",     label: "Ustawienia",  icon: Settings        },
+  { to: "/", label: "Przegląd", icon: LayoutDashboard },
+  { to: "/wynagrodzenia", label: "Zarobki", icon: Banknote },
+  { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
+  { to: "/aktywa", label: "Majątek", icon: TrendingUp },
+  { to: "/kalkulatory", label: "Kalkulatory", icon: Calculator },
+  { to: "/settings", label: "Ustawienia", icon: Settings },
 ] as const;
 
 const SIDEBAR_KEY = "saldeo-sidebar-collapsed";
@@ -173,7 +173,7 @@ export function AppShell() {
     return <NotAuthenticatedScreen />;
   }
 
-  // Auth pages — render without shell
+  // Auth pages - render without shell
   if (loc.pathname === "/login" || loc.pathname === "/invite") {
     return <Outlet />;
   }
@@ -185,11 +185,11 @@ export function AppShell() {
   const avatarLetter = nickname[0]?.toUpperCase() ?? "?";
 
   const mobileNav = [
-    { to: "/",             label: "Dom",         icon: LayoutDashboard },
-    { to: "/wynagrodzenia",label: "Zarobki",     icon: Banknote        },
-    { to: "/wydatki",      label: "Wydatki",     icon: ShoppingBag     },
-    { to: "/aktywa",       label: "Majątek",     icon: TrendingUp      },
-    { to: "/settings",     label: "Więcej",      icon: Menu            },
+    { to: "/", label: "Dom", icon: LayoutDashboard },
+    { to: "/wynagrodzenia", label: "Zarobki", icon: Banknote },
+    { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
+    { to: "/aktywa", label: "Majątek", icon: TrendingUp },
+    { to: "/settings", label: "Więcej", icon: Menu },
   ];
 
   return (

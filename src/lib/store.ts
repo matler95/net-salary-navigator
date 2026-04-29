@@ -202,32 +202,32 @@ function loadInitial(): AppState {
       ...parsed,
       spouses: parsed.spouses?.length
         ? parsed.spouses.map((s) => ({
-            ...s,
-            inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
-            assignedUserId: s.assignedUserId,
-          }))
+          ...s,
+          inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
+          assignedUserId: s.assignedUserId,
+        }))
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses
         ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
         : DEFAULT_STATE.expenses,
       investments: parsed.investments
         ? parsed.investments.map((i) => ({
-            ...i,
-            currency: i.currency ?? "PLN",
-            ticker: i.ticker ?? "",
-            volume: i.volume ?? 0,
-            tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
-            tickerPriceDate: i.tickerPriceDate ?? "",
-            totalCostPLN: i.totalCostPLN ?? 0,
-          }))
+          ...i,
+          currency: i.currency ?? "PLN",
+          ticker: i.ticker ?? "",
+          volume: i.volume ?? 0,
+          tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
+          tickerPriceDate: i.tickerPriceDate ?? "",
+          totalCostPLN: i.totalCostPLN ?? 0,
+        }))
         : DEFAULT_STATE.investments,
       loans: parsed.loans
         ? parsed.loans.map((l) => ({
-            ...l,
-            monthlyOverpayment: l.monthlyOverpayment ?? 0,
-            mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
-            overpaymentType: l.overpaymentType ?? "fixed",
-          }))
+          ...l,
+          monthlyOverpayment: l.monthlyOverpayment ?? 0,
+          mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
+          overpaymentType: l.overpaymentType ?? "fixed",
+        }))
         : DEFAULT_STATE.loans,
       savings: parsed.savings
         ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
@@ -246,7 +246,7 @@ function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    /* quota exceeded — ignore */
+    /* quota exceeded - ignore */
   }
 }
 
@@ -378,7 +378,7 @@ export async function initCloudSync(
 
     // Only migrate local→cloud when the user is initialising their OWN new household.
     // When preferredHouseholdId is set the user is joining someone else's household via
-    // invite — never overwrite their data with the invitee's local state.
+    // invite - never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
       try {
         await migrateLocalToCloudOnce(household.householdId, state, buildMemberIdSet(cachedMembers));
