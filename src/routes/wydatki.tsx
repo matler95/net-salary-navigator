@@ -24,15 +24,16 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw } from "lucide-react";
-import { useMemo, useState, useRef } from "react";
+import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wydatki")({
   head: () => ({
     meta: [
-      { title: "Wydatki — Płaca.netto" },
+      { title: "Wydatki — Saldeo" },
       {
         name: "description",
         content:
@@ -65,21 +66,42 @@ const FREQUENCIES: Frequency[] = [
   "oneoff",
 ];
 
+const CATEGORY_COLORS = [
+  "var(--accent)",
+  "oklch(0.62 0.14 148)",
+  "oklch(0.74 0.13 75)",
+  "oklch(0.58 0.19 25)",
+  "oklch(0.52 0.018 210)",
+  "oklch(0.80 0.12 180)",
+];
+
+function getCategoryColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length];
+}
+
+function getCategoryIcon(name: string) {
+  const n = name.toLowerCase();
+  if (n.includes("mieszkanie") || n.includes("dom") || n.includes("czynsz")) return Home;
+  if (n.includes("jedzenie") || n.includes("zakupy") || n.includes("restauracja")) return UtensilsCrossed;
+  if (n.includes("transport") || n.includes("auto") || n.includes("paliwo") || n.includes("bilet")) return Car;
+  if (n.includes("ubezpieczeni") || n.includes("oc") || n.includes("ac")) return ShieldPlus;
+  if (n.includes("zdrowie") || n.includes("lekarz") || n.includes("leki")) return HeartPulse;
+  if (n.includes("dzieci") || n.includes("szkoła") || n.includes("przedszkole")) return Baby;
+  if (n.includes("rozrywka") || n.includes("kino") || n.includes("wyjścia") || n.includes("wakacje")) return MonitorPlay;
+  if (n.includes("subskrypcj") || n.includes("netflix") || n.includes("spotify")) return Repeat;
+  return Wallet;
+}
+
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
 
-  const monthlyTotal = useMemo(
-    () => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0),
-    [expenses],
-  );
-  const annualTotal = useMemo(
-    () => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0),
-    [expenses],
-  );
-  const oneoffTotal = useMemo(
-    () => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  );
+  const monthlyTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0), [expenses]);
+  const annualTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0), [expenses]);
+  const oneoffTotal = useMemo(() => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0), [expenses]);
 
   const grouped = useMemo(() => {
     const m = new Map<string, Expense[]>();
@@ -96,64 +118,98 @@ function ExpensesPage() {
   }, [expenses]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
             Wydatki
           </p>
-          <h1 className="font-display text-4xl sm:text-5xl">
-            <span className="italic text-accent tabular-nums">{formatPLN(monthlyTotal)}</span>{" "}
-            <span className="text-muted-foreground text-2xl sm:text-3xl">/ m-c</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Rocznie: <span className="font-mono tabular-nums">{formatPLN(annualTotal)}</span>
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-display text-5xl sm:text-6xl tabular-nums animate-count-up">
+              {formatPLN(monthlyTotal).replace(" zł", "")}
+            </h1>
+            <span className="text-xl sm:text-2xl text-muted-foreground font-medium">zł / m-c</span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-3 font-medium flex items-center gap-2">
+            Rocznie: <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md">{formatPLN(annualTotal)}</span>
             {oneoffTotal > 0 && (
               <>
-                {" "}
-                · w tym jednorazowe:{" "}
-                <span className="font-mono tabular-nums">{formatPLN(oneoffTotal)}</span>
+                <span className="opacity-50">•</span>
+                <span>Jednorazowe: <span className="font-mono tabular-nums">{formatPLN(oneoffTotal)}</span></span>
               </>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <AddExpenseDialog />
         </div>
       </header>
 
       {grouped.length === 0 ? (
-        <div className="bg-card rounded-2xl p-12 text-center text-muted-foreground border border-dashed border-border">
-          Brak wydatków. Dodaj pierwszy powyżej.
+        <div className="bg-card rounded-[2rem] p-8 md:p-12 border border-border shadow-[var(--shadow-elevated)] text-center max-w-2xl mx-auto my-12 animate-fade-up">
+          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-destructive/5">
+            <ShoppingBag className="w-12 h-12 text-destructive/40" strokeWidth={1.5} />
+          </div>
+          <h2 className="font-display text-2xl font-bold mb-3">Jeszcze nie śledzisz wydatków</h2>
+          <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-md mx-auto">
+            Zacznij od największych kategorii — czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego.
+          </p>
+          <AddExpenseDialog />
         </div>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
-          {grouped.map((g) => (
-            <div
-              key={g.category}
-              className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
-            >
-              <div className="flex items-baseline justify-between mb-3 gap-2">
-                <h3 className="font-display text-lg">{g.category}</h3>
-                <div className="text-right">
-                  <p className="font-mono tabular-nums text-sm">
-                    {formatPLN2(g.monthly)}{" "}
-                    <span className="text-muted-foreground text-xs">
-                      ({monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100).toFixed(0) : 0}%)
+        <div className="grid lg:grid-cols-2 gap-6">
+          {grouped.map((g) => {
+            const Icon = getCategoryIcon(g.category);
+            const color = getCategoryColor(g.category);
+            const pct = monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100) : 0;
+            
+            return (
+              <div
+                key={g.category}
+                className="bg-card rounded-[1.5rem] p-5 sm:p-6 border border-border shadow-[var(--shadow-card)] relative overflow-hidden"
+              >
+                {/* Accent border left */}
+                <div 
+                  className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80" 
+                  style={{ backgroundColor: color }} 
+                />
+                
+                <div className="flex items-start justify-between mb-5 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                      style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display text-2xl tabular-nums leading-none mb-1">
+                      {formatPLN2(g.monthly)}
+                    </p>
+                    <span 
+                      className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
+                    >
+                      {pct.toFixed(0)}% sumy
                     </span>
-                  </p>
-                  <p className="font-mono tabular-nums text-xs text-muted-foreground">
-                    {formatPLN(g.annual)} / rok
-                  </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  {g.items.map((e) => (
+                    <ExpenseRow key={e.id} expense={e} color={color} />
+                  ))}
                 </div>
               </div>
-              <div className="space-y-1.5">
-                {g.items.map((e) => (
-                  <ExpenseRow key={e.id} expense={e} />
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>
@@ -170,18 +226,10 @@ function MonthSelector({
   frequency: Frequency;
 }) {
   const months = [
-    { id: 1, label: "Sty" },
-    { id: 2, label: "Lut" },
-    { id: 3, label: "Mar" },
-    { id: 4, label: "Kwi" },
-    { id: 5, label: "Maj" },
-    { id: 6, label: "Cze" },
-    { id: 7, label: "Lip" },
-    { id: 8, label: "Sie" },
-    { id: 9, label: "Wrz" },
-    { id: 10, label: "Paź" },
-    { id: 11, label: "Lis" },
-    { id: 12, label: "Gru" },
+    { id: 1, label: "Sty" }, { id: 2, label: "Lut" }, { id: 3, label: "Mar" },
+    { id: 4, label: "Kwi" }, { id: 5, label: "Maj" }, { id: 6, label: "Cze" },
+    { id: 7, label: "Lip" }, { id: 8, label: "Sie" }, { id: 9, label: "Wrz" },
+    { id: 10, label: "Paź" }, { id: 11, label: "Lis" }, { id: 12, label: "Gru" },
   ];
 
   const toggleMonth = (id: number) => {
@@ -201,103 +249,58 @@ function MonthSelector({
   const setPreset = (preset: number[]) => onChange(preset);
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
-        {months.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => toggleMonth(m.id)}
-            className={cn(
-              "h-9 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center",
-              selectedMonths.includes(m.id)
-                ? "bg-accent text-accent-foreground border-accent shadow-sm"
-                : "bg-background text-muted-foreground border-border hover:border-accent/30",
-            )}
-          >
-            {m.label}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          {frequency === "oneoff" || frequency === "annual" ? "Wybierz miesiąc" : "Zaznacz miesiące"}
+        </span>
+        {frequency !== "oneoff" && frequency !== "annual" && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPreset([1,2,3,4,5,6,7,8,9,10,11,12])} className="text-[10px] text-accent hover:underline font-semibold">Wszystkie</button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+        {months.map((m) => {
+          const isSelected = selectedMonths.includes(m.id);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => toggleMonth(m.id)}
+              className={cn(
+                "h-11 rounded-xl text-xs font-bold transition-all flex items-center justify-center border",
+                isSelected
+                  ? "bg-[var(--gradient-accent)] text-accent-foreground border-transparent shadow-[var(--shadow-card)]"
+                  : "bg-card text-foreground border-border hover:border-accent/40"
+              )}
+            >
+              {m.label}
+            </button>
+          );
+        })}
       </div>
 
       {frequency !== "oneoff" && frequency !== "annual" && frequency !== "monthly" && (
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold mr-1">
-            Schematy:
-          </span>
+        <div className="flex flex-wrap gap-2 pt-2">
           {frequency === "bimonthly" && (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([1, 3, 5, 7, 9, 11])}
-                className="h-6 px-2 text-[9px]"
-              >
-                Nieparzyste
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([2, 4, 6, 8, 10, 12])}
-                className="h-6 px-2 text-[9px]"
-              >
-                Parzyste
-              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 3, 5, 7, 9, 11])} className="h-7 text-[10px] rounded-full px-3">Nieparzyste</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([2, 4, 6, 8, 10, 12])} className="h-7 text-[10px] rounded-full px-3">Parzyste</Button>
             </>
           )}
           {frequency === "quarterly" && (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([1, 4, 7, 10])}
-                className="h-6 px-2 text-[9px]"
-              >
-                I-IV-VII-X
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([2, 5, 8, 11])}
-                className="h-6 px-2 text-[9px]"
-              >
-                II-V-VIII-XI
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([3, 6, 9, 12])}
-                className="h-6 px-2 text-[9px]"
-              >
-                III-VI-IX-XII
-              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 4, 7, 10])} className="h-7 text-[10px] rounded-full px-3">I-IV-VII-X</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([2, 5, 8, 11])} className="h-7 text-[10px] rounded-full px-3">II-V-VIII-XI</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([3, 6, 9, 12])} className="h-7 text-[10px] rounded-full px-3">III-VI-IX-XII</Button>
             </>
           )}
           {frequency === "semiannual" && (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([1, 7])}
-                className="h-6 px-2 text-[9px]"
-              >
-                Sty-Lip
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPreset([6, 12])}
-                className="h-6 px-2 text-[9px]"
-              >
-                Cze-Gru
-              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 7])} className="h-7 text-[10px] rounded-full px-3">Sty-Lip</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([6, 12])} className="h-7 text-[10px] rounded-full px-3">Cze-Gru</Button>
             </>
           )}
         </div>
@@ -349,6 +352,10 @@ function AddExpenseDialog() {
     }
   };
 
+  const currentPreview = amount > 0 
+    ? (frequency === "monthly" ? amount : (amount * selectedMonths.length / 12))
+    : 0;
+
   return (
     <Dialog
       open={open}
@@ -358,16 +365,16 @@ function AddExpenseDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 shadow-sm">
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          Dodaj wydatek
+        <Button className="h-12 sm:h-11 rounded-full px-6 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 font-bold">
+          <ListPlus className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Dodaj wydatek</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle>Dodaj wydatek</DialogTitle>
+      <DialogContent className="sm:max-w-xl p-6 sm:p-8 rounded-[2rem]">
+        <DialogHeader className="mb-6">
+          <DialogTitle className="font-display text-2xl">Nowy wydatek</DialogTitle>
           <DialogDescription>
-            Wprowadź dane nowego wydatku. Możesz wybrać kategorię, częstotliwość i konkretne miesiące płatności.
+            Kategoryzacja wydatków pozwala Saldeo na stworzenie lepszej projekcji rocznej.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -381,85 +388,79 @@ function AddExpenseDialog() {
               amount: parsedAmount,
               frequency,
               months: selectedMonths,
-              month: selectedMonths[0], // for compatibility
+              month: selectedMonths[0],
             });
             handleReset();
             setOpen(false);
           }}
-          className="grid gap-4 py-4"
+          className="space-y-6"
         >
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Kategoria
-              </label>
-              {isCustomCategory ? (
-                <div className="relative mt-1">
-                  <Input
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="h-10 pr-8"
-                    autoFocus
-                    placeholder="Wpisz własną..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomCategory(false);
-                      setCategory("Mieszkanie");
-                    }}
-                    aria-label="Anuluj własną kategorię"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <Select
-                  value={category}
-                  onValueChange={(v) => {
-                    if (v === "__custom__") {
-                      setIsCustomCategory(true);
-                      setCategory("");
-                    } else {
-                      setCategory(v);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="mt-1 h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUGGESTED_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="__custom__" className="font-medium text-accent">
-                      + Własna...
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            
-            <div>
-              <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Nazwa
-              </label>
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="np. OC samochodu, Netflix, czynsz"
-                className="mt-1 h-10"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+          {/* Step 1: Category and Name */}
+          <div className="bg-muted/30 p-4 rounded-2xl border border-border space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Kwota
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                  Kategoria
                 </label>
+                {isCustomCategory ? (
+                  <div className="relative">
+                    <Input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="h-11 pr-8 bg-card"
+                      autoFocus
+                      placeholder="Wpisz własną..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Select
+                    value={category}
+                    onValueChange={(v) => {
+                      if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
+                      else { setCategory(v); }
+                    }}
+                  >
+                    <SelectTrigger className="h-11 bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUGGESTED_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                  Nazwa
+                </label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="np. Prąd, Netflix"
+                  className="h-11 bg-card"
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Step 2: Amount and Frequency */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Kwota pojedynczej płatności
+              </label>
+              <div className="relative">
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -470,62 +471,100 @@ function AddExpenseDialog() {
                   }}
                   onBlur={() => setAmountInput(formatLocaleAmount(amount))}
                   placeholder="0"
-                  className="mt-1 h-10 font-mono tabular-nums"
+                  className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
                 />
-              </div>
-              
-              <div>
-                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Okres
-                </label>
-                <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
-                  <SelectTrigger className="mt-1 h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FREQUENCIES.map((f) => (
-                      <SelectItem key={f} value={f}>
-                        {FREQUENCY_LABELS[f]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
               </div>
             </div>
-
-            {frequency !== "monthly" && (
-              <div className="pt-2">
-                <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
-                  Miesiące płatności
-                </label>
-                <MonthSelector
-                  frequency={frequency}
-                  selectedMonths={selectedMonths}
-                  onChange={setSelectedMonths}
-                />
-              </div>
-            )}
+            
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Częstotliwość
+              </label>
+              <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
+                <SelectTrigger className="h-12 bg-card font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCIES.map((f) => (
+                    <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        <DialogFooter>
-          <Button type="submit">Zapisz wydatek</Button>
-        </DialogFooter>
+
+          {/* Step 3: Months (if applicable) */}
+          {frequency !== "monthly" && (
+            <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10">
+              <MonthSelector
+                frequency={frequency}
+                selectedMonths={selectedMonths}
+                onChange={setSelectedMonths}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-border mt-6">
+            <div className="mb-4 sm:mb-0 text-center sm:text-left">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Średnie obciążenie
+              </p>
+              <p className="font-display text-xl font-bold tabular-nums text-foreground">
+                {formatPLN(currentPreview)} <span className="text-sm font-sans font-normal text-muted-foreground">/ m-c</span>
+              </p>
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full sm:w-auto h-12 rounded-full px-8 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
+              disabled={amount <= 0 || !label.trim() || selectedMonths.length === 0}
+            >
+              Zapisz wydatek
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
 
-function ExpenseRow({ expense }: { expense: Expense }) {
+function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-1 group p-3 md:p-0">
-      <div className="flex items-center gap-1 flex-1">
-        <div className="flex-1 min-w-0">
-          <Input
-            value={expense.label}
-            onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
-            className="h-10 w-full bg-transparent border-0 px-2 hover:bg-muted/50 focus-visible:ring-1 shadow-none truncate"
-          />
-        </div>
+    <div className="group flex flex-col md:flex-row md:items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-muted/40 transition-colors border border-transparent hover:border-border">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <Input
+          value={expense.label}
+          onChange={(e) => actions.updateExpense(expense.id, { label: e.target.value })}
+          className="h-10 w-full bg-transparent border-0 px-1 font-semibold hover:bg-muted focus-visible:ring-1 shadow-none truncate"
+        />
+        {expense.frequency !== "monthly" && (
+          <span 
+            className="shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border border-border bg-card text-muted-foreground"
+          >
+            {FREQUENCY_LABELS[expense.frequency].replace('Co ', '')}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between md:justify-end gap-3 pl-1 md:pl-0">
+        {/* Months dots if not monthly */}
+        {expense.frequency !== "monthly" && (
+          <div className="flex flex-wrap gap-0.5 w-16 opacity-70">
+            {Array.from({length: 12}).map((_, i) => {
+              const m = i + 1;
+              const isActive = expense.months?.includes(m) || expense.month === m;
+              return (
+                <div 
+                  key={m} 
+                  className={cn("w-1.5 h-1.5 rounded-full", isActive ? "opacity-100" : "bg-muted-foreground/20")} 
+                  style={{ backgroundColor: isActive ? color : undefined }}
+                  title={["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"][i]}
+                />
+              );
+            })}
+          </div>
+        )}
+
         <Input
           type="text"
           inputMode="decimal"
@@ -534,96 +573,16 @@ function ExpenseRow({ expense }: { expense: Expense }) {
             actions.updateExpense(expense.id, { amount: parseLocaleAmount(e.target.value) })
           }
           placeholder="0"
-          className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 hover:bg-muted/50 focus-visible:ring-1 shadow-none shrink-0"
+          className="h-10 w-24 font-mono tabular-nums text-right bg-transparent border-0 font-bold hover:bg-muted focus-visible:ring-1 shadow-none shrink-0"
         />
-      </div>
 
-      <div className="flex items-center gap-1 justify-between md:justify-end">
-        <div className="flex items-center gap-1">
-          <Select
-            value={expense.frequency}
-            onValueChange={(v) => {
-              const f = v as Frequency;
-              const patch: Partial<Expense> = { frequency: f };
-              const m = new Date().getMonth() + 1;
-              switch (f) {
-                case "monthly":
-                  patch.months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                  break;
-                case "bimonthly":
-                  patch.months = [1, 3, 5, 7, 9, 11];
-                  break;
-                case "quarterly":
-                  patch.months = [1, 4, 7, 10];
-                  break;
-                case "semiannual":
-                  patch.months = [1, 7];
-                  break;
-                case "annual":
-                case "oneoff":
-                  patch.months = [expense.month ?? m];
-                  break;
-              }
-              actions.updateExpense(expense.id, patch);
-            }}
-          >
-            <SelectTrigger className="h-10 w-[110px] bg-transparent border-0 hover:bg-muted/50 shadow-none text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FREQUENCIES.map((f) => (
-                <SelectItem key={f} value={f} className="text-xs">
-                  {FREQUENCY_LABELS[f]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {expense.frequency !== "monthly" && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <button className="h-10 px-2 flex flex-col items-center justify-center bg-transparent border-0 hover:bg-muted/50 shadow-none min-w-[50px]">
-                  <span className="text-[9px] uppercase font-bold text-muted-foreground/70 leading-none mb-1">
-                    M-ce
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-accent leading-none">
-                    {expense.months?.length || 1}x
-                  </span>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[400px]">
-                <DialogHeader>
-                  <DialogTitle>Miesiące płatności</DialogTitle>
-                  <DialogDescription>
-                    Wybierz miesiące, w których ten wydatek jest opłacany.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <MonthSelector
-                    frequency={expense.frequency}
-                    selectedMonths={
-                      expense.months || (expense.month ? [expense.month] : [1])
-                    }
-                    onChange={(m) => actions.updateExpense(expense.id, { months: m, month: m[0] })}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {expense.frequency !== "monthly" && (
-            <span className="text-[11px] text-muted-foreground tabular-nums w-16 text-right whitespace-nowrap">
-              ≈ {formatPLN(getExpenseMonthlyAverage(expense))}/m
-            </span>
-          )}
+        <div className="flex items-center gap-2 border-l border-border pl-3">
           <button
             type="button"
             onClick={() => {
               const expenseCopy = { ...expense };
               actions.removeExpense(expense.id);
-              toast(`"${expense.label}" usunięto`, {
+              toast(`Usunięto "${expense.label}"`, {
                 action: {
                   label: "Cofnij",
                   onClick: () => {
@@ -631,10 +590,9 @@ function ExpenseRow({ expense }: { expense: Expense }) {
                     actions.addExpense(rest as any);
                   },
                 },
-                duration: 5000,
               });
             }}
-            className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity"
+            className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive p-2 transition-opacity rounded-lg hover:bg-destructive/10"
             aria-label={`Usuń: ${expense.label}`}
           >
             <Trash2 className="w-4 h-4" />
@@ -644,4 +602,3 @@ function ExpenseRow({ expense }: { expense: Expense }) {
     </div>
   );
 }
-

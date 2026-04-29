@@ -36,7 +36,7 @@ import { StatCard } from "@/components/ui/stat-card";
 export const Route = createFileRoute("/kalkulatory")({
   head: () => ({
     meta: [
-      { title: "Kalkulatory — Płaca.netto" },
+      { title: "Kalkulatory — Saldeo" },
       {
         name: "description",
         content:
@@ -49,18 +49,19 @@ export const Route = createFileRoute("/kalkulatory")({
 
 function CalculatorsPage() {
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Kalkulatory
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          Symuluj <span className="italic text-accent">scenariusze</span>
-        </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Sprawdź ile naprawdę zarobi twój portfel ETF i czy mieszkanie na wynajem ma sens — z
-          uwzględnieniem hipoteki, kosztów, pustostanów i ryczałtu 8.5%.
-        </p>
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
+      <header className="flex flex-col gap-6 relative">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
+            Kalkulatory
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl">
+            Symuluj <span className="italic text-accent">scenariusze</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
+            Sprawdź, ile naprawdę zarobi Twój portfel ETF i czy mieszkanie na wynajem ma sens — z uwzględnieniem hipoteki, kosztów, pustostanów i ryczałtu.
+          </p>
+        </div>
       </header>
 
       <Tabs defaultValue="realestate" className="space-y-6">
@@ -129,7 +130,7 @@ function PortfolioCalculator() {
 
   return (
     <div className="grid lg:grid-cols-[380px,1fr] gap-6">
-      <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] space-y-4 h-fit">
+      <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)] space-y-6 h-fit">
         <h2 className="font-display text-xl">Założenia</h2>
 
         <NumField
@@ -200,7 +201,7 @@ function PortfolioCalculator() {
           />
         </div>
 
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]">
           <h3 className="font-display text-lg mb-1">Wzrost portfela</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wpłaty (kapitał) vs wartość rynkowa vs realna wartość po inflacji
@@ -365,7 +366,7 @@ function RealEstateCalculator() {
   return (
     <div className="grid lg:grid-cols-[400px,1fr] gap-6">
       {/* Inputs */}
-      <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] space-y-5 h-fit">
+      <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)] space-y-6 h-fit">
         <div>
           <h2 className="font-display text-xl mb-3">Zakup</h2>
           <div className="space-y-3">
@@ -573,7 +574,7 @@ function RealEstateCalculator() {
         </div>
 
         {/* Cashflow & equity chart */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]">
           <h3 className="font-display text-lg mb-1">Skumulowany wynik vs kapitał własny</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Wartość mieszkania rośnie, kredyt maleje — kapitał własny to różnica.

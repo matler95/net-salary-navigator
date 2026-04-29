@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { getSupabase } from "@/lib/supabase";
@@ -7,6 +7,7 @@ import { acceptInvite, PENDING_INVITE_TOKEN_KEY } from "@/lib/store";
 import { loadInviteContext, updateUserMetadata } from "@/lib/repository";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/invite")({
   component: InvitePage,
@@ -25,6 +26,7 @@ type InviteContext = {
 };
 
 function InvitePage() {
+  const baseId = useId();
   const router = useRouter();
   const { session, isAuthenticated, loading: authLoading } = useAuthSession();
   const search = Route.useSearch();
@@ -116,7 +118,7 @@ function InvitePage() {
     if (error) {
       const message = error.message.toLowerCase();
       if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
-        await router.navigate({ to: "/login", search: { invite: token } });
+        await router.navigate({ to: "/login", search: { invite: token, register: undefined } });
         return;
       }
       setStatus({ msg: error.message, type: "error" });
@@ -151,7 +153,7 @@ function InvitePage() {
     const supabase = await getSupabase();
     if (!supabase) return;
     await supabase.auth.signOut();
-    router.navigate({ to: "/login", search: { invite: token } });
+    router.navigate({ to: "/login", search: { invite: token, register: undefined } });
   }
 
   if (!token) {
@@ -175,12 +177,12 @@ function InvitePage() {
   const wrongAccount = isAuthenticated && session?.user.email && inviteEmail && session.user.email.toLowerCase() !== inviteEmail.toLowerCase();
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-16">
-      <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.24em] text-accent font-semibold">Zaproszenie</p>
-          <h1 className="mt-3 text-3xl font-display">Dołącz do gospodarstwa</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+    <main className="max-w-3xl mx-auto px-4 py-16 animate-fade-up">
+      <div className="rounded-[2rem] border border-border bg-card p-8 sm:p-10 shadow-[var(--shadow-card)]">
+        <div className="mb-8 text-center sm:text-left">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">Zaproszenie</p>
+          <h1 className="font-display text-4xl mb-3">Dołącz do Saldeo</h1>
+          <p className="text-sm text-muted-foreground">
             Zaproszenie dla <strong>{inviteEmail}</strong> do gospodarstwa <strong>{householdName}</strong>.
           </p>
         </div>
@@ -220,7 +222,7 @@ function InvitePage() {
                   </Button>
                   <Link
                     to="/login"
-                    search={{ invite: token }}
+                    search={{ invite: token, register: undefined }}
                     className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     Zmień konto
@@ -233,14 +235,19 @@ function InvitePage() {
               <Button onClick={() => router.navigate({ to: "/" })}>Przejdź do pulpitu</Button>
             ) : isAuthenticated && !wrongAccount ? (
               <div className="space-y-4">
-                <Input
-                  id="accept-nickname"
-                  type="text"
-                  placeholder="Twoja ksywka (opcjonalnie)"
-                  value={nickname}
-                  disabled={accepting}
-                  onChange={(e) => setNickname(e.target.value)}
-                />
+                <div className="space-y-1">
+                  <Label htmlFor={`${baseId}-nickname`} className="sr-only">
+                    Twoja ksywka
+                  </Label>
+                  <Input
+                    id={`${baseId}-nickname`}
+                    type="text"
+                    placeholder="Twoja ksywka (opcjonalnie)"
+                    value={nickname}
+                    disabled={accepting}
+                    onChange={(e) => setNickname(e.target.value)}
+                  />
+                </div>
                 <Button onClick={handleAccept} disabled={accepting || !invite?.is_valid}>
                   {accepting ? "Dołączanie…" : `Dołącz do ${householdName}`}
                 </Button>
@@ -252,15 +259,25 @@ function InvitePage() {
                   Adres email jest już zablokowany na podstawie zaproszenia.
                 </p>
                 <form className="space-y-4" onSubmit={(e) => void handleRegister(e)}>
-                  <Input id="invite-email" type="email" value={inviteEmail} disabled />
-                  <Input
-                    id="invite-password"
-                    type="password"
-                    placeholder="Nowe hasło"
-                    value={password}
-                    disabled={registering}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="space-y-1">
+                    <Label htmlFor={`${baseId}-email`} className="sr-only">
+                      Email
+                    </Label>
+                    <Input id={`${baseId}-email`} type="email" value={inviteEmail} disabled />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`${baseId}-password`} className="sr-only">
+                      Hasło
+                    </Label>
+                    <Input
+                      id={`${baseId}-password`}
+                      type="password"
+                      placeholder="Nowe hasło"
+                      value={password}
+                      disabled={registering}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
                   <Button type="submit" disabled={registering || !password.trim()}>
                     {registering ? "Tworzenie konta…" : "Utwórz konto i dołącz"}
                   </Button>
@@ -269,7 +286,7 @@ function InvitePage() {
                   <p>Masz już konto? Zaloguj się, aby dokończyć proces dołączenia do gospodarstwa.</p>
                   <Link
                     to="/login"
-                    search={{ invite: token }}
+                    search={{ invite: token, register: undefined }}
                     className="inline-flex items-center justify-center rounded-full bg-background border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Zaloguj się

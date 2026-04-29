@@ -1,11 +1,11 @@
-import { 
-  calculateSalary, 
-  calculateAnnualBreakdown, 
-  formatPLN, 
-  formatPLN2, 
+import {
+  calculateSalary,
+  calculateAnnualBreakdown,
+  formatPLN,
+  formatPLN2,
   parseLocaleAmount,
   formatLocaleAmount,
-  type SalaryInputs 
+  type SalaryInputs,
 } from "@/lib/salary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, ChevronDown, User, Zap, Landmark, BadgePercent, Gift, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useId } from "react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 function NumberField({
   label,
@@ -30,18 +32,16 @@ function NumberField({
   onChange,
   suffix = "zł",
   hint,
-  step = 50,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   suffix?: string;
-  hint?: string;
-  step?: number;
+  hint?: React.ReactNode;
 }) {
   const [localValue, setLocalValue] = useState<string>(formatLocaleAmount(value));
+  const id = useId();
 
-  // Sync localValue when value prop changes externally (e.g. from state sync or other inputs)
   useEffect(() => {
     const parsedLocal = parseLocaleAmount(localValue);
     if (parsedLocal !== value) {
@@ -62,11 +62,15 @@ function NumberField({
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+      <Label
+        htmlFor={id}
+        className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer"
+      >
         {label}
       </Label>
       <div className="relative">
         <Input
+          id={id}
           type="text"
           inputMode="decimal"
           value={localValue}
@@ -79,7 +83,7 @@ function NumberField({
           {suffix}
         </span>
       </div>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground font-medium">{hint}</p>}
     </div>
   );
 }
@@ -101,15 +105,20 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-baseline justify-between gap-4 py-1.5 ${
-        bold ? "text-base font-semibold" : "text-sm"
-      } ${muted ? "text-muted-foreground" : ""}`}
+      className={cn(
+        "flex items-baseline justify-between gap-4 py-2",
+        bold ? "text-base font-bold" : "text-sm",
+        muted && "text-muted-foreground"
+      )}
     >
       <span className="leading-snug">{label}</span>
       <span
-        className={`font-mono tabular-nums whitespace-nowrap ${
-          negative ? "text-destructive" : positive ? "text-success" : ""
-        }`}
+        className={cn(
+          "font-mono tabular-nums whitespace-nowrap",
+          negative && "text-destructive",
+          positive && "text-success",
+          bold && !negative && !positive && "text-accent"
+        )}
       >
         {`${negative ? "−" : ""}${formatPLN2(Math.abs(value))}`}
       </span>
@@ -128,14 +137,61 @@ function ToggleRow({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const id = useId();
   return (
     <div className="flex items-start justify-between gap-4 py-1">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
+      <div className="flex flex-col">
+        <Label
+          htmlFor={id}
+          className="text-sm font-semibold cursor-pointer leading-tight mb-0.5"
+        >
+          {label}
+        </Label>
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>
+  );
+}
+
+function SectionGroup({
+  title,
+  icon: Icon,
+  children,
+  defaultOpen = false,
+  activeIndicator = false,
+}: {
+  title: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  activeIndicator?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="group/col">
+      <CollapsibleTrigger asChild>
+        <button
+          className={cn(
+            "flex w-full items-center justify-between rounded-xl px-4 py-3 transition-colors",
+            open ? "bg-accent-soft/40" : "bg-muted/30 hover:bg-muted/50"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <Icon className="h-4 w-4 text-accent" />
+            <span className="font-semibold text-sm">{title}</span>
+            {activeIndicator && <div className="h-2 w-2 rounded-full bg-accent" />}
+          </div>
+          <ChevronDown
+            className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")}
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2">
+        <div className="pt-4 px-1 space-y-5 pb-2">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -148,26 +204,21 @@ export function SpousePanel({
   canDelete: boolean;
   memberOptions?: { user_id: string; label: string }[];
 }) {
+  const baseId = useId();
   const globalSettings = useAppState((s) => s.globalSettings);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
 
-  // Filter members based on current name input
   const filteredMembers = useMemo(() => {
     if (!memberOptions) return [];
     const searchTerm = spouse.name.toLowerCase();
-    return memberOptions.filter((m) =>
-      m.label.toLowerCase().includes(searchTerm)
-    );
+    return memberOptions.filter((m) => m.label.toLowerCase().includes(searchTerm));
   }, [spouse.name, memberOptions]);
 
   const handleMemberSelect = (memberId: string, memberLabel: string) => {
-    actions.updateSpouse(spouse.id, {
-      name: memberLabel,
-      assignedUserId: memberId,
-    });
+    actions.updateSpouse(spouse.id, { name: memberLabel, assignedUserId: memberId });
     setShowMemberDropdown(false);
   };
 
@@ -175,355 +226,421 @@ export function SpousePanel({
     actions.updateSpouse(spouse.id, { assignedUserId: undefined });
   };
 
-  // Threshold progression
   const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs, globalSettings), [spouse.inputs, globalSettings]);
-  const totalAnnualTaxBase = useMemo(
-    () => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0),
-    [annualBreakdown],
-  );
-  const monthsToSecondThreshold = useMemo(() => {
-    let cumulative = 0;
-    const threshold = globalSettings.pitThresholdAnnual;
-    for (let m = 1; m <= 12; m++) {
-      const monthBase = annualBreakdown[m - 1].taxBase;
-      if (cumulative < threshold && cumulative + monthBase > threshold) {
-        return m;
-      }
-      cumulative += monthBase;
-    }
-    return cumulative > threshold ? 12 : null;
-  }, [annualBreakdown, globalSettings.pitThresholdAnnual]);
+  const totalAnnualTaxBase = useMemo(() => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0), [annualBreakdown]);
+
+  const thresholdPct = Math.min((totalAnnualTaxBase / globalSettings.pitThresholdAnnual) * 100, 100);
+
+  const [isAnnual, setIsAnnual] = useState(false);
+  const displayGross = isAnnual ? spouse.inputs.gross * 12 : spouse.inputs.gross;
+  const setGross = (v: number) => set("gross", isAnnual ? v / 12 : v);
+
+  const getInitial = (name: string) => name ? name.charAt(0).toUpperCase() : "?";
+
+  const hasBenefits = spouse.inputs.benefitsTaxable > 0 || spouse.inputs.lunchAllowance > 0 || spouse.inputs.remoteAllowance > 0 || spouse.inputs.companyCarEnabled;
+  const hasTaxOverrides = spouse.inputs.pit2 || spouse.inputs.outsideFirstThreshold || spouse.inputs.age26Exempt || spouse.inputs.kupType !== "standard" || spouse.inputs.autorskiSharePct > 0;
+  const hasPpk = spouse.inputs.ppkEmployeeRate > 0 || spouse.inputs.ppkEmployerRate > 0;
+  const hasBonus = spouse.inputs.bonusMonth > 0;
+
+  // Bar proportions
+  const totalBase = Math.max(r.gross, 1);
+  const pctNet = (r.net / totalBase) * 100;
+  const pctZus = (r.zusTotal / totalBase) * 100;
+  const pctHealth = (r.health / totalBase) * 100;
+  const pctPit = (Math.max(0, r.pit) / totalBase) * 100;
+  const pctPpk = (r.ppkEmployee / totalBase) * 100;
 
   return (
-    <div className="bg-card rounded-2xl shadow-(--shadow-card) border border-border overflow-hidden">
-      {/* Header with combined name/member field */}
-      <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/40">
-        <div className="flex-1 relative">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative">
-              <Input
-                value={spouse.name}
-                onChange={(e) => {
-                  actions.updateSpouse(spouse.id, { name: e.target.value });
-                  setShowMemberDropdown(true);
-                }}
-                onFocus={() => memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)}
-                placeholder="Wpisz imię lub wybierz członka"
-                className="font-display text-lg h-9 px-3 py-2 bg-white/50 dark:bg-black/20 border border-transparent rounded-md hover:border-border focus:border-accent focus:bg-background transition-all focus-visible:ring-1 focus-visible:ring-accent shadow-none w-full"
-              />
-              {spouse.assignedUserId && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearAssignment}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                  title="Wyczyść przypisanie"
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              )}
-              {/* Dropdown with member options */}
-              {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50">
-                  {filteredMembers.map((member) => (
-                    <button
-                      key={member.user_id}
-                      type="button"
-                      onClick={() => handleMemberSelect(member.user_id, member.label)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
-                        spouse.assignedUserId === member.user_id ? "bg-muted font-medium" : ""
-                      }`}
-                    >
-                      {member.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+    <div className="bg-card rounded-3xl shadow-[var(--shadow-card)] border border-border overflow-hidden relative group/panel">
+      {/* HEADER */}
+      <div className="flex items-center justify-between gap-4 p-5 bg-[var(--gradient-warm)] border-b border-border">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent font-display text-xl font-bold italic text-accent-foreground shadow-sm">
+            {getInitial(spouse.name)}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {spouse.assignedUserId
-              ? "Przypisane do członka · wpisz aby zmienić"
-              : "Wybierz członka z listy lub wpisz dowolną nazwę"}
-          </p>
+          <div className="flex-1 relative">
+            <Input
+              id={`${baseId}-name`}
+              value={spouse.name}
+              onChange={(e) => {
+                actions.updateSpouse(spouse.id, { name: e.target.value });
+                setShowMemberDropdown(true);
+              }}
+              onFocus={() => memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)}
+              placeholder="Imię osoby"
+              className="font-display text-3xl font-bold h-12 px-0 bg-transparent border-none rounded-none focus-visible:ring-0 focus-visible:border-none shadow-none text-foreground placeholder:text-muted-foreground/50 w-full"
+            />
+            {spouse.assignedUserId && (
+              <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold uppercase tracking-wider bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                <User className="w-3 h-3" /> połączono: {memberOptions?.find(m => m.user_id === spouse.assignedUserId)?.label}
+                <button onClick={handleClearAssignment} className="ml-1 hover:text-foreground"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1">
+                {filteredMembers.map((member) => (
+                  <button
+                    key={member.user_id}
+                    type="button"
+                    onClick={() => handleMemberSelect(member.user_id, member.label)}
+                    className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
+                  >
+                    {member.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {canDelete && (
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => actions.removeSpouse(spouse.id)}
-            className="text-muted-foreground hover:text-destructive shrink-0"
+            className="text-muted-foreground hover:text-destructive opacity-0 group-hover/panel:opacity-100 transition-opacity"
+            title="Usuń"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </Button>
         )}
       </div>
 
-      <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-6">
-        {/* Inputs */}
-        <div className="space-y-6">
-          <div>
-            <NumberField
-              label="Brutto miesięcznie"
-              value={spouse.inputs.gross}
-              onChange={(n) => set("gross", n)}
-              step={500}
-            />
-            <Slider
-              value={[spouse.inputs.gross]}
-              min={0}
-              max={50000}
-              step={100}
-              onValueChange={([v]) => set("gross", v)}
-              className="pt-3"
-            />
+      <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-8 lg:gap-10">
+        {/* RIGHT COLUMN (Results on desktop, top on mobile) */}
+        <div className="order-first lg:order-last space-y-6">
+          {/* Hero Result */}
+          <div className="rounded-[2rem] p-6 bg-[var(--gradient-hero)] text-primary-foreground shadow-[var(--shadow-warm)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
+              Na rękę
+            </p>
+            <p className="font-display text-5xl mt-2 mb-6 tabular-nums animate-count-up">
+              {formatPLN(r.net)}
+            </p>
+            <div className="grid grid-cols-3 gap-3 border-t border-primary-foreground/15 pt-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Brutto</p>
+                <p className="font-mono text-sm tabular-nums">{formatPLN(r.gross)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Koszt pracodawcy</p>
+                <p className="font-mono text-sm tabular-nums">{formatPLN(r.totalEmployerCost)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Stawka/h</p>
+                <p className="font-mono text-sm tabular-nums">{formatPLN(r.gross / 168)}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField
-              label="Benefity (LuxMed, sport)"
-              value={spouse.inputs.benefitsTaxable}
-              onChange={(n) => set("benefitsTaxable", n)}
-            />
-            <NumberField
-              label="Bony żywieniowe"
-              value={spouse.inputs.lunchAllowance}
-              onChange={(n) => set("lunchAllowance", n)}
-              hint="ZUS-free do 450 zł"
-            />
+          {/* Breakdown Visualization */}
+          <div className="bg-muted/40 rounded-2xl p-5 border border-border">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
+              Podział pensji
+            </p>
+            <div className="flex h-4 w-full rounded-full overflow-hidden mb-4 bg-muted border border-border shadow-inner">
+              <div style={{ width: `${pctNet}%` }} className="bg-success transition-all duration-500" title="Netto" />
+              <div style={{ width: `${pctZus}%` }} className="bg-orange-400 transition-all duration-500" title="ZUS" />
+              <div style={{ width: `${pctHealth}%` }} className="bg-yellow-400 transition-all duration-500" title="Zdrowotna" />
+              <div style={{ width: `${pctPit}%` }} className="bg-destructive transition-all duration-500" title="PIT" />
+              {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-blue-500 transition-all duration-500" title="PPK" />}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 text-[10px] uppercase font-semibold text-muted-foreground">
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success"/> Netto ({pctNet.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400"/> ZUS ({pctZus.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400"/> Zdrow. ({pctHealth.toFixed(1)}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive"/> PIT ({pctPit.toFixed(1)}%)</span>
+              {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500"/> PPK</span>}
+            </div>
+
+            <div className="space-y-1">
+              <Row label="Brutto" value={r.gross} muted />
+              {r.companyCarTaxable > 0 && <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />}
+              <Row label="ZUS (suma)" value={-r.zusTotal} negative />
+              <Row label="Zdrowotna 9%" value={-r.health} negative />
+              {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
+              <Row label="KUP (standardowe)" value={r.kupStandard} muted />
+              {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
+              <Row label="Zaliczka PIT" value={-r.pit} negative />
+              <Separator className="my-2 opacity-60" />
+              <div className="rounded-xl bg-accent-soft p-3 mt-2 border border-accent/20">
+                <Row label="Do wypłaty netto" value={r.net} bold />
+              </div>
+            </div>
           </div>
 
-          <div className="bg-muted/30 rounded-xl p-4 border border-border space-y-3">
-            <ToggleRow
-              label="Samochód służbowy do celów prywatnych"
-              hint="Przychód opodatkowany i oskładkowany (UoP)"
-              checked={spouse.inputs.companyCarEnabled}
-              onChange={(v) => set("companyCarEnabled", v)}
+          {/* Tax Threshold Banner */}
+          {!spouse.inputs.outsideFirstThreshold && (
+            <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Limit II progu (120k zł)
+                </span>
+                <span className="text-xs font-bold font-mono">
+                  {thresholdPct.toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-1000",
+                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning-foreground" : "bg-destructive"
+                  )}
+                  style={{ width: `${thresholdPct}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 text-center font-medium">
+                {thresholdPct >= 100 
+                  ? "Przekroczono II próg podatkowy!" 
+                  : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`
+                }
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* LEFT COLUMN (Inputs) */}
+        <div className="space-y-4">
+          {/* Group 1: Wynagrodzenie */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor={`${baseId}-gross`}
+                className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer"
+              >
+                Wynagrodzenie brutto
+              </Label>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[10px] font-bold uppercase", !isAnnual && "text-accent")}>M-c</span>
+                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+                <span className={cn("text-[10px] font-bold uppercase", isAnnual && "text-accent")}>Rok</span>
+              </div>
+            </div>
+            <div className="relative">
+              <Input
+                id={`${baseId}-gross`}
+                type="text"
+                inputMode="decimal"
+                value={formatLocaleAmount(displayGross)}
+                onChange={(e) => setGross(parseLocaleAmount(e.target.value))}
+                className="pr-12 font-mono tabular-nums text-2xl h-14 font-bold border-accent/30 focus-visible:ring-accent"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                zł
+              </span>
+            </div>
+            <div className="pt-2">
+              <Slider
+                value={[displayGross]}
+                min={0}
+                max={isAnnual ? 600000 : 50000}
+                step={isAnnual ? 1000 : 100}
+                onValueChange={([v]) => setGross(v)}
+                className="[&>span:first-child]:bg-accent"
+              />
+            </div>
+          </div>
+
+          <Separator className="my-6" />
+
+          {/* Collapsibles */}
+          <SectionGroup title="Benefity i dodatki" icon={Gift} activeIndicator={hasBenefits}>
+            <div className="grid grid-cols-2 gap-4">
+              <NumberField
+                label="Benefity (LuxMed, sport)"
+                value={spouse.inputs.benefitsTaxable}
+                onChange={(n) => set("benefitsTaxable", n)}
+              />
+              <NumberField
+                label="Bony żywieniowe"
+                value={spouse.inputs.lunchAllowance}
+                onChange={(n) => set("lunchAllowance", n)}
+                hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success"/> ZUS-free do 450 zł</span>}
+              />
+            </div>
+            <NumberField
+              label="Praca zdalna (razem)"
+              value={spouse.inputs.remoteAllowance}
+              onChange={(n) => set("remoteAllowance", n)}
+              hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success"/> PIT/ZUS-free</span>}
             />
-            {spouse.inputs.companyCarEnabled && (
-              <>
-                <div>
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                    Wycena świadczenia
-                  </Label>
-                  <Select
-                    value={spouse.inputs.companyCarMode}
-                    onValueChange={(v) =>
-                      set("companyCarMode", v as SalaryInputs["companyCarMode"])
-                    }
-                  >
-                    <SelectTrigger className="h-11 mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="statutory">Ryczałt ustawowy</SelectItem>
-                      <SelectItem value="manual">Kwota ręczna</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {spouse.inputs.companyCarMode === "statutory" ? (
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+              <ToggleRow
+                label="Samochód służbowy (prywatnie)"
+                hint="Przychód opodatkowany i oskładkowany"
+                checked={spouse.inputs.companyCarEnabled}
+                onChange={(v) => set("companyCarEnabled", v)}
+              />
+              {spouse.inputs.companyCarEnabled && (
+                <div className="mt-4 space-y-4 border-t border-border pt-4">
                   <div>
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                      Ryczałt miesięczny
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Wycena świadczenia
                     </Label>
                     <Select
-                      value={spouse.inputs.companyCarStatutoryValue}
-                      onValueChange={(v) =>
-                        set(
-                          "companyCarStatutoryValue",
-                          v as SalaryInputs["companyCarStatutoryValue"],
-                        )
-                      }
+                      value={spouse.inputs.companyCarMode}
+                      onValueChange={(v) => set("companyCarMode", v as SalaryInputs["companyCarMode"])}
                     >
                       <SelectTrigger className="h-11 mt-1.5">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="250">250 zł (do 60 kW / EV / wodór)</SelectItem>
-                        <SelectItem value="400">400 zł (pozostałe pojazdy)</SelectItem>
+                        <SelectItem value="statutory">Ryczałt ustawowy</SelectItem>
+                        <SelectItem value="manual">Kwota ręczna</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                ) : (
-                  <NumberField
-                    label="Kwota przychodu (miesięcznie)"
-                    value={spouse.inputs.companyCarManualAmount}
-                    onChange={(n) => set("companyCarManualAmount", n)}
-                    hint="Ręczna wycena świadczenia"
-                  />
-                )}
-              </>
-            )}
-          </div>
-
-          {/* WHF Calculator */}
-          {/* <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-            <Label className="text-xs uppercase tracking-wider text-blue-700 dark:text-blue-400 font-semibold block mb-4">
-              Praca zdalna (dni × stawka)
-            </Label>
-            <div className="grid grid-cols-1 gap-3 mb-3">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
-                  Dni WHF
-                </Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={formatLocaleAmount(spouse.inputs.whfDays ?? 0, 0)}
-                  onChange={(e) => set("whfDays", parseLocaleAmount(e.target.value))}
-                  className="font-mono text-base h-11 w-full"
-                />
-              </div>
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
-                  Stawka/dzień
-                </Label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={formatLocaleAmount(spouse.inputs.whfDailyRate ?? 0, 0)}
-                    onChange={(e) => set("whfDailyRate", parseLocaleAmount(e.target.value))}
-                    className="font-mono text-base h-11 w-full pr-12"
-                    placeholder="0"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    zł
-                  </span>
+                  {spouse.inputs.companyCarMode === "statutory" ? (
+                    <div>
+                      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        Ryczałt miesięczny
+                      </Label>
+                      <Select
+                        value={spouse.inputs.companyCarStatutoryValue}
+                        onValueChange={(v) => set("companyCarStatutoryValue", v as SalaryInputs["companyCarStatutoryValue"])}
+                      >
+                        <SelectTrigger className="h-11 mt-1.5">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="250">250 zł (do 60 kW / EV / wodór)</SelectItem>
+                          <SelectItem value="400">400 zł (pozostałe pojazdy)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <NumberField
+                      label="Kwota przychodu (miesięcznie)"
+                      value={spouse.inputs.companyCarManualAmount}
+                      onChange={(n) => set("companyCarManualAmount", n)}
+                    />
+                  )}
                 </div>
-              </div>
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 block">
-                  Razem
-                </Label>
-                <div className="bg-white dark:bg-black/20 border border-border rounded-md px-3 font-mono text-base font-medium flex items-center justify-end h-11 w-full">
-                  {formatPLN2((spouse.inputs.whfDays ?? 0) * (spouse.inputs.whfDailyRate ?? 0))}
-                </div>
-              </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Lub wprowadź kwotę ręcznie poniżej (PIT/ZUS-free)
-            </p>
-          </div> */}
+          </SectionGroup>
 
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField
-              label="Praca zdalna (razem)"
-              value={spouse.inputs.remoteAllowance}
-              onChange={(n) => set("remoteAllowance", n)}
-              hint="PIT/ZUS-free"
+          <SectionGroup title="Ustawienia podatkowe" icon={Landmark} defaultOpen activeIndicator={hasTaxOverrides}>
+            <ToggleRow
+              label="PIT-2 złożone"
+              hint="Kwota wolna 300 zł / m-c"
+              checked={spouse.inputs.pit2}
+              onChange={(v) => set("pit2", v)}
             />
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                KUP standardowe
+            <ToggleRow
+              label="Powyżej II progu"
+              hint="Cały dochód po 32%"
+              checked={spouse.inputs.outsideFirstThreshold}
+              onChange={(v) => set("outsideFirstThreshold", v)}
+            />
+            <ToggleRow
+              label="Ulga dla młodych (<26 lat)"
+              checked={spouse.inputs.age26Exempt}
+              onChange={(v) => set("age26Exempt", v)}
+            />
+            <div className="pt-2">
+              <Label
+                htmlFor={`${baseId}-kup`}
+                className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer"
+              >
+                Koszty Uzyskania Przychodu (KUP)
               </Label>
               <Select
                 value={spouse.inputs.kupType}
                 onValueChange={(v) => set("kupType", v as SalaryInputs["kupType"])}
               >
-                <SelectTrigger className="h-11 mt-1.5">
+                <SelectTrigger id={`${baseId}-kup`} className="h-11 mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="standard">250 zł</SelectItem>
-                  <SelectItem value="outOfTown">300 zł</SelectItem>
+                  <SelectItem value="standard">Standardowe (250 zł)</SelectItem>
+                  <SelectItem value="outOfTown">Podwyższone (300 zł)</SelectItem>
                   <SelectItem value="none">Brak</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
+            
+            <div className="bg-accent-soft/30 rounded-xl p-4 border border-accent/20 mt-4">
+              <ToggleRow
+                label="Autorskie KUP (50%)"
+                hint="Dla twórców IT/artystów."
+                checked={spouse.inputs.autorskiSharePct > 0}
+                onChange={(v) => set("autorskiSharePct", v ? 80 : 0)}
+              />
+              {spouse.inputs.autorskiSharePct > 0 && (
+                <div className="pt-4 mt-2 border-t border-accent/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Udział w wynagrodzeniu
+                    </Label>
+                    <span className="text-sm font-mono font-bold text-accent">
+                      {spouse.inputs.autorskiSharePct}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[spouse.inputs.autorskiSharePct]}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onValueChange={([v]) => set("autorskiSharePct", v)}
+                    className="[&>span:first-child]:bg-accent"
+                  />
+                  {r.kupAutorski > 0 && (
+                    <p className="text-[11px] text-accent font-medium mt-2">
+                      Zysk z odliczenia: {formatPLN2(r.kupAutorski)} / m-c
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </SectionGroup>
 
-          <Separator />
-
-          {/* Autorskie KUP */}
-          <div className="bg-accent/5 rounded-xl p-4 border border-accent/20 space-y-3">
-            <ToggleRow
-              label="Autorskie KUP (50%)"
-              hint="Część wynagrodzenia jako honorarium objęte 50% KUP. Limit roczny 120 000 zł."
-              checked={spouse.inputs.autorskiSharePct > 0}
-              onChange={(v) => set("autorskiSharePct", v ? 80 : 0)}
-            />
-            {spouse.inputs.autorskiSharePct > 0 && (
-              <div className="pt-2 border-t border-accent/10">
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                    Udział honorarium
+          <SectionGroup title="PPK" icon={PiggyBank} activeIndicator={hasPpk}>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <div className="flex justify-between mb-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Pracownik
                   </Label>
-                  <span className="text-sm font-mono tabular-nums text-accent font-medium">
-                    {spouse.inputs.autorskiSharePct}%
-                  </span>
+                  <span className="text-sm font-mono font-bold">{spouse.inputs.ppkEmployeeRate.toFixed(1)}%</span>
                 </div>
                 <Slider
-                  value={[spouse.inputs.autorskiSharePct]}
+                  value={[spouse.inputs.ppkEmployeeRate]}
                   min={0}
-                  max={100}
-                  step={5}
-                  onValueChange={([v]) => set("autorskiSharePct", v)}
+                  max={4}
+                  step={0.1}
+                  onValueChange={([v]) => set("ppkEmployeeRate", v)}
                 />
-                {r.kupAutorski > 0 && (
-                  <p className="text-xs mt-3 text-success font-medium">
-                    Aktywne: {formatPLN2(r.kupAutorski)} odpisu KUP / m-c
-                  </p>
-                )}
               </div>
-            )}
-          </div>
-
-          {/* PPK */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  PPK pracownik
-                </Label>
-                <span className="text-sm font-mono tabular-nums">
-                  {spouse.inputs.ppkEmployeeRate.toFixed(1)}%
-                </span>
+              <div>
+                <div className="flex justify-between mb-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Pracodawca
+                  </Label>
+                  <span className="text-sm font-mono font-bold">{spouse.inputs.ppkEmployerRate.toFixed(1)}%</span>
+                </div>
+                <Slider
+                  value={[spouse.inputs.ppkEmployerRate]}
+                  min={0}
+                  max={4}
+                  step={0.1}
+                  onValueChange={([v]) => set("ppkEmployerRate", v)}
+                />
               </div>
-              <Slider
-                value={[spouse.inputs.ppkEmployeeRate]}
-                min={0}
-                max={4}
-                step={0.1}
-                onValueChange={([v]) => set("ppkEmployeeRate", v)}
-              />
             </div>
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  PPK pracodawca
-                </Label>
-                <span className="text-sm font-mono tabular-nums">
-                  {spouse.inputs.ppkEmployerRate.toFixed(1)}%
-                </span>
-              </div>
-              <Slider
-                value={[spouse.inputs.ppkEmployerRate]}
-                min={0}
-                max={4}
-                step={0.1}
-                onValueChange={([v]) => set("ppkEmployerRate", v)}
-              />
-            </div>
-          </div>
+          </SectionGroup>
 
-          <Separator />
-
-          {/* Bonus / Premia */}
-          <div className="bg-success/5 rounded-xl p-4 border border-success/20 space-y-4">
+          <SectionGroup title="Premia i Bonusy" icon={Zap} activeIndicator={hasBonus}>
             <ToggleRow
-              label="Premia roczna / kwartalna"
-              hint="Premia doliczana do wynagrodzenia brutto w wybranym miesiącu."
+              label="Dodaj premię roczną"
+              hint="Zostanie doliczona do dochodu w wybranym miesiącu"
               checked={spouse.inputs.bonusMonth > 0}
               onChange={(v) => set("bonusMonth", v ? 3 : 0)}
             />
-            
             {spouse.inputs.bonusMonth > 0 && (
-              <div className="space-y-4 pt-2 border-t border-success/10">
+              <div className="space-y-5 pt-4 mt-2 border-t border-border">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Miesiąc wypłaty</Label>
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Miesiąc wypłaty</Label>
                     <Select
                       value={String(spouse.inputs.bonusMonth)}
                       onValueChange={(v) => set("bonusMonth", parseInt(v))}
@@ -532,162 +649,67 @@ export function SpousePanel({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                           <SelectItem key={m} value={String(m)}>
-                            {["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"][m-1]}
+                            {["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"][m - 1]}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  
                   <NumberField
                     label="Bonus % roczny"
                     value={spouse.inputs.bonusPct}
                     onChange={(v) => set("bonusPct", v)}
                     suffix="%"
-                    step={1}
-                    hint="np. 8% rocznej pensji"
+                    hint="np. 8% z rocznej podstawy"
                   />
                 </div>
-                
-                <div className="flex items-center justify-between gap-4 py-2 px-3 bg-background/50 rounded-lg border border-border/50">
-                   <div className="space-y-0.5">
-                      <Label className="text-xs font-semibold cursor-pointer" onClick={() => set("bonusOverrideGross", spouse.inputs.bonusOverrideGross === null ? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)) : null)}>
-                        Obliczaj automatycznie?
-                      </Label>
-                      <p className="text-[10px] text-muted-foreground">
-                        {spouse.inputs.bonusOverrideGross === null 
-                          ? `Aktualna kwota: ${formatPLN(spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))}`
-                          : "Używasz kwoty wpisanej ręcznie"}
-                      </p>
-                   </div>
-                   <Switch 
-                      checked={spouse.inputs.bonusOverrideGross === null} 
-                      onCheckedChange={(v) => set("bonusOverrideGross", v ? null : (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)))}
-                   />
+
+                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
+                  <div className="space-y-1 pr-4">
+                    <Label className="text-sm font-semibold cursor-pointer" onClick={() => set("bonusOverrideGross", spouse.inputs.bonusOverrideGross === null ? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)) : null)}>
+                      Oblicz z rocznej podstawy
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      {spouse.inputs.bonusOverrideGross === null 
+                        ? `Obliczono: ${formatPLN(spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))}` 
+                        : "Podajesz kwotę ręcznie poniżej"}
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={spouse.inputs.bonusOverrideGross === null} 
+                    onCheckedChange={(v) => set("bonusOverrideGross", v ? null : (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)))}
+                  />
                 </div>
-                
+
                 {spouse.inputs.bonusOverrideGross !== null && (
-                   <NumberField
-                     label="Własna kwota premii (brutto)"
-                     value={spouse.inputs.bonusOverrideGross}
-                     onChange={(v) => set("bonusOverrideGross", v)}
-                     hint="Wpisz dokładną kwotę brutto"
-                   />
+                  <NumberField
+                    label="Kwota premii (brutto)"
+                    value={spouse.inputs.bonusOverrideGross}
+                    onChange={(v) => set("bonusOverrideGross", v)}
+                  />
                 )}
-                
-                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg border border-success/20">
-                   <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${spouse.inputs.bonusPaid ? 'bg-success shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-muted-foreground'}`} />
-                      <div className="space-y-0.5">
-                        <Label className="text-xs font-medium cursor-pointer" onClick={() => set("bonusPaid", !spouse.inputs.bonusPaid)}>
-                          Uwzględniaj w kalkulacji rocznej
-                        </Label>
-                        <p className="text-[10px] text-muted-foreground">
-                          {spouse.inputs.bonusPaid ? "Premia podnosi podstawę opodatkowania" : "Premia pominięta w wyliczeniach"}
-                        </p>
-                      </div>
-                   </div>
-                   <Switch checked={spouse.inputs.bonusPaid} onCheckedChange={(v) => set("bonusPaid", v)} />
+
+                <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl border border-success/20">
+                  <div className="flex items-start gap-3">
+                    <div className={cn("mt-0.5 w-2 h-2 rounded-full", spouse.inputs.bonusPaid ? "bg-success" : "bg-muted-foreground")} />
+                    <div>
+                      <Label className="text-sm font-semibold cursor-pointer" onClick={() => set("bonusPaid", !spouse.inputs.bonusPaid)}>
+                        Uwzględniaj w skali rocznej
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                        Zaznacz by poprawnie wyliczyć drugi próg
+                      </p>
+                    </div>
+                  </div>
+                  <Switch checked={spouse.inputs.bonusPaid} onCheckedChange={(v) => set("bonusPaid", v)} />
                 </div>
               </div>
             )}
-          </div>
-
-          <Separator />
-          <ToggleRow
-            label="PIT-2 złożone"
-            hint="Kwota wolna 300 zł / m-c"
-            checked={spouse.inputs.pit2}
-            onChange={(v) => set("pit2", v)}
-          />
-          <ToggleRow
-            label="Powyżej II progu"
-            hint="Cały dochód po 32%"
-            checked={spouse.inputs.outsideFirstThreshold}
-            onChange={(v) => set("outsideFirstThreshold", v)}
-          />
-          <ToggleRow
-            label="Ulga dla młodych (<26)"
-            checked={spouse.inputs.age26Exempt}
-            onChange={(v) => set("age26Exempt", v)}
-          />
-        </div>
-
-        {/* Results */}
-        <div className="order-first lg:order-last space-y-4">
-          <div className="bg-(image:--gradient-hero) text-primary-foreground rounded-2xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/20 rounded-full blur-3xl" />
-            <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/60 font-medium">
-              Na rękę
-            </p>
-            <p className="font-display text-4xl mt-1.5 tabular-nums">{formatPLN2(r.net)}</p>
-            <div className="mt-4 pt-4 border-t border-primary-foreground/15 grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-primary-foreground/60">Brutto</p>
-                <p className="font-mono tabular-nums text-sm">{formatPLN2(r.gross)}</p>
-              </div>
-              <div>
-                <p className="text-primary-foreground/60">Koszt pracodawcy</p>
-                <p className="font-mono tabular-nums text-sm">{formatPLN2(r.totalEmployerCost)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-muted/40 rounded-xl p-4">
-            <Row label="Brutto" value={r.gross} muted />
-            {r.companyCarTaxable > 0 && (
-              <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />
-            )}
-            <Row label="ZUS (suma)" value={-r.zusTotal} negative />
-            <Row label="Zdrowotna 9%" value={-r.health} negative />
-            {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
-            <Row label="KUP (standardowe)" value={r.kupStandard} muted />
-            {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
-            <Row label="Zaliczka PIT" value={-r.pit} negative />
-            <Separator className="my-1.5" />
-            <Row label="Netto" value={r.net} bold />
-          </div>
-
-          {!spouse.inputs.outsideFirstThreshold && monthsToSecondThreshold && (
-            <div className="bg-warning/10 border border-warning/30 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-wider text-warning-foreground/80 font-medium">
-                II próg podatkowy
-              </p>
-              <p className="text-sm mt-1">
-                Przy obecnym tempie:{" "}
-                <span className="font-semibold">
-                  {monthsToSecondThreshold >= 12
-                    ? "nieosiągnięty w 2025"
-                    : `przekroczenie w ${monthIndexToName(monthsToSecondThreshold)}`}
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Roczna podstawa: {formatPLN2(totalAnnualTaxBase)} / 120 000 zł
-              </p>
-            </div>
-          )}
+          </SectionGroup>
         </div>
       </div>
     </div>
   );
-}
-
-function monthIndexToName(month: number): string {
-  const names = [
-    "styczniu",
-    "lutym",
-    "marcu",
-    "kwietniu",
-    "maju",
-    "czerwcu",
-    "lipcu",
-    "sierpniu",
-    "wrześniu",
-    "październiku",
-    "listopadzie",
-    "grudniu",
-  ];
-  return names[Math.min(11, Math.max(0, month - 1))];
 }

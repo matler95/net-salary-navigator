@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type FormEvent } from "react";
+import { useMemo, useState, useEffect, useId, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getSupabase } from "@/lib/supabase";
 import { acceptInvite, initCloudSync, PENDING_INVITE_TOKEN_KEY } from "@/lib/store";
@@ -6,6 +6,7 @@ import { loadInviteContext } from "@/lib/repository";
 import { useAuthSession } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -26,6 +27,7 @@ type InviteContext = {
 };
 
 function LoginPage() {
+  const baseId = useId();
   const router = useRouter();
   const { session, loading: authLoading } = useAuthSession();
   const search = Route.useSearch();
@@ -275,13 +277,15 @@ function LoginPage() {
   }
 
   return (
-    <main className="max-w-xl mx-auto px-4 py-10">
-      <h1 className="font-display text-3xl mb-2">
-        {mode === "login" ? "Logowanie" : "Rejestracja"}
-      </h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Konto umożliwia bezpieczną synchronizację danych między urządzeniami.
-      </p>
+    <main className="max-w-xl mx-auto px-4 py-12 sm:py-16 animate-fade-up">
+      <div className="text-center mb-8">
+        <h1 className="font-display text-4xl mb-3">
+          {mode === "login" ? "Witaj ponownie" : "Dołącz do Saldeo"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Konto umożliwia bezpieczną synchronizację danych Twojego gospodarstwa.
+        </p>
+      </div>
       {hasInvite && (
         <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground">
           <p className="font-semibold">Zaproszenie do gospodarstwa wykryte</p>
@@ -304,52 +308,72 @@ function LoginPage() {
         </div>
       )}
       <form
-        className="space-y-3 bg-card border border-border rounded-2xl p-5"
+        className="space-y-4 bg-card border border-border rounded-[2rem] p-8 shadow-[var(--shadow-card)]"
         onSubmit={(e) => void handleSubmit(e)}
         noValidate
       >
-        <Input
-          id="login-email"
-          type="email"
-          placeholder="email"
-          value={email}
-          autoComplete="email"
-          disabled={loading || (hasInvite && !!inviteEmail)}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="space-y-1">
+          <Label htmlFor={`${baseId}-email`} className="sr-only">
+            Email
+          </Label>
+          <Input
+            id={`${baseId}-email`}
+            type="email"
+            placeholder="email"
+            value={email}
+            autoComplete="email"
+            disabled={loading || (hasInvite && !!inviteEmail)}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
         {hasInvite && inviteEmail && (
           <p className="text-xs text-muted-foreground">
             Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego adresu.
           </p>
         )}
-        <Input
-          id="login-password"
-          type="password"
-          placeholder="hasło"
-          value={password}
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          disabled={loading}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        {mode === "register" && !hasInvite ? (
+        <div className="space-y-1">
+          <Label htmlFor={`${baseId}-password`} className="sr-only">
+            Hasło
+          </Label>
           <Input
-            id="household-name"
-            type="text"
-            placeholder="Nazwa gospodarstwa"
-            value={householdName}
+            id={`${baseId}-password`}
+            type="password"
+            placeholder="hasło"
+            value={password}
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             disabled={loading}
-            onChange={(e) => setHouseholdName(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+        {mode === "register" && !hasInvite ? (
+          <div className="space-y-1">
+            <Label htmlFor={`${baseId}-household`} className="sr-only">
+              Nazwa gospodarstwa
+            </Label>
+            <Input
+              id={`${baseId}-household`}
+              type="text"
+              placeholder="Nazwa gospodarstwa"
+              value={householdName}
+              disabled={loading}
+              onChange={(e) => setHouseholdName(e.target.value)}
+            />
+          </div>
         ) : null}
         {mode === "register" ? (
-          <Input
-            id="nickname"
-            type="text"
-            placeholder="Twoja ksywka"
-            value={nickname}
-            disabled={loading}
-            onChange={(e) => setNickname(e.target.value)}
-          />
+          <div className="space-y-1">
+            <Label htmlFor={`${baseId}-nickname`} className="sr-only">
+              Twoja ksywka
+            </Label>
+            <Input
+              id={`${baseId}-nickname`}
+              type="text"
+              placeholder="Twoja ksywka"
+              value={nickname}
+              disabled={loading}
+              onChange={(e) => setNickname(e.target.value)}
+            />
+          </div>
         ) : null}
         <Button type="submit" className="w-full" disabled={loading || cooldownSeconds > 0}>
           {loading

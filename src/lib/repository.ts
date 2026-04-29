@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import type { AppState, Expense, Investment, Loan, Rental, Spouse } from "./store";
+import type { AppState, Expense, Investment, Loan, Rental, SavingsAccount, SavingsAccountType, Spouse } from "./store";
 import { DEFAULT_SALARY_INPUTS } from "./salary";
 import { getSupabase } from "./supabase";
 
@@ -672,12 +672,12 @@ function mapSavingsFromRow(row: unknown): AppState["savings"][number] {
   return {
     id: String(r.id ?? ""),
     bank: String(r.bank ?? ""),
-    type: String(r.type ?? "zwykłe"),
+    type: (r.type as SavingsAccountType) || "zwykłe",
     balance: Number(r.balance ?? 0),
     ratePct: Number(r.rate_pct ?? 0),
     lokataStartDate: r.lokata_start_date ? String(r.lokata_start_date) : undefined,
     lokataDurationMonths: r.lokata_duration_months ? Number(r.lokata_duration_months) : undefined,
-    lokataCapitalization: r.lokata_capitalization ? String(r.lokata_capitalization) : undefined,
+    lokataCapitalization: (r.lokata_capitalization as SavingsAccount["lokataCapitalization"]) || undefined,
   };
 }
 

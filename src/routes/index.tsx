@@ -1,8 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
-import { X, TrendingUp, Wallet, Landmark } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import {
+  TrendingUp,
+  Wallet,
+  Landmark,
+  ShoppingBag,
+  CreditCard,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  Banknote,
+  PiggyBank,
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -10,8 +20,6 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -20,6 +28,8 @@ import {
   Legend,
   Area,
   AreaChart,
+  LineChart,
+  Line,
 } from "recharts";
 import { useAppState } from "@/lib/store";
 import {
@@ -34,33 +44,40 @@ import {
 import {
   rentalCashflow,
   monthlyPayment,
-  getExpenseAnnualTotal,
   getExpenseMonthlyAverage,
   isExpenseInMonth,
 } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
+import { StatCard } from "@/components/ui/stat-card";
+import { cn } from "@/lib/utils";
+import { useAuthSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Pulpit — Płaca.netto" },
+      { title: "Przegląd — Saldeo" },
       {
         name: "description",
-        content: "Pulpit budżetu gospodarstwa: dochody, wydatki, aktywa, II próg podatkowy.",
+        content: "Przegląd budżetu gospodarstwa: dochody, wydatki, aktywa, oszczędności.",
       },
     ],
   }),
   component: Dashboard,
 });
 
-const COLORS = ["#c84026", "#e08a3c", "#5b8c5a", "#3a5e8c", "#7a4e8c", "#8c7a4e", "#4e8c8c"];
-
-import { StatCard } from "@/components/ui/stat-card";
+const CHART_COLORS = [
+  "var(--accent)",
+  "oklch(0.62 0.14 148)",
+  "oklch(0.74 0.13 75)",
+  "oklch(0.58 0.19 25)",
+  "oklch(0.52 0.018 210)",
+  "oklch(0.80 0.12 180)",
+];
 
 function Dashboard() {
+  const { session } = useAuthSession();
   const spouses = useAppState((s) => s.spouses);
-  const jointFiling = useAppState((s) => s.jointFiling);
   const expenses = useAppState((s) => s.expenses);
   const investments = useAppState((s) => s.investments);
   const loans = useAppState((s) => s.loans);
@@ -70,16 +87,32 @@ function Dashboard() {
   const { rates } = useDailyFxRates();
   const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState(() => new Date().getMonth() + 1);
+
+  const isCompletelyEmpty =
+    spouses.length === 0 &&
+    expenses.length === 0 &&
+    investments.length === 0 &&
+    loans.length === 0 &&
+    rentals.length === 0 &&
+    savings.length === 0;
+
+  // -- Core calcs
   const breakdowns = useMemo(
     () => spouses.map((s) => ({ spouse: s, r: calculateSalary(s.inputs, 0, globalSettings) })),
     [spouses, globalSettings],
   );
 
-  const totalHouseholdNet = spouses.reduce(
-    (sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings),
-    0,
+  const totalAnnualAvgNet = useMemo(() =>
+    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    [spouses, globalSettings]
   );
-  const totalGross = breakdowns.reduce((sum, { r }) => sum + r.gross, 0);
+
+  const totalSelectedMonthNet = useMemo(() =>
+    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net, 0),
+    [spouses, selectedMonthIdx, globalSettings]
+  );
+
   const totalExpenses = expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
   const totalInvestments = investments.reduce(
     (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
@@ -97,53 +130,81 @@ function Dashboard() {
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
 
-  // Advanced Net Salary calculations
-  const currentMonthIdx = new Date().getMonth() + 1;
-  const nextMonthIdx = currentMonthIdx === 12 ? 1 : currentMonthIdx + 1;
-
-  const totalAnnualAvgNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
-    [spouses, globalSettings]
-  );
-
-  const totalCurrentMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, currentMonthIdx, globalSettings).net, 0),
-    [spouses, currentMonthIdx, globalSettings]
-  );
-
-  const totalNextMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
-    [spouses, nextMonthIdx, globalSettings]
-  );
-
   const getExpensesForMonth = (mIdx: number) => {
     return expenses.reduce((sum, e) => {
-      if (isExpenseInMonth(e, mIdx)) {
-        return sum + e.amount;
-      }
-      // If it's a regular frequency but no specific months are set, 
-      // we might want to show average as a fallback to avoid "hidden" costs,
-      // but the user asked for "correct mirroring". 
-      // For now, if isExpenseInMonth is false, we return 0.
+      if (isExpenseInMonth(e, mIdx)) return sum + e.amount;
       return sum;
     }, 0);
   };
+  const selectedMonthExpenses = getExpensesForMonth(selectedMonthIdx);
 
-  const annualAvgCashflow = totalAnnualAvgNet + rentalNet - totalExpenses - monthlyLoanPmt;
-  const currentMonthCashflow = totalCurrentMonthNet + rentalNet - getExpensesForMonth(currentMonthIdx) - monthlyLoanPmt;
-  const nextMonthCashflow = totalNextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
-
+  const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
   const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
-  const isCompletelyEmpty =
-    spouses.length === 0 &&
-    expenses.length === 0 &&
-    investments.length === 0 &&
-    loans.length === 0 &&
-    rentals.length === 0 &&
-    savings.length === 0;
 
-  // Joint filing comparison
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
+  // -- Charts Data
+  const byCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    expenses.forEach((e) =>
+      map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)),
+    );
+    return Array.from(map, ([name, value]) => ({ name, value }));
+  }, [expenses]);
+
+  const projection = useMemo(() => {
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    return Array.from({ length: 12 }, (_, idx) => {
+      const month = idx + 1;
+      const point: Record<string, number | string> = { month: monthLabel(month) };
+      spouses.forEach((spouse, sIdx) => {
+        const cumulative = annualBreakdowns[sIdx]
+          .slice(0, month)
+          .reduce((sum: number, m: any) => sum + m.taxBase, 0);
+        point[spouse.name] = Math.round(cumulative);
+      });
+      return point;
+    });
+  }, [spouses, globalSettings]);
+
+  const [includeSavings, setIncludeSavings] = useState(true);
+  const [includeInvestments, setIncludeInvestments] = useState(false);
+
+  const cumulativeData = useMemo(() => {
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    let cumulativeSurplus = 0;
+
+    return Array.from({ length: 12 }, (_, idx) => {
+      const month = idx + 1;
+      const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
+      const mExpenses = expenses.reduce((sum, e) => (isExpenseInMonth(e, month) ? sum + e.amount : sum), 0);
+      const mCashflow = monthlyNet + rentalNet - mExpenses - monthlyLoanPmt;
+      cumulativeSurplus += mCashflow;
+      const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
+      return {
+        month: monthLabel(month),
+        "Suma nadwyżek": Math.round(cumulativeSurplus),
+        "Konta bankowe": includeSavings ? totalSavings : 0,
+        "Inwestycje": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
+        "Wartość": Math.round(cumulativeSurplus + (includeSavings ? totalSavings : 0) + (includeInvestments ? totalInvestments * growthFactor : 0)),
+      };
+    });
+  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments, globalSettings]);
+
+  // -- 7-month sparkline for cashflow
+  const cashflowSparkline = useMemo(() => {
+    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
+    return Array.from({ length: 7 }, (_, i) => {
+      // Current month + up to 6 months ahead (looping around year if needed, but for simplicity we'll just do 1-12 based)
+      // Actually let's just show Jan-Jul or the last 7 months of projection.
+      // Better: let's show months around selectedMonth.
+      let m = selectedMonthIdx - 3 + i;
+      if (m < 1) m += 12;
+      if (m > 12) m -= 12;
+      const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[m - 1].net, 0);
+      const mExp = expenses.reduce((sum, e) => (isExpenseInMonth(e, m) ? sum + e.amount : sum), 0);
+      const cf = monthlyNet + rentalNet - mExp - monthlyLoanPmt;
+      return { name: monthLabel(m), val: cf };
+    });
+  }, [selectedMonthIdx, spouses, expenses, rentalNet, monthlyLoanPmt, globalSettings]);
 
   const thresholdDates = useMemo(() => {
     return spouses.map((s) => {
@@ -161,343 +222,268 @@ function Dashboard() {
     });
   }, [spouses, globalSettings]);
 
-  // Expense breakdown by category
-  const byCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    expenses.forEach((e) =>
-      map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)),
+  if (isCompletelyEmpty) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24">
+        <div className="mx-auto max-w-2xl bg-card rounded-[2rem] border border-border p-8 md:p-12 shadow-[var(--shadow-warm)] text-center animate-fade-up">
+          <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[1.5rem] bg-accent/10 font-display text-5xl font-bold italic text-accent shadow-sm">
+            S
+          </div>
+          <h1 className="font-display text-3xl md:text-4xl mb-4 text-foreground">
+            Zacznij od zarobków
+          </h1>
+          <p className="text-muted-foreground md:text-lg mb-10 max-w-lg mx-auto leading-relaxed">
+            Wpisz swoje wynagrodzenie brutto, a Saldeo wyliczy co zostaje w kieszeni i pomoże zaplanować domowy budżet.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
+            <div className="flex items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-sm font-semibold text-accent">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] text-accent-foreground">1</span>
+              Zarobki
+            </div>
+            <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground/50" />
+            <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">2</span>
+              Wydatki
+            </div>
+            <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground/50" />
+            <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">3</span>
+              Majątek
+            </div>
+          </div>
+
+          <Link
+            to="/wynagrodzenia"
+            className="inline-flex h-14 w-full sm:w-auto items-center justify-center rounded-full bg-[var(--gradient-accent)] px-8 text-base font-semibold text-accent-foreground shadow-[var(--shadow-warm)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Rozpocznij planowanie
+          </Link>
+        </div>
+      </main>
     );
-    return Array.from(map, ([name, value]) => ({ name, value }));
-  }, [expenses]);
+  }
 
-  const projection = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
-
-    return Array.from({ length: 12 }, (_, idx) => {
-      const month = idx + 1;
-      const point: Record<string, number | string> = { month: monthLabel(month) };
-      spouses.forEach((spouse, sIdx) => {
-        const cumulative = annualBreakdowns[sIdx]
-          .slice(0, month)
-          .reduce((sum: number, m: any) => sum + m.taxBase, 0);
-        point[spouse.name] = Math.round(cumulative);
-      });
-      return point;
-    });
-  }, [spouses]);
-
-  // Accumulation Chart Data (including existing assets)
-  const [includeSavings, setIncludeSavings] = useState(true);
-  const [includeInvestments, setIncludeInvestments] = useState(false);
-
-  const cumulativeData = useMemo(() => {
-    const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
-    let cumulativeSurplus = 0;
-
-    return Array.from({ length: 12 }, (_, idx) => {
-      const month = idx + 1;
-      const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
-
-      const monthlyExpenses = expenses.reduce((sum, e) => {
-        if (isExpenseInMonth(e, month)) return sum + e.amount;
-        return sum;
-      }, 0);
-
-      const monthlyCashflow = monthlyNet + rentalNet - monthlyExpenses - monthlyLoanPmt;
-      cumulativeSurplus += monthlyCashflow;
-
-      // Bonus: simple 0.5% monthly growth for stocks if included
-      const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
-
-      return {
-        month: monthLabel(month),
-        "Suma nadwyżek": Math.round(cumulativeSurplus),
-        "Konta bankowe": includeSavings ? totalSavings : 0,
-        "Inwestycje (giełda/krypto)": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
-      };
-    });
-  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments]);
-
-  const [showBanner, setShowBanner] = useState(false);
-
-  useEffect(() => {
-    if (isCompletelyEmpty) {
-      setShowBanner(true);
-      return;
-    }
-    setShowBanner(false);
-  }, [isCompletelyEmpty]);
+  const nickname = session?.user.user_metadata?.nickname?.trim() || "Cześć";
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-      {showBanner && (
-        <div className="bg-accent/10 border border-accent/20 rounded-2xl p-4 flex items-start sm:items-center justify-between gap-4">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-up">
+      {/* A) HERO SECTION */}
+      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--gradient-hero)] p-6 sm:p-10 text-primary-foreground shadow-[var(--shadow-elevated)]">
+        {/* Background decorative S */}
+        <div className="pointer-events-none absolute -right-20 -top-20 opacity-5 select-none font-display italic font-bold" style={{ fontSize: "400px", lineHeight: 1 }}>
+          S
+        </div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
-            <h3 className="font-semibold text-accent mb-1">Witaj w Płaca.netto!</h3>
-            <p className="text-sm text-muted-foreground">
-              Zacznij od dodania osoby w <Link to="/wynagrodzenia" className="text-accent underline hover:text-accent/80">Wynagrodzenia</Link>, potem uzupełnij <Link to="/wydatki" className="text-accent underline hover:text-accent/80">Wydatki</Link> i <Link to="/aktywa" className="text-accent underline hover:text-accent/80">Aktywa</Link>.
+            <p className="font-display text-xl sm:text-2xl mb-4 italic text-primary-foreground/90">
+              {greeting()}, {nickname}!
+            </p>
+            <p className="font-display text-5xl sm:text-7xl tracking-tight mb-2 animate-count-up tabular-nums">
+              {formatPLN(totalSelectedMonthNet).replace(" zł", "")} <span className="text-3xl sm:text-4xl text-primary-foreground/70">zł</span>
+            </p>
+            <p className="text-sm sm:text-base text-primary-foreground/70 font-medium tracking-wide">
+              NA RĘKĘ W {monthLabel(selectedMonthIdx, true).toUpperCase()}
             </p>
           </div>
-          <button
-            onClick={() => {
-              setShowBanner(false);
-            }}
-            className="text-muted-foreground hover:text-foreground shrink-0 p-1"
-            aria-label="Zamknij"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="hidden md:flex flex-col gap-3 min-w-[200px]">
+            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
+              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">
+                {selectedMonthCashflow >= 0 ? "Zysk" : "Strata"}
+              </p>
+              <p className="font-display text-xl tabular-nums">{formatPLN(selectedMonthCashflow)}</p>
+            </div>
+            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
+              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">Wydatki (est.)</p>
+              <p className="font-display text-xl tabular-nums">{formatPLN(selectedMonthExpenses + monthlyLoanPmt)}</p>
+            </div>
+            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm border border-white/5">
+              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70 mb-1">Majątek netto</p>
+              <p className="font-display text-xl tabular-nums">{formatPLN(netWorth)}</p>
+            </div>
+          </div>
         </div>
-      )}
-
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Pulpit gospodarstwa
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          {greeting()}, <span className="italic text-accent">jak idą finanse?</span>
-        </h1>
-      </header>
-
-      {/* Stats - Current Situation */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Obecne netto"
-          value={formatPLN(totalCurrentMonthNet)}
-          sub={
-            <div className="flex justify-between gap-2">
-              <span>{monthLabel(nextMonthIdx, true)}:</span>
-              <span>{formatPLN(totalNextMonthNet)}</span>
-            </div>
-          }
-          tone="success"
-        />
-        <StatCard
-          label={currentMonthCashflow >= 0 ? "Nadwyżka (obecnie)" : "Deficyt (obecnie)"}
-          value={formatPLN(currentMonthCashflow)}
-          sub={
-            <div className="flex justify-between gap-2">
-              <span>{monthLabel(nextMonthIdx, true)}:</span>
-              <span className={nextMonthCashflow >= 0 ? "text-success" : "text-destructive"}>
-                {formatPLN(nextMonthCashflow)}
-              </span>
-            </div>
-          }
-          tone={currentMonthCashflow >= 0 ? "success" : "destructive"}
-        />
-        <StatCard
-          label="Wydatki"
-          value={formatPLN(totalExpenses + monthlyLoanPmt)}
-          sub={`w tym kredyty ${formatPLN(monthlyLoanPmt)}`}
-          tone="destructive"
-        />
       </section>
 
-      {/* Stats - Annual Perspective */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+      {/* B) MONTH NAVIGATOR */}
+      <section className="flex justify-center">
+        <div className="inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
+          <button
+            onClick={() => setSelectedMonthIdx((m) => (m === 1 ? 12 : m - 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="px-4 text-sm font-semibold w-32 text-center text-foreground">
+            {monthLabel(selectedMonthIdx, true)}
+          </div>
+          <button
+            onClick={() => setSelectedMonthIdx((m) => (m === 12 ? 1 : m + 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
+
+      {/* C) CASHFLOW CARD */}
+      <section className="rounded-[1.5rem] bg-card border border-border p-5 sm:p-6 shadow-[var(--shadow-card)] card-hover">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div>
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+              {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
+            </p>
+            <p className={cn("font-display text-4xl tabular-nums animate-count-up", selectedMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
+              {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow)}
+            </p>
+          </div>
+
+          <div className="h-16 w-full lg:w-48 shrink-0 opacity-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={cashflowSparkline}>
+                <Line
+                  type="monotone"
+                  dataKey="val"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="rounded-lg bg-popover px-2 py-1 text-xs shadow-md border border-border text-popover-foreground">
+                          {payload[0].payload.name}: <span className="font-semibold">{formatPLN(payload[0].value as number)}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-border">
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Dochody</p>
+            <p className="font-semibold text-sm mt-0.5">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Wydatki</p>
+            <p className="font-semibold text-sm mt-0.5">{formatPLN(selectedMonthExpenses)}</p>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Raty kredytów</p>
+            <p className="font-semibold text-sm mt-0.5">{formatPLN(monthlyLoanPmt)}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* D) STAT GRID */}
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           label="Średnie netto (rok)"
           value={formatPLN(totalAnnualAvgNet)}
-          sub="Średnia z 12 m-cy"
           tone="success"
-        />
-        <StatCard
-          label={annualAvgCashflow >= 0 ? "Średnia nadwyżka" : "Średni deficyt"}
-          value={formatPLN(annualAvgCashflow)}
-          sub="Dla planowania budżetu"
-          tone={annualAvgCashflow >= 0 ? "success" : "destructive"}
+          icon={TrendingUp}
+          animate
         />
         <StatCard
           label="Majątek netto"
           value={formatPLN(netWorth)}
-          sub={`aktywa ${formatPLN(totalInvestments + rentalAssets + totalSavings)}`}
+          tone="accent"
+          icon={Landmark}
+          animate
+        />
+        <StatCard
+          label="Wydatki łącznie"
+          value={formatPLN(totalExpenses)}
+          tone="destructive"
+          icon={ShoppingBag}
+          animate
+          sub="Średnio miesięcznie"
+        />
+        <StatCard
+          label="Oszczędności"
+          value={formatPLN(totalSavings)}
+          tone="success"
+          icon={PiggyBank}
+          animate
+        />
+        <StatCard
+          label="Inwestycje"
+          value={formatPLN(totalInvestments)}
+          tone="accent"
+          icon={BarChart3}
+          animate
+        />
+        <StatCard
+          label="Kredyty"
+          value={formatPLN(totalLoans)}
+          tone="warning"
+          icon={CreditCard}
+          animate
         />
       </section>
 
-      {/* Joint vs individual filing */}
-      {/* {joint && (
-        <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-          <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-            <div>
-              <h2 className="font-display text-2xl">Wspólne vs indywidualne rozliczenie</h2>
-              <p className="text-sm text-muted-foreground">
-                Roczny PIT (po uwzględnieniu kwoty wolnej 30 000 zł / osoba)
-              </p>
-            </div>
-            <div
-              className={`text-right ${joint.savings > 0 ? "text-success" : "text-muted-foreground"}`}
-            >
-              <p className="text-xs uppercase tracking-wider font-medium">Oszczędność</p>
-              <p className="font-display text-2xl tabular-nums">{formatPLN(joint.savings)}</p>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="bg-muted/40 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Indywidualnie
-              </p>
-              <p className="font-display text-2xl mt-1 tabular-nums">
-                {formatPLN(joint.individualAnnualPit)}
-              </p>
-            </div>
-            <div
-              className={`rounded-xl p-4 ${joint.savings > 0 ? "bg-success/10 border border-success/30" : "bg-muted/40"}`}
-            >
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Wspólnie</p>
-              <p className="font-display text-2xl mt-1 tabular-nums">
-                {formatPLN(joint.jointAnnualPit)}
-              </p>
-            </div>
-          </div>
-        </section>
-      )} */}
-
-      {/* Cumulative Cashflow Chart */}
-      <section className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="font-display text-xl mb-1">Projekcja skumulowanych oszczędności</h2>
-            <p className="text-sm text-muted-foreground">
-              Saldo netto narastająco w ciągu roku (dochody - wydatki - kredyty)
-            </p>
-          </div>
-          <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-xl border border-border/50">
-            <div className="flex items-center gap-2">
-              <Switch id="inc-savings" checked={includeSavings} onCheckedChange={setIncludeSavings} />
-              <Label htmlFor="inc-savings" className="text-xs cursor-pointer flex items-center gap-1.5">
-                <Landmark className="w-3 h-3 text-success" /> Gotówka
-              </Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="inc-inv" checked={includeInvestments} onCheckedChange={setIncludeInvestments} />
-              <Label htmlFor="inc-inv" className="text-xs cursor-pointer flex items-center gap-1.5">
-                <TrendingUp className="w-3 h-3 text-blue-500" /> Giełda
-              </Label>
-            </div>
-          </div>
-        </div>
-        <div className="h-80">
-          <ResponsiveContainer>
-            <AreaChart data={cumulativeData}>
-              <defs>
-                <linearGradient id="colorCashflow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.62 0.13 145)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorInvestments" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.55 0.1 250)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-              <Tooltip
-                formatter={(v: number) => formatPLN(v)}
-                contentStyle={{ fontSize: 12, borderRadius: 12, border: "none", boxShadow: "var(--shadow-card)" }}
-              />
-              <Legend verticalAlign="top" height={36} />
-              <Area
-                type="monotone"
-                dataKey="Konta bankowe"
-                stackId="1"
-                stroke="oklch(0.62 0.13 145)"
-                fillOpacity={1}
-                fill="url(#colorSavings)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="Inwestycje (giełda/krypto)"
-                stackId="1"
-                stroke="oklch(0.55 0.1 250)"
-                fillOpacity={1}
-                fill="url(#colorInvestments)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="Suma nadwyżek"
-                stackId="1"
-                stroke="var(--accent)"
-                fillOpacity={1}
-                fill="url(#colorCashflow)"
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* Charts */}
+      {/* E) CHARTS SECTION */}
       <section className="grid lg:grid-cols-2 gap-6">
-        {/* Threshold progression */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-          <h2 className="font-display text-xl mb-1">Postęp do II progu podatkowego</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Skumulowana roczna podstawa opodatkowania
-          </p>
+        {/* Tax threshold chart */}
+        <div className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+          <h2 className="font-display text-xl mb-1 gradient-text font-bold">Zarobki vs II próg podatkowy</h2>
+          <p className="text-sm text-muted-foreground mb-6">Skumulowana roczna podstawa (120k zł)</p>
           <div className="h-64">
             <ResponsiveContainer>
               <BarChart data={projection}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.7} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dy={8} />
+                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dx={-8} />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+                  cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} iconType="circle" />
                 <ReferenceLine
                   y={120000}
-                  stroke="#c84026"
+                  stroke="var(--destructive)"
                   strokeDasharray="4 4"
-                  label={{ value: "II próg 120k", fontSize: 10, fill: "#c84026" }}
+                  label={{ value: "II próg (120k)", fontSize: 10, fill: "var(--destructive)", position: "insideTopLeft" }}
                 />
                 {breakdowns.map(({ spouse }, idx) => (
                   <Bar
                     key={spouse.id}
                     dataKey={spouse.name}
-                    stackId={undefined}
-                    fill={COLORS[idx % COLORS.length]}
+                    fill={idx === 0 ? "url(#barGradient)" : CHART_COLORS[idx % CHART_COLORS.length]}
                     radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
                   />
                 ))}
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2 border-t border-border pt-4">
-            {thresholdDates.map((td, idx) => (
-              <div key={td.id} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                  />
-                  <span className="font-medium">{td.name}</span>
-                </div>
-                <span className={td.monthIndex !== -1 ? "text-muted-foreground font-semibold" : "text-muted-foreground"}>
-                  {td.monthIndex === -1
-                    ? "Nie przekracza II progu"
-                    : `Wejdzie w II próg w: ${monthLabel(td.monthIndex + 1, true)}`}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Expense breakdown */}
-        <div className="bg-card rounded-2xl p-6 border border-border shadow-[var(--shadow-card)]">
-          <h2 className="font-display text-xl mb-1">Struktura wydatków</h2>
-          <p className="text-sm text-muted-foreground mb-4">Suma: {formatPLN2(totalExpenses)}</p>
+        {/* Expense breakdown pie */}
+        <div className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+          <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
+          <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(totalExpenses)}</p>
           {byCategory.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">
-              Brak wydatków — dodaj w zakładce Wydatki
-            </p>
+            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
+              <ShoppingBag className="h-8 w-8 mb-2 opacity-20" />
+              <p className="text-sm">Brak wydatków</p>
+            </div>
           ) : (
             <div className="h-64">
               <ResponsiveContainer>
@@ -506,19 +492,21 @@ function Dashboard() {
                     data={byCategory}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={50}
+                    innerRadius={65}
                     outerRadius={90}
-                    paddingAngle={2}
+                    paddingAngle={3}
+                    stroke="none"
                   >
                     {byCategory.map((_, idx) => (
-                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
                     formatter={(v: number) => formatPLN(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+                    itemStyle={{ color: "var(--foreground)" }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -526,45 +514,116 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* Quick links */}
+      {/* F) SAVINGS PROJECTION CHART */}
+      <section className="bg-card rounded-[1.5rem] p-6 border border-border shadow-[var(--shadow-card)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="font-display text-xl mb-1 gradient-text font-bold">Projekcja budżetu</h2>
+            <p className="text-sm text-muted-foreground">Skumulowane oszczędności do końca roku</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setIncludeSavings(!includeSavings)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                includeSavings ? "bg-success/15 text-success" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              <Landmark className="h-3.5 w-3.5" /> Gotówka
+            </button>
+            <button
+              onClick={() => setIncludeInvestments(!includeInvestments)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                includeInvestments ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              <TrendingUp className="h-3.5 w-3.5" /> Giełda
+            </button>
+          </div>
+        </div>
+        <div className="h-72">
+          <ResponsiveContainer>
+            <AreaChart data={cumulativeData}>
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dy={8} />
+              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dx={-8} />
+              <Tooltip
+                formatter={(v: number) => formatPLN(v)}
+                contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="Wartość"
+                stroke="var(--accent)"
+                fillOpacity={1}
+                fill="url(#colorValue)"
+                strokeWidth={3}
+                activeDot={{ r: 6, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      {/* G) QUICK LINKS */}
       <section className="grid sm:grid-cols-3 gap-4">
-        <QuickCard
+        <Link
           to="/wynagrodzenia"
-          title="Wynagrodzenia"
-          desc={`${spouses.length} ${spouses.length === 1 ? "osoba" : "osoby"} · wspólne rozliczenie ${jointFiling ? "wł." : "wył."}`}
-        />
-        <QuickCard
+          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+        >
+          <div className="absolute -right-4 -top-4 rounded-full bg-accent/5 p-8 transition-transform group-hover:scale-110">
+            <Banknote className="h-10 w-10 text-accent/20" />
+          </div>
+          <div className="relative z-10">
+            <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-accent flex items-center gap-2">
+              Zarobki <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Dodaj domowników i sprawdź dokładnie, co wchodzi w skład Waszych pensji netto.
+            </p>
+          </div>
+        </Link>
+        <Link
           to="/wydatki"
-          title="Wydatki"
-          desc={`${expenses.length} pozycji · ${formatPLN(totalExpenses)}/m-c`}
-        />
-        <QuickCard
+          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+        >
+          <div className="absolute -right-4 -top-4 rounded-full bg-destructive/5 p-8 transition-transform group-hover:scale-110">
+            <ShoppingBag className="h-10 w-10 text-destructive/20" />
+          </div>
+          <div className="relative z-10">
+            <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-destructive flex items-center gap-2">
+              Wydatki <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Kategoryzuj koszty życia i miej pełną kontrolę nad tym, gdzie uciekają pieniądze.
+            </p>
+          </div>
+        </Link>
+        <Link
           to="/aktywa"
-          title="Aktywa & długi"
-          desc={`${investments.length + rentals.length + savings.length} aktywów · ${loans.length} kredytów`}
-        />
+          className="group relative overflow-hidden rounded-[1.5rem] bg-card p-6 border border-border shadow-[var(--shadow-card)] card-hover"
+        >
+          <div className="absolute -right-4 -top-4 rounded-full bg-success/5 p-8 transition-transform group-hover:scale-110">
+            <Landmark className="h-10 w-10 text-success/20" />
+          </div>
+          <div className="relative z-10">
+            <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-success flex items-center gap-2">
+              Majątek <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Zarządzaj kontami, kredytami hipotecznymi, mieszkaniami i portfelem ETF.
+            </p>
+          </div>
+        </Link>
       </section>
     </main>
-  );
-}
-
-function QuickCard({
-  to,
-  title,
-  desc,
-}: {
-  to: "/wynagrodzenia" | "/wydatki" | "/aktywa";
-  title: string;
-  desc: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)] hover:border-accent/50 transition-colors block"
-    >
-      <p className="font-display text-lg group-hover:text-accent transition-colors">{title} →</p>
-      <p className="text-sm text-muted-foreground mt-1">{desc}</p>
-    </Link>
   );
 }
 

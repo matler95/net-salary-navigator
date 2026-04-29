@@ -72,11 +72,11 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/aktywa")({
   head: () => ({
     meta: [
-      { title: "Aktywa & długi — Płaca.netto" },
+      { title: "Aktywa & długi — Saldeo" },
       {
         name: "description",
         content:
-          "Inwestycje, kredyty (rata równa) i mieszkania na wynajem z P&L i ryczałtem 8.5%/12.5%.",
+          "Inwestycje, kredyty i mieszkania na wynajem z wyliczeniem zysku i ryczałtem 8.5%/12.5%.",
       },
     ],
   }),
@@ -107,30 +107,37 @@ function AssetsPage() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
-          Aktywa, długi i wynajem
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          Co masz <span className="italic text-accent">i co jest twoje</span>
-        </h1>
-        <div className="flex flex-wrap gap-2 mt-4 text-sm sticky top-0 z-10 bg-background/80 backdrop-blur-md py-2 -mx-4 px-4 sm:-mx-6 sm:px-6">
-          <button onClick={() => scrollTo('oszczednosci')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Oszczędności</button>
-          <button onClick={() => scrollTo('inwestycje')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Inwestycje</button>
-          <button onClick={() => scrollTo('kredyty')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Kredyty</button>
-          <button onClick={() => scrollTo('wynajem')} className="bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium">Nieruchomości</button>
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
+      <header className="flex flex-col gap-6 relative">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
+            Majątek
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl">
+            Co masz <span className="italic text-accent">i co jest Twoje</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
+            Zarządzaj swoimi oszczędnościami, portfelem giełdowym, kredytami hipotecznymi i nieruchomościami na wynajem.
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap gap-2 text-sm sticky top-[64px] lg:top-[0px] z-30 bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 border-b border-border shadow-sm mb-2">
+          <button onClick={() => scrollTo('oszczednosci')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Oszczędności</button>
+          <button onClick={() => scrollTo('inwestycje')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Inwestycje</button>
+          <button onClick={() => scrollTo('kredyty')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Kredyty</button>
+          <button onClick={() => scrollTo('wynajem')} className="bg-card border border-border hover:border-accent hover:text-accent text-foreground px-4 py-2 rounded-full transition-all font-semibold shadow-sm text-xs">Nieruchomości</button>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} />
-        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="destructive" />
-        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+        <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} tone="accent" animate />
+        <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="warning" animate />
+        <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "success" : "destructive"} animate />
         <StatCard 
           label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"} 
           value={formatPLN(rentalNet)} 
           tone={rentalNet > 0 ? "success" : "default"} 
+          animate
         />
       </div>
 
@@ -288,7 +295,7 @@ function InvestmentsSection() {
       )}
 
       {view === "list" && investments.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-card rounded-[2rem] border border-border shadow-[var(--shadow-card)] overflow-hidden">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
               <tr>
@@ -1136,7 +1143,7 @@ function LoanCard({
   }, [paymentInfo.isDue, loan.id, loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.label]);
 
   return (
-    <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+    <div className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-2 mb-3">
         <Input
           value={loan.label}
@@ -1390,7 +1397,7 @@ function RentalsSection() {
             return (
               <div
                 key={r.id}
-                className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]"
+                className="bg-card rounded-[2rem] p-8 border border-border shadow-[var(--shadow-card)]"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <Input

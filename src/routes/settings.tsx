@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { Pencil } from "lucide-react";
 import { useAuthSession } from "@/lib/auth";
 import { createInvite, getCachedHouseholdName, getCachedMembers, getMemberDisplayName, getActiveHouseholdId } from "@/lib/store";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const baseId = useId();
   const { isAuthenticated } = useAuthSession();
   const globalSettings = useAppState((s) => s.globalSettings);
   const [email, setEmail] = useState("");
@@ -98,7 +99,7 @@ function SettingsPage() {
       <main className="max-w-2xl mx-auto px-4 py-10">
         <p className="text-sm text-muted-foreground">
           Zaloguj się, aby zarządzać udostępnianiem.{" "}
-          <Link to="/login" search={{ invite: undefined }}>
+          <Link to="/login" search={{ invite: undefined, register: undefined }}>
             Przejdź do logowania
           </Link>
         </p>
@@ -239,18 +240,35 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-      <h1 className="font-display text-3xl">Ustawienia i udostępnianie</h1>
-      <p className="text-sm text-muted-foreground">
-        Wygeneruj zaproszenie do wspólnego gospodarstwa (pełny dostęp edycji).
-      </p>
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
+      <header className="flex flex-col gap-4 relative">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
+            Zarządzanie
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl">
+            Ustawienia <span className="italic text-accent">konta</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+            Zarządzaj swoim gospodarstwem, zaproś domowników i dostosuj globalne parametry podatkowe.
+          </p>
+        </div>
+      </header>
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="font-display text-2xl">Zaproś do gospodarstwa</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Wygeneruj zaproszenie do wspólnego gospodarstwa. Otrzymają oni pełny dostęp do podglądu i edycji.
+          </p>
+        </div>
       <form
-        className="bg-card border border-border rounded-2xl p-5 space-y-3"
+        className="bg-card border border-border rounded-[2rem] p-8 space-y-4 shadow-[var(--shadow-warm)]"
         onSubmit={(e) => void handleCreateInvite(e)}
         noValidate
       >
         <Input
-          id="invite-email"
+          id={`${baseId}-invite-email`}
           type="email"
           placeholder="Adres email zapraszanej osoby"
           value={email}
@@ -316,10 +334,11 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         )}
       </form>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-muted p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+        <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
             Stan gospodarstwa
           </p>
           <div className="flex items-center gap-2 mb-3">
@@ -380,8 +399,8 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+        <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
             Członkowie gospodarstwa
           </p>
           {members.length > 0 ? (
@@ -409,8 +428,8 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-muted p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-2">
+      <div className="rounded-[2rem] border border-border bg-muted/40 p-8 shadow-sm">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-accent font-bold mb-4">
           Zaproszenia
         </p>
         {pendingInvites.length > 0 ? (
@@ -450,13 +469,13 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           </p>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-8">
+        <div className="bg-card border border-border rounded-[2rem] p-8 space-y-8 shadow-[var(--shadow-card)]">
           <div className="grid sm:grid-cols-2 gap-8">
             {/* Average Salary Forecast */}
             <div className="space-y-2">
-              <Label htmlFor="avg-salary">Prognozowane przeciętne wynagrodzenie (miesięczne)</Label>
+              <Label htmlFor={`${baseId}-avg-salary`}>Prognozowane przeciętne wynagrodzenie (miesięczne)</Label>
               <Input
-                id="avg-salary"
+                id={`${baseId}-avg-salary`}
                 type="text"
                 inputMode="decimal"
                 value={formatLocaleAmount(globalSettings.avgSalaryForecast, 0)}
@@ -479,9 +498,9 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
 
             {/* PIT Threshold */}
             <div className="space-y-2">
-              <Label htmlFor="pit-threshold">II próg podatkowy (roczny)</Label>
+              <Label htmlFor={`${baseId}-pit-threshold`}>II próg podatkowy (roczny)</Label>
               <Input
-                id="pit-threshold"
+                id={`${baseId}-pit-threshold`}
                 type="text"
                 inputMode="decimal"
                 value={formatLocaleAmount(globalSettings.pitThresholdAnnual, 0)}
@@ -499,10 +518,10 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
           <div className="grid sm:grid-cols-3 gap-8">
             {/* Rates */}
             <div className="space-y-2">
-              <Label htmlFor="pit-rate-1">Stawka I (PIT)</Label>
+              <Label htmlFor={`${baseId}-pit-rate-1`}>Stawka I (PIT)</Label>
               <div className="relative">
                 <Input
-                  id="pit-rate-1"
+                  id={`${baseId}-pit-rate-1`}
                   type="text"
                   inputMode="decimal"
                   value={formatLocaleAmount(globalSettings.pitFirstRate)}
@@ -517,10 +536,10 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pit-rate-2">Stawka II (PIT)</Label>
+              <Label htmlFor={`${baseId}-pit-rate-2`}>Stawka II (PIT)</Label>
               <div className="relative">
                 <Input
-                  id="pit-rate-2"
+                  id={`${baseId}-pit-rate-2`}
                   type="text"
                   inputMode="decimal"
                   value={formatLocaleAmount(globalSettings.pitSecondRate)}
@@ -535,9 +554,9 @@ Jeśli nie masz jeszcze konta, zarejestruj się tym samym adresem email.`;
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tax-free">Kwota wolna (roczna)</Label>
+              <Label htmlFor={`${baseId}-tax-free`}>Kwota wolna (roczna)</Label>
               <Input
-                id="tax-free"
+                id={`${baseId}-tax-free`}
                 type="text"
                 inputMode="decimal"
                 value={formatLocaleAmount(globalSettings.taxFreeAmountAnnual, 0)}
