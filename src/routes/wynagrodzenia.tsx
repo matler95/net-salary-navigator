@@ -77,7 +77,7 @@ function SalariesPage() {
             Pełne wyliczenie UoP 2025 — ZUS, zdrowotna, PIT, PPK i benefity. Dodaj wszystkich pracujących domowników.
           </p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {spouses.length >= 2 && (
             <div className="flex items-center gap-3 bg-accent-soft/30 border border-accent/20 rounded-xl px-4 py-2.5 shadow-sm transition-colors hover:bg-accent-soft/50 cursor-pointer" onClick={() => actions.setJointFiling(!jointFiling)}>
@@ -90,8 +90,8 @@ function SalariesPage() {
               <Switch checked={jointFiling} />
             </div>
           )}
-          
-          <Button 
+
+          <Button
             onClick={() => actions.addSpouse()}
             className="h-12 sm:h-11 rounded-xl px-6 bg-[var(--gradient-accent)] text-accent-foreground shadow-[var(--shadow-warm)] hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-bold"
           >
@@ -158,7 +158,7 @@ function SalariesPage() {
               {formatPLN(totalHouseholdNet)} <span className="text-xl text-foreground/50 font-sans">/ m-c</span>
             </p>
           </div>
-          
+
           {jointFiling && joint && joint.savings > 0 && (
             <div className="relative z-10 bg-success/10 border border-success/20 rounded-2xl p-4 flex items-start gap-3 w-full md:w-auto">
               <div className="bg-success text-success-foreground p-2 rounded-xl shadow-[var(--shadow-warm)]">

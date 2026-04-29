@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Banknote,
   PiggyBank,
+  ShieldPlus,
 } from "lucide-react";
 import {
   PieChart,
@@ -139,7 +140,9 @@ function Dashboard() {
   const selectedMonthExpenses = getExpensesForMonth(selectedMonthIdx);
 
   const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
-  const netWorth = totalInvestments + rentalAssets + totalSavings - totalLoans;
+  const totalAssets = totalInvestments + rentalAssets + totalSavings;
+  const netWorth = totalAssets - totalLoans;
+  const emergencyFundMonths = totalExpenses > 0 ? totalSavings / totalExpenses : 0;
 
   // -- Charts Data
   const byCategory = useMemo(() => {
@@ -303,120 +306,114 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 items-end">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                Suma na rękę
-              </p>
-              <div className="flex items-baseline gap-2">
-                <p className="font-display text-5xl tracking-tight animate-count-up tabular-nums text-foreground">
-                  {formatPLN(totalSelectedMonthNet).replace(" zł", "")}
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            {/* Left: Monthly Outcome */}
+            <div className="space-y-6">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                  {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
                 </p>
-                <span className="text-2xl text-muted-foreground font-medium">zł</span>
+                <div className="flex flex-col sm:flex-row sm:items-end gap-6">
+                  <div className="flex items-baseline gap-2">
+                    <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]")}>
+                      {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow).replace(" zł", "")}
+                    </p>
+                    <span className="text-2xl text-muted-foreground font-medium">zł</span>
+                  </div>
+                  <div className="h-16 w-full max-w-[240px] opacity-80 pb-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={cashflowSparkline}>
+                        <XAxis
+                          dataKey="name"
+                          hide={false}
+                          tickFormatter={(value) => value.split(" ")[0]} // "Lip 2026" → "Lip"
+                          tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                          dy={4}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="val"
+                          stroke="var(--accent)"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
-              
-              {/* Consolidated Monthly Stats */}
-              <div className="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-6">
+
+              {/* Consolidated Monthly Stats - LAYOUT PRESERVED */}
+              <div className="grid grid-cols-3 gap-4 border-t border-border pt-6">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Dochody</p>
                   <p className="font-mono text-sm font-bold text-[var(--income)]">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki (mies.)</p>
                   <p className="font-mono text-sm font-bold text-[var(--expense)]">{formatPLN(selectedMonthExpenses)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Kredyty</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Raty kredytów</p>
                   <p className="font-mono text-sm font-bold text-[var(--debt)]">{formatPLN(monthlyLoanPmt)}</p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-0.5">
-                    {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
+            {/* Right: Wealth Status */}
+            <div className="space-y-6">
+              {/* <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                  Majątek netto
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <p className="font-display text-5xl tracking-tight animate-count-up tabular-nums text-foreground">
+                    {formatPLN(netWorth).replace(" zł", "")}
                   </p>
-                  <p className={cn("font-display text-3xl tabular-nums", selectedMonthCashflow >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]")}>
-                    {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow)}
-                  </p>
+                  <span className="text-2xl text-muted-foreground font-medium">zł</span>
                 </div>
-                <div className="h-12 w-32 shrink-0 opacity-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={cashflowSparkline}>
-                      <Line
-                        type="monotone"
-                        dataKey="val"
-                        stroke="var(--accent)"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                      <YAxis hide domain={['auto', 'auto']} />
-                      <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
-                    </LineChart>
-                  </ResponsiveContainer>
+              </div> */}
+
+              {/* Integrated Wealth Metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Landmark className="h-3.5 w-3.5 text-accent" />
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Aktywa razem</p>
+                  </div>
+                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalAssets)}</p>
                 </div>
-              </div>
-              
-              <div className="rounded-xl bg-muted/30 p-4 border border-border flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-accent" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Majątek netto</span>
+                <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CreditCard className="h-3.5 w-3.5 text-[var(--debt)]" />
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Zadłużenie</p>
+                  </div>
+                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalLoans)}</p>
                 </div>
-                <p className="font-display text-xl tabular-nums text-foreground">{formatPLN(netWorth)}</p>
+                <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldPlus className="h-3.5 w-3.5 text-success" />
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Poduszka</p>
+                  </div>
+                  <p className="font-mono text-sm font-bold text-foreground">{emergencyFundMonths.toFixed(1)} mies.</p>
+                </div>
+                <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-3.5 w-3.5 text-income" />
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Średni dochód</p>
+                  </div>
+                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalAnnualAvgNet)}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* D) STAT GRID */}
-      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-        <StatCard
-          label="Średnie netto (rok)"
-          value={formatPLN(totalAnnualAvgNet)}
-          tone="income"
-          icon={TrendingUp}
-          animate
-        />
-        <StatCard
-          label="Majątek netto"
-          value={formatPLN(netWorth)}
-          tone="accent"
-          icon={Landmark}
-          animate
-        />
-        <StatCard
-          label="Wydatki łącznie"
-          value={formatPLN(totalExpenses)}
-          tone="expense"
-          icon={ShoppingBag}
-          animate
-          sub="Średnio miesięcznie"
-        />
-        <StatCard
-          label="Oszczędności"
-          value={formatPLN(totalSavings)}
-          tone="savings"
-          icon={PiggyBank}
-          animate
-        />
-        <StatCard
-          label="Inwestycje"
-          value={formatPLN(totalInvestments)}
-          tone="investment"
-          icon={BarChart3}
-          animate
-        />
-        <StatCard
-          label="Kredyty"
-          value={formatPLN(totalLoans)}
-          tone="debt"
-          icon={CreditCard}
-          animate
-        />
-      </section>
 
       {/* E) CHARTS SECTION */}
       <section className="grid lg:grid-cols-2 gap-6">

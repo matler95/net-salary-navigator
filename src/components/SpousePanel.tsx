@@ -313,10 +313,49 @@ export function SpousePanel({
         )}
       </div>
 
-      <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-8 lg:gap-10">
-        {/* RIGHT COLUMN (Results on desktop, top on mobile) */}
-        <div className="order-first lg:order-last space-y-6">
-          {/* Hero Result */}
+      <div className="p-5 sm:p-6 grid lg:grid-cols-2 gap-x-8 gap-y-10 items-start">
+        {/* 1. PRIMARY INPUT: Wynagrodzenie Brutto */}
+        <div className="order-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label
+              htmlFor={`${baseId}-gross`}
+              className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer"
+            >
+              Wynagrodzenie brutto
+            </Label>
+            <div className="flex items-center gap-2">
+              <span className={cn("text-[10px] font-bold uppercase", !isAnnual && "text-accent")}>M-c</span>
+              <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+              <span className={cn("text-[10px] font-bold uppercase", isAnnual && "text-accent")}>Rok</span>
+            </div>
+          </div>
+          <div className="relative">
+            <Input
+              id={`${baseId}-gross`}
+              type="text"
+              inputMode="decimal"
+              value={formatLocaleAmount(displayGross)}
+              onChange={(e) => setGross(parseLocaleAmount(e.target.value))}
+              className="pr-12 font-mono tabular-nums text-2xl h-14 font-bold border-accent/30 focus-visible:ring-accent"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+              zł
+            </span>
+          </div>
+          <div className="pt-2">
+            <Slider
+              value={[displayGross]}
+              min={0}
+              max={isAnnual ? 600000 : 50000}
+              step={isAnnual ? 1000 : 100}
+              onValueChange={([v]) => setGross(v)}
+              className="[&>span:first-child]:bg-accent"
+            />
+          </div>
+        </div>
+
+        {/* 2. PRIMARY RESULT: Na rękę */}
+        <div className="order-2">
           <div className="rounded-2xl p-6 bg-accent text-accent-foreground shadow-[var(--shadow-warm)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
               Na rękę
@@ -324,7 +363,7 @@ export function SpousePanel({
             <p className="font-display text-5xl mt-2 mb-6 tabular-nums animate-count-up">
               {formatPLN(r.net)}
             </p>
-            <div className="grid grid-cols-3 gap-3 border-t border-primary-foreground/15 pt-5">
+            <div className="grid grid-cols-2 gap-3 border-t border-primary-foreground/15 pt-5">
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Brutto</p>
                 <p className="font-mono text-sm tabular-nums">{formatPLN(r.gross)}</p>
@@ -333,124 +372,18 @@ export function SpousePanel({
                 <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Koszt pracodawcy</p>
                 <p className="font-mono text-sm tabular-nums">{formatPLN(r.totalEmployerCost)}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Stawka/h</p>
-                <p className="font-mono text-sm tabular-nums">{formatPLN(r.gross / 168)}</p>
-              </div>
             </div>
           </div>
-
-          {/* Breakdown Visualization */}
-          <div className="bg-muted/40 rounded-2xl p-5 border border-border">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              Podział pensji
-            </p>
-            <div className="flex h-4 w-full rounded-full overflow-hidden mb-4 bg-muted border border-border shadow-inner">
-              <div style={{ width: `${pctNet}%` }} className="bg-success transition-all duration-500" title="Netto" />
-              <div style={{ width: `${pctZus}%` }} className="bg-orange-400 transition-all duration-500" title="ZUS" />
-              <div style={{ width: `${pctHealth}%` }} className="bg-yellow-400 transition-all duration-500" title="Zdrowotna" />
-              <div style={{ width: `${pctPit}%` }} className="bg-destructive transition-all duration-500" title="PIT" />
-              {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-blue-500 transition-all duration-500" title="PPK" />}
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 text-[10px] uppercase font-semibold text-muted-foreground">
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> ZUS ({pctZus.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}%)</span>
-              {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /> PPK</span>}
-            </div>
-
-            <div className="space-y-1">
-              <Row label="Brutto" value={r.gross} muted />
-              {r.companyCarTaxable > 0 && <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />}
-              <Row label="ZUS (suma)" value={-r.zusTotal} negative />
-              <Row label="Zdrowotna 9%" value={-r.health} negative />
-              {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
-              <Row label="KUP (standardowe)" value={r.kupStandard} muted />
-              {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
-              <Row label="Zaliczka PIT" value={-r.pit} negative />
-              <Separator className="my-2 opacity-60" />
-              <div className="rounded-xl bg-accent-soft p-3 mt-2 border border-accent/20">
-                <Row label="Do wypłaty netto" value={r.net} bold />
-              </div>
-            </div>
-          </div>
-
-          {/* Tax Threshold Banner */}
-          {!spouse.inputs.outsideFirstThreshold && (
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Limit II progu (120k zł)
-                </span>
-                <span className="text-xs font-bold font-mono">
-                  {thresholdPct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full transition-all duration-1000",
-                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning-foreground" : "bg-destructive"
-                  )}
-                  style={{ width: `${thresholdPct}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-3 text-center font-medium">
-                {thresholdPct >= 100
-                  ? "Przekroczono II próg podatkowy!"
-                  : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`
-                }
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* LEFT COLUMN (Inputs) */}
-        <div className="space-y-4">
-          {/* Group 1: Wynagrodzenie */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor={`${baseId}-gross`}
-                className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold cursor-pointer"
-              >
-                Wynagrodzenie brutto
-              </Label>
-              <div className="flex items-center gap-2">
-                <span className={cn("text-[10px] font-bold uppercase", !isAnnual && "text-accent")}>M-c</span>
-                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-                <span className={cn("text-[10px] font-bold uppercase", isAnnual && "text-accent")}>Rok</span>
-              </div>
-            </div>
-            <div className="relative">
-              <Input
-                id={`${baseId}-gross`}
-                type="text"
-                inputMode="decimal"
-                value={formatLocaleAmount(displayGross)}
-                onChange={(e) => setGross(parseLocaleAmount(e.target.value))}
-                className="pr-12 font-mono tabular-nums text-2xl h-14 font-bold border-accent/30 focus-visible:ring-accent"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                zł
-              </span>
-            </div>
-            <div className="pt-2">
-              <Slider
-                value={[displayGross]}
-                min={0}
-                max={isAnnual ? 600000 : 50000}
-                step={isAnnual ? 1000 : 100}
-                onValueChange={([v]) => setGross(v)}
-                className="[&>span:first-child]:bg-accent"
-              />
-            </div>
+        {/* 3. SECONDARY INPUTS: Collapsibles */}
+        <div className="order-3 space-y-4">
+          <div className="flex items-center gap-4 mb-2">
+            <Separator className="flex-1" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Szczegóły</span>
+            <Separator className="flex-1" />
           </div>
 
-          <Separator className="my-6" />
-
-          {/* Collapsibles */}
           <SectionGroup
             title="Benefity i dodatki"
             icon={Gift}
@@ -532,7 +465,7 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup title="Ustawienia podatkowe" icon={Landmark} defaultOpen activeIndicator={hasTaxOverrides}>
+          <SectionGroup title="Ustawienia podatkowe" icon={Landmark} activeIndicator={hasTaxOverrides}>
             <ToggleRow
               label="PIT-2 złożone"
               hint="Kwota wolna 300 zł / m-c"
@@ -731,6 +664,87 @@ export function SpousePanel({
               </div>
             )}
           </SectionGroup>
+        </div>
+
+        {/* 4. SECONDARY RESULTS: Breakdown & Banner */}
+        <div className="order-4 space-y-6">
+          {/* Breakdown Visualization */}
+          <div className="bg-muted/40 rounded-2xl p-5 border border-border">
+            <Collapsible
+              defaultOpen={false}
+              className="space-y-3"
+            >
+              <CollapsibleTrigger className="w-full text-left group/trigger">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover/trigger:text-foreground transition-colors">
+                    Podział pensji
+                  </p>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground group-hover/trigger:text-foreground transition-transform duration-200 group-data-[state=open]/trigger:rotate-180" />
+                </div>
+                <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted border border-border shadow-inner">
+                  <div style={{ width: `${pctNet}%` }} className="bg-success transition-all duration-500" title="Netto" />
+                  <div style={{ width: `${pctZus}%` }} className="bg-orange-400 transition-all duration-500" title="ZUS" />
+                  <div style={{ width: `${pctHealth}%` }} className="bg-yellow-400 transition-all duration-500" title="Zdrowotna" />
+                  <div style={{ width: `${pctPit}%` }} className="bg-destructive transition-all duration-500" title="PIT" />
+                  {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-blue-500 transition-all duration-500" title="PPK" />}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] uppercase font-semibold text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-400" /> ZUS ({pctZus.toFixed(1)}%)</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-400" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}%)</span>
+                  {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /> PPK</span>}
+                </div>
+
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="space-y-4 pt-2 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2">
+                <div className="space-y-1">
+                  <Row label="Brutto" value={r.gross} muted />
+                  {r.companyCarTaxable > 0 && <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />}
+                  <Row label="ZUS (suma)" value={-r.zusTotal} negative />
+                  <Row label="Zdrowotna 9%" value={-r.health} negative />
+                  {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
+                  <Row label="KUP (standardowe)" value={r.kupStandard} muted />
+                  {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
+                  <Row label="Zaliczka PIT" value={-r.pit} negative />
+                  <Separator className="my-2 opacity-60" />
+                  <div className="rounded-xl bg-accent-soft p-3 mt-2 border border-accent/20">
+                    <Row label="Do wypłaty netto" value={r.net} bold />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Tax Threshold Banner */}
+          {!spouse.inputs.outsideFirstThreshold && (
+            <div className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Limit II progu (120k zł)
+                </span>
+                <span className="text-xs font-bold font-mono">
+                  {thresholdPct.toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-1000",
+                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning-foreground" : "bg-destructive"
+                  )}
+                  style={{ width: `${thresholdPct}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 text-center font-medium">
+                {thresholdPct >= 100
+                  ? "Przekroczono II próg podatkowy!"
+                  : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`
+                }
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
