@@ -230,9 +230,6 @@
   animation: fade-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.animate-count-up {
-  /* Handled in Pass 1 via fill-mode forwards */
-}
 
 .animate-slide-in-left {
   animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;

@@ -43,7 +43,11 @@ import {
   Wallet,
   BarChart3,
   Pencil,
+  Building2,
+  Landmark,
+  PieChart as PieChartIcon,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaChart,
@@ -284,17 +288,27 @@ function InvestmentsSection() {
         </div>
       </div>
 
-      {/* ── IMPROVED SUMMARY VIEW ── */}
-      {view === "summary" && investments.length > 0 && (
-        <InvestmentsSummaryView
-          investmentValues={investmentValues}
-          total={total}
-          effectiveCurrency={effectiveCurrency}
-          tickerPrices={tickerPrices}
+      {investments.length === 0 ? (
+        <EmptyState
+          icon={PieChartIcon}
+          title="Brak inwestycji"
+          description="Dodaj swoje akcje, ETFy lub krypto, aby śledzić wartość portfela i jego strukturę w czasie rzeczywistym."
+          action={<AddInvestmentDialog />}
+          className="my-8"
         />
-      )}
+      ) : (
+        <>
+          {/* ── IMPROVED SUMMARY VIEW ── */}
+          {view === "summary" && investments.length > 0 && (
+            <InvestmentsSummaryView
+              investmentValues={investmentValues}
+              total={total}
+              effectiveCurrency={effectiveCurrency}
+              tickerPrices={tickerPrices}
+            />
+          )}
 
-      {view === "list" && investments.length > 0 && (
+          {view === "list" && investments.length > 0 && (
         <div className="bg-card rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
@@ -432,6 +446,8 @@ function InvestmentsSection() {
           </table>
         </div>
       )}
+    </>
+  )}
       <p className="text-xs text-muted-foreground">
         Kursy walut: NBP (PLN/EUR/USD/GBP), odświeżane raz dziennie. Ticker: kurs bieżący via Yahoo
         Finance, cache dobowy.
@@ -1062,9 +1078,13 @@ function LoansSection() {
       </div>
 
       {loans.length === 0 ? (
-        <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
-          Brak kredytów.
-        </div>
+        <EmptyState
+          icon={Landmark}
+          title="Brak kredytów"
+          description="Dodaj swoje kredyty hipoteczne lub gotówkowe, aby śledzić saldo zadłużenia i automatycznie planować spłaty."
+          action={<AddLoanDialog />}
+          className="my-8"
+        />
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {loans.map((l) => (
@@ -1386,9 +1406,13 @@ function RentalsSection() {
       </div>
 
       {rentals.length === 0 ? (
-        <div className="bg-card rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border">
-          Brak mieszkań na wynajem.
-        </div>
+        <EmptyState
+          icon={Building2}
+          title="Brak nieruchomości"
+          description="Zarządzasz mieszkaniami na wynajem? Dodaj je tutaj, aby śledzić rentowność, koszty i miesięczny zysk na czysto."
+          action={<AddRentalDialog />}
+          className="my-8"
+        />
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {rentals.map((r) => {
@@ -1864,7 +1888,13 @@ function SavingsSection() {
       </div>
 
       {savings.length === 0 && (
-        <p className="text-sm text-muted-foreground">Brak kont. Dodaj konto bankowe lub lokatę.</p>
+        <EmptyState
+          icon={Wallet}
+          title="Brak oszczędności"
+          description="Dodaj konta bankowe, oszczędnościowe lub lokaty, aby mieć pełny obraz płynnych środków w swoim budżecie."
+          action={<AddSavingsDialog />}
+          className="my-8"
+        />
       )}
 
       {/* ── IMPROVED SUMMARY VIEW ── */}

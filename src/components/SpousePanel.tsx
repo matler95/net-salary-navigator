@@ -317,7 +317,7 @@ export function SpousePanel({
         {/* RIGHT COLUMN (Results on desktop, top on mobile) */}
         <div className="order-first lg:order-last space-y-6">
           {/* Hero Result */}
-          <div className="rounded-2xl p-6 bg-[var(--gradient-hero)] text-primary-foreground shadow-[var(--shadow-warm)]">
+          <div className="rounded-2xl p-6 bg-primary text-primary-foreground shadow-[var(--shadow-warm)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-foreground/70">
               Na rękę
             </p>

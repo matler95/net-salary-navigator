@@ -105,11 +105,6 @@ export function StatCard({
 }: StatCardProps) {
   const displayed = useCountUp(animate, value);
   const trendPositive = trend && trend.value >= 0;
-  const [hasAnimated, setHasAnimated] = useState(false);
-  useEffect(() => {
-    if (animate) setHasAnimated(true);
-  }, [animate]);
-
   return (
     <div
       className={cn(
@@ -150,8 +145,7 @@ export function StatCard({
         className={cn(
           "mt-2 font-display text-3xl tabular-nums leading-none",
           TONE_VALUE[tone],
-          animate && !hasAnimated && "animate-count-up",
-          animate && hasAnimated && "opacity-100 translate-y-0", // Ensure visibility after animation
+          animate && "animate-count-up",
         )}
       >
         {animate ? displayed : value}
