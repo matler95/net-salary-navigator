@@ -2,11 +2,13 @@ import { useMemo, useState, useEffect, useId, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getSupabase } from "@/lib/supabase";
 import { acceptInvite, initCloudSync, PENDING_INVITE_TOKEN_KEY } from "@/lib/store";
-import { loadInviteContext } from "@/lib/repository";
+import { loadInviteContext, getPendingInviteForUser, type PendingInvite } from "@/lib/repository";
 import { useAuthSession } from "@/lib/auth";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Users } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -57,8 +59,9 @@ function LoginPage() {
   const [inviteContext, setInviteContext] = useState<InviteContext | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const hasInvite = useMemo(() => !!search.invite, [search.invite]);
-  const inviteEmail = inviteContext?.email ?? "";
+  const [detectedInvite, setDetectedInvite] = useState<PendingInvite | null>(null);
+  const hasInvite = useMemo(() => !!search.invite || !!detectedInvite, [search.invite, detectedInvite]);
+  const inviteEmail = inviteContext?.email ?? detectedInvite?.email ?? "";
 
   useEffect(() => {
     if (!search.invite || typeof window === "undefined") return;
@@ -93,18 +96,25 @@ function LoginPage() {
     let cancelled = false;
 
     const run = async () => {
-      const pendingInvite =
-        search.invite ??
-        (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
+      // 1. Check for invitation by token or email
+      let inviteToken = search.invite ?? (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
+      
+      if (!inviteToken) {
+        const pending = await getPendingInviteForUser();
+        if (pending) {
+          inviteToken = pending.token;
+          setDetectedInvite(pending);
+        }
+      }
 
-      if (pendingInvite) {
-        const result = await acceptInvite(pendingInvite, session);
+      if (inviteToken) {
+        const result = await acceptInvite(inviteToken, session);
         if (!cancelled && result.success) {
           if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+          toast.success("Dołączono do gospodarstwa!");
           await router.navigate({ to: "/" });
           return;
         } else if (!cancelled && typeof window !== "undefined") {
-          // Clean up invalid/expired pending invite
           window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
         }
       }
@@ -192,7 +202,14 @@ function LoginPage() {
             }
             if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
-            await initCloudSync(data.session);
+            // Auto-detect invite for the logged in email if not provided
+            const pending = await getPendingInviteForUser();
+            if (pending) {
+               await acceptInvite(pending.token, data.session);
+               toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
+            } else {
+               await initCloudSync(data.session);
+            }
           }
         }
         setStatus({
@@ -245,7 +262,13 @@ function LoginPage() {
             }
             if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
-            await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
+            const pending = await getPendingInviteForUser();
+            if (pending) {
+               await acceptInvite(pending.token, signUpData.session);
+               toast.success(`Dołączono do gospodarstwa ${pending.household_name}!`);
+            } else {
+               await initCloudSync(signUpData.session, null, householdName.trim() || undefined);
+            }
           }
           await router.navigate({ to: "/" });
           return;
@@ -309,27 +332,25 @@ function LoginPage() {
           Konto umożliwia bezpieczną synchronizację danych Twojego gospodarstwa.
         </p>
       </div>
+
       {hasInvite && (
-        <div className="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground">
-          <p className="font-semibold">Zaproszenie do gospodarstwa wykryte</p>
-          {inviteLoading ? (
-            <p className="mt-2">Ładowanie szczegółów zaproszenia…</p>
-          ) : (
-            <>
-              <p className="mt-2">
-                Użyj tego samego adresu email, na który wysłano zaproszenie.
-                Jeśli już masz konto, zaloguj się, aby dołączyć do gospodarstwa.
-                Jeśli nie masz konta, utwórz je tym adresem — wystarczy podać hasło.
-              </p>
-              {inviteContext?.household_name ? (
-                <p className="mt-2 text-sm text-foreground/80">
-                  Zaproszenie do gospodarstwa: <strong>{inviteContext.household_name}</strong>
-                </p>
-              ) : null}
-            </>
-          )}
+        <div className="mb-6 rounded-[1.5rem] border border-accent/20 bg-accent/5 p-6 animate-fade-up">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-accent-foreground shadow-warm">
+                 <Users className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                 <p className="text-sm font-bold text-foreground">Zaproszenie wykryte!</p>
+                 <p className="text-xs text-muted-foreground mt-1">
+                    {detectedInvite 
+                      ? `Zostałeś zaproszony do gospodarstwa ${detectedInvite.household_name}. Zaloguj się, aby dołączyć.`
+                      : `Dołączasz do gospodarstwa ${inviteContext?.household_name ?? "bliskich"}.`}
+                 </p>
+              </div>
+           </div>
         </div>
       )}
+
       <form
         className="space-y-4 bg-card border border-border rounded-2xl p-8 shadow-card"
         onSubmit={(e) => void handleSubmit(e)}

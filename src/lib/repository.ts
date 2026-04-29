@@ -150,6 +150,28 @@ export async function transferOwnership(householdId: string, newOwnerId: string)
   return true;
 }
 
+export type PendingInvite = {
+  id: string;
+  token: string;
+  household_id: string;
+  household_name: string;
+  email: string;
+  status: string;
+  expires_at: string;
+};
+
+export async function getPendingInviteForUser(): Promise<PendingInvite | null> {
+  const supabase = await getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc("get_pending_invite_for_user");
+  if (error) {
+    console.error("Error checking for pending invite:", error);
+    return null;
+  }
+  return data?.[0] || null;
+}
+
 export async function removeHouseholdMember(householdId: string, userId: string): Promise<boolean> {
   const supabase = await getSupabase();
   if (!supabase) return false;
