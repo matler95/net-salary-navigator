@@ -30,10 +30,6 @@ export function ScenarioHeader() {
       {/* Top Bar: Name & Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          
           <div className="flex items-center gap-2 group">
             {isEditingName ? (
               <input
@@ -55,10 +51,6 @@ export function ScenarioHeader() {
               </button>
             )}
           </div>
-          
-          <button className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
         <div className={cn("hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold shadow-sm", vm.color)}>
@@ -74,7 +66,7 @@ export function ScenarioHeader() {
           "rounded-2xl border p-3 sm:p-4 transition-all flex flex-col justify-center",
           cashflowPositive ? "bg-success/10 border-success/30 shadow-warm" : "bg-destructive/10 border-destructive/30 shadow-sm"
         )}>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">CF/miesiąc</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Zysk miesięczny</p>
           <p className={cn("font-display text-xl sm:text-3xl tracking-tight leading-none", cashflowPositive ? "text-success" : "text-destructive")}>
             {cashflowPositive ? "+" : ""}{formatPLN2(r.monthlyCashflow)}
           </p>
@@ -82,7 +74,7 @@ export function ScenarioHeader() {
 
         {/* IRR Card */}
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm flex flex-col justify-center">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">IRR roczny</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Rentowność roczna</p>
           <p className="font-display text-xl sm:text-3xl tracking-tight leading-none">{r.irrAnnualPct.toFixed(1)}%</p>
         </div>
 
@@ -102,16 +94,16 @@ export function ScenarioHeader() {
           </span>
         </div>
         <div className="h-2 bg-muted/40 rounded-full overflow-hidden relative border border-border/50">
-          <div 
+          <div
             className={cn("h-full transition-all duration-500", isRentHealthy ? "bg-success" : "bg-destructive")}
             style={{ width: `${Math.min(100, fillPct)}%` }}
           />
           {/* Break-even marker line if rent is higher than break even */}
           {isRentHealthy && minRent > 0 && (
-            <div 
+            <div
               className="absolute top-0 bottom-0 w-0.5 bg-background shadow-sm"
               style={{ left: `${(minRent / s.monthlyRent) * 100}%` }}
-              title={`Break-even: ${formatPLN(minRent)}`}
+              title={`Próg opłacalności: ${formatPLN(minRent)}`}
             />
           )}
         </div>

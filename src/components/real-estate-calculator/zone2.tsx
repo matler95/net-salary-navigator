@@ -14,7 +14,7 @@ export function InputPanel() {
   const getCfDelta = (patch: Partial<typeof s>) => {
     const newR = calculateRealEstate({ ...s, ...patch });
     const delta = newR.monthlyCashflow - r.monthlyCashflow;
-    return `${delta > 0 ? "+" : ""}${formatPLN2(delta)} CF/m-c`;
+    return `${delta > 0 ? "+" : ""}${formatPLN2(delta)} Zysk/m-c`;
   };
 
   const totalCosts = Object.values(costs).reduce((a, b) => a + b, 0);

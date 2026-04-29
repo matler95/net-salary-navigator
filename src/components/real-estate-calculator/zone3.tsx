@@ -14,16 +14,16 @@ export function InsightPanel() {
     <Tabs defaultValue="cashflow" className="space-y-6">
       <TabsList className="w-full flex sm:w-auto overflow-x-auto bg-transparent p-0 border-b border-border/40 rounded-none h-auto justify-start">
         <TabsTrigger value="cashflow" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent">
-          Cashflow
+          Zysk miesięczny
         </TabsTrigger>
         <TabsTrigger value="longterm" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent">
-          Długoterminowy zysk
+          Zysk w czasie
         </TabsTrigger>
         <TabsTrigger value="risk" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent">
-          Ryzyko
+          Ryzyko i błędy
         </TabsTrigger>
         <TabsTrigger value="budget" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent">
-          Budżet
+          Mój portfel
         </TabsTrigger>
       </TabsList>
 
@@ -67,8 +67,8 @@ function CashflowTab() {
     <div className="space-y-6">
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm space-y-6">
         <div>
-          <h3 className="font-display text-xl mb-1">Miesięczny wodospad (CF)</h3>
-          <p className="text-xs text-muted-foreground">Analiza od wpływu na konto do zysku "na czysto".</p>
+          <h3 className="font-display text-xl mb-1">Gdzie uciekają pieniądze?</h3>
+          <p className="text-xs text-muted-foreground">Analiza od wpłaty najemcy do Twojego zysku "na rękę".</p>
         </div>
 
         <div className="space-y-3">
@@ -118,7 +118,7 @@ function CashflowTab() {
 
           <div className="pt-4 border-t-2 border-border">
             <div className="flex justify-between items-center">
-              <span className="font-display text-lg">Wynik netto</span>
+              <span className="font-display text-lg">Zysk na czysto</span>
               <div className="text-right">
                 <p className={cn(
                   "font-display text-2xl font-bold leading-none",
@@ -126,7 +126,7 @@ function CashflowTab() {
                 )}>
                   {formatPLN(r.monthlyCashflow)}
                 </p>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-bold">miesięcznie</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-bold">co miesiąc</p>
               </div>
             </div>
           </div>
@@ -145,10 +145,10 @@ function CashflowTab() {
           <p className="text-xs text-muted-foreground mt-1">Względem czynszu brutto.</p>
         </div>
         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Break-even rent</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Próg opłacalności</p>
           <p className="font-mono text-lg font-bold">{formatPLN(minRent)}</p>
           <p className={cn("text-xs mt-1 font-bold", rentMargin >= 0 ? "text-success" : "text-destructive")}>
-            Margines: {rentMargin >= 0 ? "+" : ""}{formatPLN(rentMargin)} ({rentMarginPct.toFixed(0)}%)
+            Zapas: {rentMargin >= 0 ? "+" : ""}{formatPLN(rentMargin)} ({rentMarginPct.toFixed(0)}%)
           </p>
         </div>
       </div>
@@ -165,10 +165,10 @@ function LongtermTab() {
   const halfPaidYear = r.yearly.findIndex(y => y.loanBalance <= r.loanAmount / 2) + 1;
 
   const milestones = [
-    { year: cfPositiveYear > 0 ? cfPositiveYear : null, label: "Cashflow wychodzi na stały plus" },
-    { year: breakEvenYear, label: "Zwrot włożonej gotówki (Break-even)" },
-    { year: halfPaidYear > 0 ? halfPaidYear : null, label: "Kredyt spłacony w 50%" },
-    { year: s.holdingYears, label: `Łączny zysk po sprzedaży: ${formatPLN(r.totalReturn)}` },
+    { year: cfPositiveYear > 0 ? cfPositiveYear : null, label: "Zaczynasz zarabiać co miesiąc" },
+    { year: breakEvenYear, label: "Zwrot włożonej gotówki (Próg opłacalności)" },
+    { year: halfPaidYear > 0 ? halfPaidYear : null, label: "Spłacasz połowę kredytu" },
+    { year: s.holdingYears, label: `Zysk po sprzedaży i spłacie: ${formatPLN(r.totalReturn)}` },
   ].filter(m => m.year !== null && m.year <= s.holdingYears).sort((a, b) => (a.year as number) - (b.year as number));
 
   // De-duplicate milestones by year if they fall on the same year
@@ -217,10 +217,10 @@ function LongtermTab() {
 
               <ReferenceLine y={0} stroke="var(--border)" strokeWidth={2} />
 
-              <Area type="monotone" dataKey="equity" name="Majątek (Equity)" stroke="var(--color-success)" fill="url(#colorEquity)" strokeWidth={2} />
-              <Line type="monotone" dataKey="cumulativeCashflow" name="Skumulowany CF" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
-              <Area type="monotone" dataKey="negativeLoan" name="Zadłużenie" stroke="var(--color-destructive)" fill="url(#colorDebt)" strokeWidth={2} />
-              <Line type="monotone" dataKey="propertyValue" name="Wartość (brutto)" stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} dot={false} />
+              <Area type="monotone" dataKey="equity" name="Majątek własny" stroke="var(--color-success)" fill="url(#colorEquity)" strokeWidth={2} />
+              <Line type="monotone" dataKey="cumulativeCashflow" name="Suma zysków" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="negativeLoan" name="Pozostały kredyt" stroke="var(--color-destructive)" fill="url(#colorDebt)" strokeWidth={2} />
+              <Line type="monotone" dataKey="propertyValue" name="Wartość mieszkania" stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -249,7 +249,7 @@ function LongtermTab() {
             </thead>
             <tbody className="divide-y divide-border/30">
               <tr>
-                <td className="py-2.5 font-medium">Zysk z wynajmu (CF)</td>
+                <td className="py-2.5 font-medium">Zysk z wynajmu</td>
                 <td className="py-2.5 text-right font-mono text-success">+{formatPLN(r.totalCashflow)}</td>
                 <td className="py-2.5 text-right font-mono text-muted-foreground">{((r.totalCashflow / r.totalUpfront) * 100).toFixed(0)}%</td>
               </tr>
@@ -271,7 +271,7 @@ function LongtermTab() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-border font-bold text-base">
-                <td className="py-3">Zysk netto (łączny)</td>
+                <td className="py-3">Łączny zysk na koniec</td>
                 <td className={cn("py-3 text-right font-display", r.totalReturn >= 0 ? "text-success" : "text-destructive")}>{r.totalReturn >= 0 ? "+" : ""}{formatPLN(r.totalReturn)}</td>
                 <td className={cn("py-3 text-right font-mono", r.totalReturnPct >= 0 ? "text-success" : "text-destructive")}>{r.totalReturnPct.toFixed(0)}%</td>
               </tr>
@@ -303,8 +303,8 @@ function RiskTab() {
     <div className="space-y-6">
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm overflow-x-auto">
         <div className="mb-6">
-          <h3 className="font-display text-xl mb-1 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-warning-foreground" /> Macierz Wrażliwości</h3>
-          <p className="text-xs text-muted-foreground">Jak zmiana stóp procentowych i czynszu wpłynie na Twój miesięczny cashflow.</p>
+          <h3 className="font-display text-xl mb-1 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-warning-foreground" /> Analiza "Co jeśli?"</h3>
+          <p className="text-xs text-muted-foreground">Jak zmiana stóp procentowych i czynszu wpłynie na Twój miesięczny portfel.</p>
         </div>
 
         <div className="min-w-[500px]">
@@ -360,10 +360,10 @@ function RiskTab() {
           />
 
           <RiskFactor
-            label="Zdolność kredytowa (DTI)"
+            label="Obciążenie budżetu (DTI)"
             level={r.monthlyPmt > 3000 ? "Wysokie" : "Średnie"}
             fill={Math.min(100, (r.monthlyPmt / 4000) * 100)}
-            desc={`Rata obciąża Twój budżet o ${formatPLN(r.monthlyPmt)}/m-c przed wynajęciem.`}
+            desc={`Rata kredytu to ${formatPLN(r.monthlyPmt)}/m-c (zanim wynajmiesz).`}
             tone={r.monthlyPmt > 3000 ? "destructive" : "warning"}
           />
         </div>
@@ -434,7 +434,7 @@ function BudgetTab() {
               <div className="text-right">
                 <span className="font-display text-2xl">{formatPLN(budgetImpact.newDisposable)}</span>
                 <p className={cn("text-[10px] uppercase tracking-widest font-bold mt-1", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>
-                  {r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)} CF
+                  {r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)} zysku
                 </p>
               </div>
             </div>
@@ -449,14 +449,14 @@ function BudgetTab() {
       )}>
         <ShieldAlert className={cn("w-6 h-6 shrink-0", dtiTone === "destructive" ? "text-destructive" : dtiTone === "warning" ? "text-warning-foreground" : "text-success")} />
         <div>
-          <h4 className="font-bold text-sm">Wskaźnik DTI (Debt-to-Income)</h4>
+          <h4 className="font-bold text-sm">Wskaźnik obciążenia ratami (DTI)</h4>
           <p className="font-mono text-lg font-bold mt-1">
             {dtiBefore.toFixed(0)}% <span className="text-muted-foreground mx-2">→</span> {dtiAfter.toFixed(0)}%
           </p>
           <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-            {dtiTone === "destructive" ? "⚠ Uwaga: Raty pochłoną ponad połowę dochodów Twojego gospodarstwa. Bank na pewno odmówi kredytu lub zażąda dodatkowego zabezpieczenia." :
-              dtiTone === "warning" ? "⚠ Ostrożnie: Raty pochłoną znaczną część budżetu. Bank może dokładniej badać zdolność kredytową." :
-                "✓ Bezpieczny poziom DTI. Banki preferują zadłużenie poniżej 40%."}
+            {dtiTone === "destructive" ? "⚠ Uwaga: Raty pochłoną ponad połowę Twoich dochodów. Bank może odmówić kredytu przy takim poziomie." :
+              dtiTone === "warning" ? "⚠ Ostrożnie: Raty pochłoną znaczną część budżetu. Zostanie mniej na nieprzewidziane wydatki." :
+              "✓ Bezpieczny poziom zadłużenia. Twój budżet zachowuje dużą elastyczność."}
           </p>
         </div>
       </div>
