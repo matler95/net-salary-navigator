@@ -1,14 +1,11 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
 import { useRealEstate } from "./context";
-import { ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, BarChart2, XCircle, PenLine } from "lucide-react";
+import { CheckCircle2, AlertTriangle, BarChart2, XCircle } from "lucide-react";
 import type { InvestmentVerdict } from "@/lib/finance";
 
 export function ScenarioHeader() {
   const { r, minRent, verdict, rentMargin, rentMarginPct, cashflowPositive, s } = useRealEstate();
-  const [scenarioName, setScenarioName] = useState("Mieszkanie 650k zł");
-  const [isEditingName, setIsEditingName] = useState(false);
 
   const verdictMeta: Record<InvestmentVerdict, { label: string; desc: string; icon: typeof CheckCircle2; color: string }> = {
     rentowna: { label: "Opłacalna", desc: "Czynsz pokrywa koszty.", icon: CheckCircle2, color: "text-success bg-success/10 border-success/20" },
@@ -27,30 +24,10 @@ export function ScenarioHeader() {
 
   return (
     <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/40 pb-4 pt-2 mb-6 space-y-4">
-      {/* Top Bar: Name & Controls */}
+      {/* Top Bar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 group">
-            {isEditingName ? (
-              <input
-                autoFocus
-                value={scenarioName}
-                onChange={(e) => setScenarioName(e.target.value)}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => e.key === "Enter" && setIsEditingName(false)}
-                className="font-display text-xl sm:text-2xl bg-transparent border-b border-accent focus:outline-none w-48"
-              />
-            ) : (
-              <h2 className="font-display text-xl sm:text-2xl cursor-pointer hover:text-accent transition-colors" onClick={() => setIsEditingName(true)}>
-                {scenarioName}
-              </h2>
-            )}
-            {!isEditingName && (
-              <button onClick={() => setIsEditingName(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
-                <PenLine className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+        <div>
+          <h2 className="font-display text-xl sm:text-2xl">Kalkulator nieruchomości</h2>
         </div>
 
         <div className={cn("hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold shadow-sm", vm.color)}>

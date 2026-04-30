@@ -17,7 +17,12 @@ export function InputPanel() {
     return `${delta > 0 ? "+" : ""}${formatPLN2(delta)} Zysk/m-c`;
   };
 
-  const totalCosts = Object.values(costs).reduce((a, b) => a + b, 0);
+  const ownerMonthlyCosts =
+    costs.management +
+    costs.insurance +
+    costs.reserve +
+    (s.tenantPaysAdmin ? 0 : costs.admin) +
+    (s.tenantPaysMedia ? 0 : costs.media);
 
   return (
     <div className="space-y-4">
@@ -90,6 +95,20 @@ export function InputPanel() {
                 value={s.renovationCost}
                 onChange={(v) => updateS({ renovationCost: v })}
               />
+              <SliderField
+                label="Remont finansowany z kredytu"
+                value={s.renovationFinancedPct}
+                min={0}
+                max={100}
+                step={5}
+                format={(v) => `${v}%`}
+                onChange={(v) => updateS({ renovationFinancedPct: v })}
+                feedback={
+                  <span className="text-muted-foreground">
+                    Finansowane: {formatPLN((s.renovationCost * s.renovationFinancedPct) / 100)}
+                  </span>
+                }
+              />
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block mb-2">Typ nieruchomości</label>
                 <div className="flex flex-col gap-2">
@@ -151,7 +170,7 @@ export function InputPanel() {
                   className={cn("text-[11px] py-2 px-3 rounded-lg transition-all flex flex-col items-center gap-1", s.mortgageType === "equal" ? "bg-card text-foreground shadow-sm font-bold border border-border/50" : "text-muted-foreground hover:bg-muted")}
                 >
                   Raty równe
-                  <div className="flex gap-[1px] h-3 items-end opacity-50">
+                  <div className="flex gap-px h-3 items-end opacity-50">
                     <div className="w-1.5 h-3 bg-current" /><div className="w-1.5 h-3 bg-current" /><div className="w-1.5 h-3 bg-current" /><div className="w-1.5 h-3 bg-current" />
                   </div>
                 </button>
@@ -161,7 +180,7 @@ export function InputPanel() {
                   className={cn("text-[11px] py-2 px-3 rounded-lg transition-all flex flex-col items-center gap-1", s.mortgageType === "decreasing" ? "bg-card text-foreground shadow-sm font-bold border border-border/50" : "text-muted-foreground hover:bg-muted")}
                 >
                   Raty malejące
-                  <div className="flex gap-[1px] h-3 items-end opacity-50">
+                  <div className="flex gap-px h-3 items-end opacity-50">
                     <div className="w-1.5 h-3 bg-current" /><div className="w-1.5 h-3 bg-current" /><div className="w-1.5 h-2 bg-current" /><div className="w-1.5 h-1.5 bg-current" />
                   </div>
                 </button>
@@ -214,38 +233,64 @@ export function InputPanel() {
               />
 
               <div className="pt-2">
-                <div className="flex justify-between items-baseline mb-2">
+                <div className="flex flex-col gap-2 mb-3">
                   <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Koszty miesięczne</label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={s.tenantPaysAdmin}
+                        onChange={(e) => updateS({ tenantPaysAdmin: e.target.checked })}
+                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                      />
+                      <span>Najemca płaci czynsz admin.</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={s.tenantPaysMedia}
+                        onChange={(e) => updateS({ tenantPaysMedia: e.target.checked })}
+                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                      />
+                      <span>Najemca płaci media</span>
+                    </label>
+                  </div>
                 </div>
                 <div className="space-y-2 bg-muted/20 p-3 rounded-xl border border-border/50">
                   {[
-                    { key: 'admin', label: 'Czynsz admin.' },
-                    { key: 'insurance', label: 'Ubezpieczenie' },
-                    { key: 'reserve', label: 'Rezerwa' },
-                    { key: 'management', label: 'Zarządzanie' }
-                  ].map(cost => {
+                    { key: 'admin', label: 'Czynsz admin.', included: !s.tenantPaysAdmin },
+                    { key: 'media', label: 'Media', included: !s.tenantPaysMedia },
+                    { key: 'insurance', label: 'Ubezpieczenie', included: true },
+                    { key: 'reserve', label: 'Rezerwa', included: true },
+                    { key: 'management', label: 'Zarządzanie', included: true },
+                  ].map((cost) => {
                     const val = costs[cost.key as keyof typeof costs];
-                    const pct = totalCosts > 0 ? (val / totalCosts) * 100 : 0;
+                    const pct = ownerMonthlyCosts > 0 && cost.included ? (val / ownerMonthlyCosts) * 100 : 0;
                     return (
-                      <div key={cost.key} className="flex items-center gap-2 text-xs group">
+                      <div key={cost.key} className={cn("flex items-center gap-2 text-xs group", !cost.included && "opacity-60")}>
                         <span className="w-24 truncate text-muted-foreground">{cost.label}</span>
                         <input
                           type="number"
                           value={val || ""}
-                          onChange={e => setCosts(prev => ({ ...prev, [cost.key]: Number(e.target.value) }))}
+                          onChange={(e) => setCosts(prev => ({ ...prev, [cost.key]: Number(e.target.value) }))}
                           className="w-14 bg-transparent border-b border-border/50 focus:border-accent outline-none text-right font-mono"
                         />
                         <span className="text-muted-foreground">zł</span>
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden ml-2 flex">
                           <div className="h-full bg-accent/60" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="w-8 text-right text-[9px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                        <span className="w-8 text-right text-[9px] text-muted-foreground">
+                          {cost.included ? `${pct.toFixed(0)}%` : "—"}
+                        </span>
                       </div>
                     );
                   })}
-                  <div className="flex justify-between items-center pt-2 mt-1 border-t border-border/50 font-bold text-sm">
-                    <span>Łącznie</span>
-                    <span className="font-mono">{formatPLN(totalCosts)}</span>
+                  <div className="flex flex-col gap-1 pt-2 mt-1 border-t border-border/50">
+                    <div className="flex justify-between items-center font-bold text-sm">
+                      <span>Łącznie</span>
+                      <span className="font-mono">{formatPLN(ownerMonthlyCosts)}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Uwzględnia tylko koszty ponoszone przez właściciela.</p>
                   </div>
                 </div>
               </div>

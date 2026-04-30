@@ -52,6 +52,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     purchasePrice: 650000,
     downPaymentPct: 20,
     renovationCost: 50000,
+    renovationFinancedPct: 0,
     marketType: "wtórny",
     hasAgency: true,
     mortgageRatePct: 7.2,
@@ -60,7 +61,9 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     bankCommissionPct: 0,
     mortgageInsuranceMonthly: 150,
     monthlyRent: 3500,
-    monthlyCosts: 800,
+    monthlyCosts: 300,
+    tenantPaysAdmin: true,
+    tenantPaysMedia: true,
     taxRatePct: 8.5,
     rentGrowthPct: 3,
     appreciationPct: 4,
@@ -69,6 +72,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
 
   const [costs, setCosts] = useState({
     admin: 500,
+    media: 0,
     management: 0,
     insurance: 50,
     reserve: 250,
@@ -89,9 +93,18 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
 
   // Sync visual costs to monthly costs
   useEffect(() => {
-    const total = Object.values(costs).reduce((a, b) => a + b, 0);
-    setS((prev) => ({ ...prev, monthlyCosts: total }));
-  }, [costs]);
+    const monthlyCosts =
+      costs.management +
+      costs.insurance +
+      costs.reserve +
+      (s.tenantPaysAdmin ? 0 : costs.admin) +
+      (s.tenantPaysMedia ? 0 : costs.media);
+
+    setS((prev) => {
+      if (prev.monthlyCosts === monthlyCosts) return prev;
+      return { ...prev, monthlyCosts };
+    });
+  }, [costs, s.tenantPaysAdmin, s.tenantPaysMedia]);
 
   // Handle manual insurance override
   const originalSetS = setS;

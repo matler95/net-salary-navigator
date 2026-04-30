@@ -268,6 +268,7 @@ export interface RealEstateScenario {
   purchasePrice: number;
   downPaymentPct: number; // e.g. 20
   renovationCost: number;
+  renovationFinancedPct: number; // percent of renovation covered by mortgage
   marketType: "wtórny" | "pierwotny";
   hasAgency: boolean;
   // Mortgage
@@ -279,6 +280,8 @@ export interface RealEstateScenario {
   // Rent
   monthlyRent: number;
   monthlyCosts: number; // czynsz admin., zarządzanie, ubezpieczenie /m-c
+  tenantPaysAdmin: boolean;
+  tenantPaysMedia: boolean;
   taxRatePct: number; // 8.5% ryczałt
   // Long-term
   rentGrowthPct: number; // annual %
@@ -330,9 +333,11 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const downPayment = s.purchasePrice * (s.downPaymentPct / 100);
   const calculatedClosingCostsPct = (s.marketType === "wtórny" ? 2.5 : 0.5) + (s.hasAgency ? 2 : 0);
   const closingCosts = s.purchasePrice * (calculatedClosingCostsPct / 100);
-  const loanAmount = Math.max(0, s.purchasePrice - downPayment);
+  const renovationFinancedPct = Math.max(0, Math.min(100, s.renovationFinancedPct || 0));
+  const renovationFinancedAmount = (s.renovationCost * renovationFinancedPct) / 100;
+  const loanAmount = Math.max(0, s.purchasePrice - downPayment) + renovationFinancedAmount;
   const bankCommission = loanAmount * ((s.bankCommissionPct || 0) / 100);
-  const totalUpfront = downPayment + s.renovationCost + closingCosts + bankCommission;
+  const totalUpfront = downPayment + s.renovationCost - renovationFinancedAmount + closingCosts + bankCommission;
 
   const months = Math.max(1, s.mortgageYears * 12);
 
