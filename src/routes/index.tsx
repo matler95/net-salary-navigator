@@ -146,11 +146,13 @@ function Dashboard() {
   // -- Charts Data
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    expenses.forEach((e) =>
-      map.set(e.category, (map.get(e.category) || 0) + getExpenseMonthlyAverage(e)),
-    );
+    expenses.forEach((e) => {
+      if (isExpenseInMonth(e, selectedMonthIdx)) {
+        map.set(e.category, (map.get(e.category) || 0) + e.amount);
+      }
+    });
     return Array.from(map, ([name, value]) => ({ name, value }));
-  }, [expenses]);
+  }, [expenses, selectedMonthIdx]);
 
   const projection = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
@@ -489,7 +491,7 @@ function Dashboard() {
         {/* Expense breakdown pie */}
         <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
-          <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(totalExpenses)}</p>
+          <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(selectedMonthExpenses)}</p>
           {byCategory.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
               <ShoppingBag className="h-8 w-8 mb-2 opacity-20" />
