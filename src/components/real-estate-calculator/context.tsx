@@ -53,6 +53,8 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     downPaymentPct: 20,
     renovationCost: 50000,
     renovationFinancedPct: 0,
+    renovationMonths: 0,
+    tenantSearchMonths: 0,
     marketType: "wtórny",
     hasAgency: true,
     mortgageRatePct: 7.2,

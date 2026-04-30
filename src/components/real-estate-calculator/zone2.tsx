@@ -109,6 +109,18 @@ export function InputPanel() {
                   </span>
                 }
               />
+              <NumField
+                label="Czas remontu (mies.)"
+                value={s.renovationMonths}
+                onChange={(v) => updateS({ renovationMonths: v })}
+                hint="Okres od początku inwestycji bez przychodów z najmu"
+              />
+              <NumField
+                label="Poszukiwanie najemcy (mies.)"
+                value={s.tenantSearchMonths}
+                onChange={(v) => updateS({ tenantSearchMonths: v })}
+                hint="Dodatkowe miesiące bez czynszu po remoncie"
+              />
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block mb-2">Typ nieruchomości</label>
                 <div className="flex flex-col gap-2">
