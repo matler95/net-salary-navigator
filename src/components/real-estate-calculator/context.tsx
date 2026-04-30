@@ -25,8 +25,8 @@ export interface RealEstateContextValue {
   s: RealEstateScenario;
   setS: React.Dispatch<React.SetStateAction<RealEstateScenario>>;
   updateS: (patch: Partial<RealEstateScenario>) => void;
-  costs: { admin: number; management: number; insurance: number; reserve: number };
-  setCosts: React.Dispatch<React.SetStateAction<{ admin: number; management: number; insurance: number; reserve: number }>>;
+  costs: { admin: number; media: number; management: number; insurance: number; reserve: number };
+  setCosts: React.Dispatch<React.SetStateAction<{ admin: number; media: number; management: number; insurance: number; reserve: number }>>;
   r: RealEstateResult;
   minRent: number;
   verdict: InvestmentVerdict;

@@ -248,24 +248,22 @@ export function InputPanel() {
                 <div className="flex flex-col gap-2 mb-3">
                   <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Koszty miesięczne</label>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={s.tenantPaysAdmin}
-                        onChange={(e) => updateS({ tenantPaysAdmin: e.target.checked })}
-                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      />
-                      <span>Najemca płaci czynsz admin.</span>
-                    </label>
-                    <label className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={s.tenantPaysMedia}
-                        onChange={(e) => updateS({ tenantPaysMedia: e.target.checked })}
-                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      />
-                      <span>Najemca płaci media</span>
-                    </label>
+                    <button
+                      type="button"
+                      onClick={() => updateS({ tenantPaysAdmin: !s.tenantPaysAdmin })}
+                      className={cn("text-xs py-2 rounded-lg border font-bold transition-all w-full text-center flex items-center justify-center gap-2", s.tenantPaysAdmin ? "bg-accent/10 text-accent border-accent/20" : "bg-card border-border hover:bg-muted text-muted-foreground")}
+                    >
+                      <div className={cn("w-3 h-3 rounded-sm border", s.tenantPaysAdmin ? "bg-accent border-accent" : "border-muted-foreground")} />
+                      Najemca płaci czynsz admin.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateS({ tenantPaysMedia: !s.tenantPaysMedia })}
+                      className={cn("text-xs py-2 rounded-lg border font-bold transition-all w-full text-center flex items-center justify-center gap-2", s.tenantPaysMedia ? "bg-accent/10 text-accent border-accent/20" : "bg-card border-border hover:bg-muted text-muted-foreground")}
+                    >
+                      <div className={cn("w-3 h-3 rounded-sm border", s.tenantPaysMedia ? "bg-accent border-accent" : "border-muted-foreground")} />
+                      Najemca płaci media
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-2 bg-muted/20 p-3 rounded-xl border border-border/50">
