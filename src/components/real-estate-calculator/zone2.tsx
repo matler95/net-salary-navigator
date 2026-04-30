@@ -177,6 +177,12 @@ export function InputPanel() {
                 onChange={(v) => updateS({ mortgageYears: v })}
               />
               <NumField
+                label="Oprocentowanie kredytu"
+                hint="Roczna stawka procentowa, np. 7.2%"
+                value={s.mortgageRatePct}
+                onChange={(v) => updateS({ mortgageRatePct: v })}
+              />
+              <NumField
                 label="Ubezpieczenie kredytu (m-c)"
                 value={s.mortgageInsuranceMonthly}
                 onChange={(v) => updateS({ mortgageInsuranceMonthly: v })}
