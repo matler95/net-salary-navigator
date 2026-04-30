@@ -27,7 +27,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil, ChevronDown } from "lucide-react";
+import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil, ChevronDown, Plane, User } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -56,6 +56,7 @@ const SUGGESTED_CATEGORIES = [
   "Rozrywka",
   "Subskrypcje",
   "Osobiste",
+  "Podróże",
   "Inne",
 ];
 
@@ -79,7 +80,9 @@ function getCategoryIcon(name: string) {
   if (n.includes("zdrowie") || n.includes("lekarz") || n.includes("leki")) return HeartPulse;
   if (n.includes("dzieci") || n.includes("szkoła") || n.includes("przedszkole")) return Baby;
   if (n.includes("rozrywka") || n.includes("kino") || n.includes("wyjścia") || n.includes("wakacje")) return MonitorPlay;
+  if (n.includes("podróże") || n.includes("wakacje")) return Plane;
   if (n.includes("subskrypcj") || n.includes("netflix") || n.includes("spotify")) return Repeat;
+  if (n.includes("osobiste") || n.includes("prywatne")) return User;
   return Wallet;
 }
 
