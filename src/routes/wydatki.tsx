@@ -8,7 +8,6 @@ import {
   type Frequency,
 } from "@/lib/finance";
 import { cn } from "@/lib/utils";
-import { getCategoryColor } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -68,6 +67,23 @@ const FREQUENCIES: Frequency[] = [
   "annual",
   "oneoff",
 ];
+
+const CATEGORY_COLORS = [
+  "var(--accent)",
+  "oklch(0.62 0.14 148)",
+  "oklch(0.74 0.13 75)",
+  "oklch(0.58 0.19 25)",
+  "oklch(0.52 0.018 210)",
+  "oklch(0.80 0.12 180)",
+];
+
+function getCategoryColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length];
+}
 
 function getCategoryIcon(name: string) {
   const n = name.toLowerCase();
@@ -159,7 +175,7 @@ function ExpensesPage() {
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6 animate-fade-up">
+        <div className="grid lg:grid-cols-2 gap-6 items-start auto-rows-max animate-fade-up" style={{ gridAutoFlow: 'column' }}>
           {grouped.map((g) => {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);

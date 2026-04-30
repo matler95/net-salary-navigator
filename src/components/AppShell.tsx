@@ -190,6 +190,7 @@ export function AppShell() {
     { to: "/wynagrodzenia", label: "Zarobki", icon: Banknote },
     { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
     { to: "/aktywa", label: "Majątek", icon: TrendingUp },
+    { to: "/kalkulatory", label: "Kalkulatory", icon: Calculator },
     { to: "/settings", label: "Więcej", icon: Menu },
   ];
 

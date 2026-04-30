@@ -51,7 +51,7 @@ import {
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
 import { getInvestmentCurrentValue, useDailyTickerPrices } from "@/lib/market";
 import { StatCard } from "@/components/ui/stat-card";
-import { cn } from "@/lib/utils";
+import { cn, getCategoryColor, CATEGORY_COLORS as CHART_COLORS } from "@/lib/utils";
 import { useAuthSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
@@ -66,15 +66,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Dashboard,
 });
-
-const CHART_COLORS = [
-  "var(--accent)",
-  "oklch(0.62 0.14 148)",
-  "oklch(0.74 0.13 75)",
-  "oklch(0.58 0.19 25)",
-  "oklch(0.52 0.018 210)",
-  "oklch(0.80 0.12 180)",
-];
 
 function Dashboard() {
   const { session } = useAuthSession();
@@ -517,8 +508,8 @@ function Dashboard() {
                     paddingAngle={3}
                     stroke="none"
                   >
-                    {byCategory.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                    {byCategory.map((entry, idx) => (
+                      <Cell key={idx} fill={getCategoryColor(entry.name)
                     ))}
                   </Pie>
                   <Tooltip
