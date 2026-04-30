@@ -134,7 +134,7 @@ function ExpensesPage() {
           <div className="flex items-baseline gap-4 mt-6">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display text-4xl tabular-nums animate-count-up">
-                {formatPLN(monthlyTotal).replace(" zł", "")}
+                {formatPLN(monthlyTotal).replace("zł", "")}
               </span>
               <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">zł / m-c</span>
             </div>
