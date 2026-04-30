@@ -509,7 +509,7 @@ function Dashboard() {
                     stroke="none"
                   >
                     {byCategory.map((entry, idx) => (
-                      <Cell key={idx} fill={getCategoryColor(entry.name)
+                      <Cell key={idx} fill={getCategoryColor(entry.name)} />
                     ))}
                   </Pie>
                   <Tooltip

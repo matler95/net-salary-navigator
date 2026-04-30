@@ -26,6 +26,12 @@ import {
 import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const NAV = [
   { to: "/", label: "Przegląd", icon: LayoutDashboard },
@@ -190,8 +196,12 @@ export function AppShell() {
     { to: "/wynagrodzenia", label: "Zarobki", icon: Banknote },
     { to: "/wydatki", label: "Wydatki", icon: ShoppingBag },
     { to: "/aktywa", label: "Majątek", icon: TrendingUp },
+    { to: "/settings", label: "Więcej", icon: Menu, isMore: true },
+  ];
+
+  const moreNavItems = [
     { to: "/kalkulatory", label: "Kalkulatory", icon: Calculator },
-    { to: "/settings", label: "Więcej", icon: Menu },
+    { to: "/settings", label: "Ustawienia", icon: Settings },
   ];
 
   return (
@@ -396,6 +406,52 @@ export function AppShell() {
           {mobileNav.map((n) => {
             const Icon = n.icon;
             const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
+            const isMore = n.isMore;
+            const moreActive = moreNavItems.some(item => item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to));
+
+            if (isMore) {
+              return (
+                <DropdownMenu key={n.to}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={cn(
+                        "flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 px-0.5 rounded-xl transition-all duration-150 active:scale-90 min-h-[44px]",
+                        moreActive ? "text-accent" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon
+                        className={cn("h-5 w-5 shrink-0", moreActive ? "stroke-[2.5px]" : "stroke-[1.5px]")}
+                        aria-hidden="true"
+                      />
+                      <span className="text-[10px] font-semibold truncate w-full text-center leading-tight">
+                        {n.label}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" side="top" className="mb-2">
+                    {moreNavItems.map((item) => {
+                      const ItemIcon = item.icon;
+                      const itemActive = item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
+                      return (
+                        <DropdownMenuItem key={item.to} asChild>
+                          <Link
+                            to={item.to}
+                            className={cn(
+                              "flex items-center gap-2 cursor-pointer",
+                              itemActive && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            <ItemIcon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
             return (
               <Link
                 key={n.to}
