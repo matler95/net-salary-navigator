@@ -143,6 +143,23 @@ function Dashboard() {
   const netWorth = totalAssets - totalLoans;
   const emergencyFundMonths = totalExpenses > 0 ? totalSavings / totalExpenses : 0;
 
+  // -- Salary coverage for expenses
+  const salaryCoverage = useMemo(() => {
+    if (selectedMonthExpenses === 0) return [];
+    return spouses
+      .map((spouse) => {
+        const net = calculateSalaryForMonth(spouse.inputs, selectedMonthIdx, globalSettings).net;
+        const coveragePercentage = (net / selectedMonthExpenses) * 100;
+        return {
+          id: spouse.id,
+          name: spouse.name,
+          net,
+          coveragePercentage,
+        };
+      })
+      .sort((a, b) => a.coveragePercentage - b.coveragePercentage);
+  }, [spouses, selectedMonthIdx, selectedMonthExpenses, globalSettings]);
+
   // -- Charts Data
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -429,6 +446,37 @@ function Dashboard() {
         </div>
       </section>
 
+      {/* B) SALARY COVERAGE SECTION */}
+      {salaryCoverage.length > 0 && (
+        <section className="bg-card rounded-2xl p-6 sm:p-8 border border-border shadow-card">
+          <h2 className="font-display text-xl mb-6 gradient-text font-bold">Pokrycie wydatków</h2>
+          <div className="space-y-5">
+            {salaryCoverage.map((member) => {
+              const displayPercentage = Math.min(member.coveragePercentage, 100);
+              const isOverCovered = member.coveragePercentage > 100;
+              return (
+                <div key={member.id}>
+                  <div className="flex items-baseline justify-between gap-4 mb-2">
+                    <p className="text-sm font-medium text-foreground">
+                      Wypłata {member.name} pokrywa wydatki bieżącego miesiąca w
+                    </p>
+                    <p className={cn("font-display text-lg font-bold tabular-nums", isOverCovered ? "text-success" : "text-foreground")}>
+                      {member.coveragePercentage.toFixed(0)}%
+                    </p>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-500", isOverCovered ? "bg-success" : "bg-accent")}
+                      style={{ width: `${displayPercentage}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">{formatPLN(member.net)} / {formatPLN(selectedMonthExpenses)}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* E) CHARTS SECTION */}
       <section className="grid lg:grid-cols-2 gap-6">
