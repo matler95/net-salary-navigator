@@ -158,6 +158,13 @@ function CashflowTab() {
 
 function LongtermTab() {
   const { r, s } = useRealEstate();
+  const finalProfit = s.sellAtEnd ? r.totalReturn : r.totalReturnNoSale;
+  const finalProfitPct = s.sellAtEnd ? r.totalReturnPct : r.totalReturnNoSalePct;
+  const propertyValueAtEnd = r.yearly[r.yearly.length - 1].propertyValue;
+  const remainingLoan = r.yearly[r.yearly.length - 1].loanBalance;
+  const netFromSale = propertyValueAtEnd - remainingLoan;
+  const formatSignedPLN = (value: number) => (value >= 0 ? `+${formatPLN(value)}` : formatPLN(value));
+  const valueTone = (value: number) => (value >= 0 ? "text-success" : "text-destructive");
 
   // Calculate milestones
   const breakEvenYear = r.breakEvenMonths > 0 ? Math.ceil(r.breakEvenMonths / 12) : null;
@@ -238,6 +245,12 @@ function LongtermTab() {
 
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm">
         <h3 className="font-display text-xl mb-4">Struktura Zysku</h3>
+        <div className="text-xs text-muted-foreground mb-4">
+          {s.sellAtEnd
+            ? "Wartość sprzedaży po zakończeniu okresu + zysk/strata z wynajmu - inwestycja początkowa."
+            : "Wynik pokazuje jedynie rzeczywisty cashflow z najmu; wartość nieruchomości pozostaje nierozliczona."
+          }
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
@@ -248,32 +261,41 @@ function LongtermTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
+              {s.sellAtEnd && (
+                <>
+                  <tr>
+                    <td className="py-2.5 font-medium">Cena sprzedaży (po {s.holdingYears} latach)</td>
+                    <td className={cn("py-2.5 text-right font-mono", valueTone(propertyValueAtEnd))}>{formatSignedPLN(propertyValueAtEnd)}</td>
+                    <td className="py-2.5 text-right font-mono text-muted-foreground">{((propertyValueAtEnd / r.totalUpfront) * 100).toFixed(0)}%</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 font-medium text-destructive">Spłata kredytu</td>
+                    <td className="py-2.5 text-right font-mono text-destructive">-{formatPLN(remainingLoan)}</td>
+                    <td className="py-2.5 text-right font-mono text-muted-foreground">-{((remainingLoan / r.totalUpfront) * 100).toFixed(0)}%</td>
+                  </tr>
+                  <tr className="border-t-2 border-border/50 bg-muted/30">
+                    <td className="py-2.5 font-medium">Netto ze sprzedaży</td>
+                    <td className={cn("py-2.5 text-right font-mono", valueTone(netFromSale))}>{formatSignedPLN(netFromSale)}</td>
+                    <td className="py-2.5 text-right font-mono text-muted-foreground">{((netFromSale / r.totalUpfront) * 100).toFixed(0)}%</td>
+                  </tr>
+                </>
+              )}
               <tr>
-                <td className="py-2.5 font-medium">Zysk z wynajmu</td>
-                <td className="py-2.5 text-right font-mono text-success">+{formatPLN(r.totalCashflow)}</td>
+                <td className="py-2.5 font-medium">Zysk/strata z wynajmu</td>
+                <td className={cn("py-2.5 text-right font-mono", valueTone(r.totalCashflow))}>{formatSignedPLN(r.totalCashflow)}</td>
                 <td className="py-2.5 text-right font-mono text-muted-foreground">{((r.totalCashflow / r.totalUpfront) * 100).toFixed(0)}%</td>
               </tr>
               <tr>
-                <td className="py-2.5 font-medium">Wzrost wartości ceny</td>
-                <td className="py-2.5 text-right font-mono text-success">+{formatPLN(r.yearly[r.yearly.length - 1].propertyValue - s.purchasePrice)}</td>
-                <td className="py-2.5 text-right font-mono text-muted-foreground">{(((r.yearly[r.yearly.length - 1].propertyValue - s.purchasePrice) / r.totalUpfront) * 100).toFixed(0)}%</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 font-medium">Spłacony kapitał z czynszów</td>
-                <td className="py-2.5 text-right font-mono text-success">+{formatPLN(r.loanAmount - r.yearly[r.yearly.length - 1].loanBalance)}</td>
-                <td className="py-2.5 text-right font-mono text-muted-foreground">{(((r.loanAmount - r.yearly[r.yearly.length - 1].loanBalance) / r.totalUpfront) * 100).toFixed(0)}%</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 font-medium text-destructive">Koszty kredytu (odsetki + ub.)</td>
-                <td className="py-2.5 text-right font-mono text-destructive">-{formatPLN(r.totalMortgageCost)}</td>
-                <td className="py-2.5 text-right font-mono text-muted-foreground">-{((r.totalMortgageCost / r.totalUpfront) * 100).toFixed(0)}%</td>
+                <td className="py-2.5 font-medium text-destructive">Inwestycja początkowa</td>
+                <td className="py-2.5 text-right font-mono text-destructive">-{formatPLN(r.totalUpfront)}</td>
+                <td className="py-2.5 text-right font-mono text-muted-foreground">-100%</td>
               </tr>
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-border font-bold text-base">
-                <td className="py-3">Łączny zysk na koniec</td>
-                <td className={cn("py-3 text-right font-display", r.totalReturn >= 0 ? "text-success" : "text-destructive")}>{r.totalReturn >= 0 ? "+" : ""}{formatPLN(r.totalReturn)}</td>
-                <td className={cn("py-3 text-right font-mono", r.totalReturnPct >= 0 ? "text-success" : "text-destructive")}>{r.totalReturnPct.toFixed(0)}%</td>
+                <td className="py-3">Łączny zysk na koniec {s.sellAtEnd ? "(ze sprzedażą)" : "(bez sprzedaży)"}</td>
+                <td className={cn("py-3 text-right font-display", finalProfit >= 0 ? "text-success" : "text-destructive")}>{finalProfit >= 0 ? "+" : ""}{formatPLN(finalProfit)}</td>
+                <td className={cn("py-3 text-right font-mono", finalProfitPct >= 0 ? "text-success" : "text-destructive")}>{finalProfitPct.toFixed(0)}%</td>
               </tr>
             </tfoot>
           </table>

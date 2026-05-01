@@ -70,6 +70,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     rentGrowthPct: 3,
     appreciationPct: 4,
     holdingYears: 15,
+    sellAtEnd: true,
   });
 
   const [costs, setCosts] = useState({

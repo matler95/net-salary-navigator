@@ -289,6 +289,7 @@ export interface RealEstateScenario {
   rentGrowthPct: number; // annual %
   appreciationPct: number; // annual property appreciation %
   holdingYears: number;
+  sellAtEnd: boolean;
 }
 
 export interface RealEstateResult {
@@ -317,6 +318,8 @@ export interface RealEstateResult {
   finalEquity: number;
   totalReturn: number; // cashflow + (final equity − upfront)
   totalReturnPct: number; // % of upfront
+  totalReturnNoSale: number; // cashflow only, no sale
+  totalReturnNoSalePct: number; // % of upfront if not sold
   irrAnnualPct: number; // approximate IRR
 }
 
@@ -457,12 +460,14 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
   const totalCashflow = cumulative;
   const totalReturn = totalCashflow + (finalEquity - totalUpfront);
+  const totalReturnNoSale = totalCashflow;
 
   // Invested capital for ROI should include all monthly top-ups if cashflow was negative
   const totalInjections = yearly.reduce((sum, y) => sum + (y.cashflow < 0 ? Math.abs(y.cashflow) : 0), 0);
   const investedCapital = totalUpfront + totalInjections;
 
   const totalReturnPct = investedCapital > 0 ? (totalReturn / investedCapital) * 100 : 0;
+  const totalReturnNoSalePct = investedCapital > 0 ? (totalReturnNoSale / investedCapital) * 100 : 0;
 
   // Approximate annualized IRR: ((endValue / start) ^ (1/years) − 1)
   // Here start is totalUpfront, but effectively we are adding money over time.
@@ -494,6 +499,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     finalEquity: round2(finalEquity),
     totalReturn: round2(totalReturn),
     totalReturnPct: round2(totalReturnPct),
+    totalReturnNoSale: round2(totalReturnNoSale),
+    totalReturnNoSalePct: round2(totalReturnNoSalePct),
     irrAnnualPct: round2(irrAnnualPct),
   };
 }

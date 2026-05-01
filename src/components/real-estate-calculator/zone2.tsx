@@ -5,6 +5,7 @@ import { formatPLN, formatPLN2 } from "@/lib/salary";
 import { Home, Building2, Wallet, TrendingUp, ChevronUp, ChevronDown, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculateRealEstate } from "@/lib/finance";
+import { Switch } from "@/components/ui/switch";
 
 export function InputPanel() {
   const { s, updateS, costs, setCosts, r, minRent } = useRealEstate();
@@ -375,6 +376,13 @@ export function InputPanel() {
                 format={(v) => `${v} lat`}
                 onChange={(v) => updateS({ holdingYears: v })}
               />
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/50 bg-muted/50 p-4">
+                <div>
+                  <p className="text-sm font-medium">Sprzedaj mieszkanie po okresie analizy</p>
+                  <p className="text-xs text-muted-foreground">Jeśli włączone, kalkulacja uwzględnia zysk ze sprzedaży po zakończeniu analizowanego okresu.</p>
+                </div>
+                <Switch checked={s.sellAtEnd} onCheckedChange={(value) => updateS({ sellAtEnd: value })} />
+              </div>
             </div>
           )}
         </section>
