@@ -582,7 +582,7 @@ function mapSpouseFromRow(row: unknown): Spouse {
   };
 }
 function mapExpenseToRow(householdId: string, x: Expense) {
-  return { 
+  return {
     id: x.id,
     household_id: householdId,
     category: x.category,
@@ -591,10 +591,27 @@ function mapExpenseToRow(householdId: string, x: Expense) {
     frequency: x.frequency,
     month: x.month,
     months: x.months,
+    mode: x.mode ?? "fixed",
+    annual_budget: x.annualBudget,
+    logging_threshold: x.loggingThreshold ?? 300,
+    actuals: x.actuals ?? [],
   };
 }
 function mapExpenseFromRow(row: unknown): Expense {
   const r = asRecord(row);
+  const actualsValue = r.actuals;
+  const actuals = Array.isArray(actualsValue)
+    ? actualsValue
+    : typeof actualsValue === "string"
+    ? (() => {
+        try {
+          return JSON.parse(actualsValue);
+        } catch {
+          return [];
+        }
+      })()
+    : [];
+
   return {
     id: String(r.id ?? ""),
     category: String(r.category ?? "Inne"),
@@ -603,6 +620,15 @@ function mapExpenseFromRow(row: unknown): Expense {
     frequency: String(r.frequency ?? "monthly") as Expense["frequency"],
     month: r.month ? Number(r.month) : undefined,
     months: Array.isArray(r.months) ? (r.months as number[]) : undefined,
+    mode: String(r.mode ?? "fixed") as Expense["mode"],
+    annualBudget: r.annual_budget ? Number(r.annual_budget) : undefined,
+    loggingThreshold: r.logging_threshold ? Number(r.logging_threshold) : 300,
+    actuals: Array.isArray(actuals) ? actuals.map((a) => ({
+      id: String((a as any).id ?? ""),
+      date: String((a as any).date ?? ""),
+      amount: Number((a as any).amount ?? 0),
+      note: (a as any).note ? String((a as any).note) : undefined,
+    })) : [],
   };
 }
 function mapInvestmentToRow(householdId: string, x: Investment) {

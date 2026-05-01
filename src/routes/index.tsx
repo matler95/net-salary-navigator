@@ -46,6 +46,7 @@ import {
   rentalCashflow,
   monthlyPayment,
   getExpenseMonthlyAverage,
+  getVariableExpenseStats,
   isExpenseInMonth,
 } from "@/lib/finance";
 import { convertToPLN, useDailyFxRates } from "@/lib/fx";
@@ -80,6 +81,7 @@ function Dashboard() {
   const { prices: tickerPrices } = useDailyTickerPrices(investments.map((i) => i.ticker ?? ""));
 
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(() => new Date().getMonth() + 1);
+  const [showBudgetWarning, setShowBudgetWarning] = useState(true);
 
   const isCompletelyEmpty =
     spouses.length === 0 &&
@@ -105,7 +107,11 @@ function Dashboard() {
     [spouses, selectedMonthIdx, globalSettings]
   );
 
-  const totalExpenses = expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
+  const fixedExpenses = expenses.filter((e) => e.mode !== "variable");
+  const variableExpenses = expenses.filter((e) => e.mode === "variable");
+  const fixedExpensesMonthly = fixedExpenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
+  const variableExpensesMonthly = variableExpenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
+  const totalExpenses = fixedExpensesMonthly + variableExpensesMonthly;
   const totalInvestments = investments.reduce(
     (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
@@ -125,6 +131,9 @@ function Dashboard() {
 
   const getExpensesForMonth = (mIdx: number) => {
     return expenses.reduce((sum, e) => {
+      if (e.mode === "variable") {
+        return sum + ((e.annualBudget ?? 0) / 12);
+      }
       if (isExpenseInMonth(e, mIdx)) return sum + e.amount;
       return sum;
     }, 0);
@@ -162,14 +171,23 @@ function Dashboard() {
 
   // -- Charts Data
   const byCategory = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { name: string; value: number; mode: string }>();
     expenses.forEach((e) => {
-      if (isExpenseInMonth(e, selectedMonthIdx)) {
-        map.set(e.category, (map.get(e.category) || 0) + e.amount);
-      }
+      const monthlyValue = e.mode === "variable" ? (e.annualBudget ?? 0) / 12 : isExpenseInMonth(e, selectedMonthIdx) ? e.amount : 0;
+      if (monthlyValue <= 0) return;
+      const key = `${e.category}|${e.mode}`;
+      const name = e.mode === "variable" ? `${e.category} (plan)` : e.category;
+      const current = map.get(key);
+      map.set(key, { name, value: (current?.value || 0) + monthlyValue, mode: e.mode });
     });
-    return Array.from(map, ([name, value]) => ({ name, value }));
+    return Array.from(map.values());
   }, [expenses, selectedMonthIdx]);
+
+  const variableBudgetWarnings = useMemo(() => {
+    return variableExpenses
+      .map((e) => ({ expense: e, stats: getVariableExpenseStats(e) }))
+      .filter((entry) => entry.stats.spentPct > 90);
+  }, [variableExpenses]);
 
   const projection = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
@@ -214,14 +232,14 @@ function Dashboard() {
   const cashflowSparkline = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
     return Array.from({ length: 7 }, (_, i) => {
-      // Current month + up to 6 months ahead (looping around year if needed, but for simplicity we'll just do 1-12 based)
-      // Actually let's just show Jan-Jul or the last 7 months of projection.
-      // Better: let's show months around selectedMonth.
       let m = selectedMonthIdx - 3 + i;
       if (m < 1) m += 12;
       if (m > 12) m -= 12;
       const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[m - 1].net, 0);
-      const mExp = expenses.reduce((sum, e) => (isExpenseInMonth(e, m) ? sum + e.amount : sum), 0);
+      const mExp = expenses.reduce((sum, e) => {
+        if (e.mode === "variable") return sum + ((e.annualBudget ?? 0) / 12);
+        return isExpenseInMonth(e, m) ? sum + e.amount : sum;
+      }, 0);
       const cf = monthlyNet + rentalNet - mExp - monthlyLoanPmt;
       return { name: monthLabel(m), val: cf };
     });
@@ -322,6 +340,17 @@ function Dashboard() {
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-muted-foreground pt-4 border-t border-border">
+            <div className="rounded-2xl bg-muted/40 p-4">
+              <p className="uppercase tracking-[0.22em] text-[10px] mb-2">Stałe</p>
+              <p className="font-display text-2xl font-bold tabular-nums">{formatPLN2(fixedExpensesMonthly)}</p>
+            </div>
+            <div className="rounded-2xl bg-muted/40 p-4">
+              <p className="uppercase tracking-[0.22em] text-[10px] mb-2">Zmienne (plan)</p>
+              <p className="font-display text-2xl font-bold tabular-nums">{formatPLN2(variableExpensesMonthly)}</p>
             </div>
           </div>
 
@@ -540,6 +569,32 @@ function Dashboard() {
         <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
           <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(selectedMonthExpenses)}</p>
+          {showBudgetWarning && variableBudgetWarnings.length > 0 && (
+            <div className="mb-6 rounded-2xl bg-warning/10 border border-warning/20 p-4 text-sm text-warning-foreground flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold">⚠️ Budżet „{variableBudgetWarnings[0].expense.label}” prawie wyczerpany</p>
+                <p className="text-sm text-muted-foreground">
+                  Pozostało {formatPLN(variableBudgetWarnings[0].stats.remaining)} z {formatPLN(variableBudgetWarnings[0].stats.budgeted)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/wydatki?tab=zmienne"
+                  className="text-sm font-semibold text-foreground hover:underline"
+                >
+                  Zaloguj →
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowBudgetWarning(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Zamknij ostrzeżenie"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
           {byCategory.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
               <ShoppingBag className="h-8 w-8 mb-2 opacity-20" />
@@ -558,9 +613,19 @@ function Dashboard() {
                     paddingAngle={3}
                     stroke="none"
                   >
-                    {byCategory.map((entry, idx) => (
-                      <Cell key={idx} fill={getCategoryColor(entry.name)} />
-                    ))}
+                    {byCategory.map((entry, idx) => {
+                      const categoryName = entry.name.replace(/ \(plan\)$/, "");
+                      const color = getCategoryColor(categoryName);
+                      return (
+                        <Cell
+                          key={idx}
+                          fill={color}
+                          fillOpacity={entry.mode === "variable" ? 0.7 : 1}
+                          stroke={entry.mode === "variable" ? color : undefined}
+                          strokeDasharray={entry.mode === "variable" ? "4 4" : undefined}
+                        />
+                      );
+                    })}
                   </Pie>
                   <Tooltip
                     formatter={(v: number) => formatPLN(v)}
@@ -570,6 +635,7 @@ function Dashboard() {
                   <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
+              <p className="text-[11px] text-muted-foreground mt-3">░ = budżety zmienne (plan roczny / 12)</p>
             </div>
           )}
         </div>

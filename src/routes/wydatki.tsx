@@ -4,6 +4,7 @@ import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/
 import {
   getExpenseAnnualTotal,
   getExpenseMonthlyAverage,
+  getVariableExpenseStats,
   FREQUENCY_LABELS,
   type Frequency,
 } from "@/lib/finance";
@@ -89,6 +90,19 @@ function getCategoryIcon(name: string) {
 function ExpensesPage() {
   const expenses = useAppState((s) => s.expenses);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"fixed" | "variable">(() => {
+    if (typeof window === "undefined") return "fixed";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "zmienne" ? "variable" : "fixed";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", activeTab === "variable" ? "zmienne" : "stale");
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [activeTab]);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -100,13 +114,30 @@ function ExpensesPage() {
     setExpandedCategories(newExpanded);
   };
 
-  const monthlyTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0), [expenses]);
-  const annualTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0), [expenses]);
-  const oneoffTotal = useMemo(() => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0), [expenses]);
+  const fixedExpenses = useMemo(() => expenses.filter((e) => e.mode !== "variable"), [expenses]);
+  const variableExpenses = useMemo(() => expenses.filter((e) => e.mode === "variable"), [expenses]);
+
+  const fixedMonthlyTotal = useMemo(
+    () => fixedExpenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0),
+    [fixedExpenses],
+  );
+  const variableMonthlyTotal = useMemo(
+    () => variableExpenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0),
+    [variableExpenses],
+  );
+  const totalMonthly = fixedMonthlyTotal + variableMonthlyTotal;
+  const annualTotal = useMemo(
+    () => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0),
+    [expenses],
+  );
+  const oneoffTotal = useMemo(
+    () => fixedExpenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0),
+    [fixedExpenses],
+  );
 
   const grouped = useMemo(() => {
     const m = new Map<string, Expense[]>();
-    expenses.forEach((e) => {
+    fixedExpenses.forEach((e) => {
       if (!m.has(e.category)) m.set(e.category, []);
       m.get(e.category)!.push(e);
     });
@@ -116,7 +147,7 @@ function ExpensesPage() {
       monthly: items.reduce((s, x) => s + getExpenseMonthlyAverage(x), 0),
       annual: items.reduce((s, x) => s + getExpenseAnnualTotal(x), 0),
     })).sort((a, b) => b.annual - a.annual);
-  }, [expenses]);
+  }, [fixedExpenses]);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
@@ -131,15 +162,44 @@ function ExpensesPage() {
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
             Śledź swoje stałe i zmienne koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej projekcji budżetu i znalezienie potencjalnych oszczędności.
           </p>
-          <div className="flex items-baseline gap-4 mt-6">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-4xl tabular-nums animate-count-up">
-                {formatPLN(monthlyTotal).replace("zł", "")}
-              </span>
-              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">zł / m-c</span>
+          <div className="space-y-4 mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-baseline gap-4">
+                <div className="text-sm text-muted-foreground uppercase tracking-wider">Stałe:</div>
+                <div className="font-display text-3xl tabular-nums">{formatPLN2(fixedMonthlyTotal)}</div>
+                <div className="text-sm text-muted-foreground uppercase tracking-wider">Zmienne (śr.):</div>
+                <div className="font-display text-3xl tabular-nums">{formatPLN2(variableMonthlyTotal)}</div>
+                <div className="text-sm text-muted-foreground uppercase tracking-wider">Łącznie:</div>
+                <div className="font-display text-3xl tabular-nums">{formatPLN2(totalMonthly)}</div>
+              </div>
+              <div className="inline-flex rounded-full bg-muted/70 p-1 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("fixed")}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-semibold transition",
+                    activeTab === "fixed"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Stałe wydatki
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("variable")}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-semibold transition",
+                    activeTab === "variable"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Zmienne / Budżety
+                </button>
+              </div>
             </div>
-            <div className="h-8 w-px bg-border mx-2" />
-            <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+            <p className="text-sm text-muted-foreground font-medium">
               Rocznie: <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md text-foreground">{formatPLN(annualTotal)}</span>
               {oneoffTotal > 0 && (
                 <>
@@ -155,89 +215,103 @@ function ExpensesPage() {
         </div>
       </header>
 
-      {grouped.length === 0 ? (
+      {activeTab === "fixed" ? (
+        grouped.length === 0 ? (
+          <EmptyState
+            icon={ShoppingBag}
+            title="Jeszcze nie śledzisz wydatków"
+            description="Zacznij od największych kategorii - czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
+            className="my-12 max-w-2xl mx-auto"
+          />
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-6 items-start auto-rows-max animate-fade-up">
+            {grouped.map((g) => {
+              const Icon = getCategoryIcon(g.category);
+              const color = getCategoryColor(g.category);
+              const pct = fixedMonthlyTotal > 0 ? ((g.monthly / fixedMonthlyTotal) * 100) : 0;
+              const isExpanded = expandedCategories.has(g.category);
+
+              return (
+                <Collapsible
+                  key={g.category}
+                  open={isExpanded}
+                  onOpenChange={() => toggleCategory(g.category)}
+                >
+                  <div
+                    className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
+                  >
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
+                      style={{ backgroundColor: color }}
+                    />
+
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full text-left hover:opacity-80 transition-opacity cursor-pointer">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl relative"
+                              style={{ 
+                                backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, 
+                                color,
+                              }}
+                            >
+                              <Icon className="h-5 w-5" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full flex items-center justify-center opacity-80">
+                                <ChevronDown className="h-1.5 w-1.5 text-accent-foreground transition-transform" style={{ transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-display text-2xl tabular-nums leading-none mb-1">
+                              {formatPLN2(g.monthly)}
+                            </p>
+                            <span
+                              className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                              style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
+                            >
+                              {pct.toFixed(0)}% sumy
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
+                        {g.items.map((e) => (
+                          <ExpenseRow key={e.id} expense={e} color={color} />
+                        ))}
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
+                        <AddExpenseDialog defaultCategory={g.category} variant="ghost" />
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              );
+            })}
+          </div>
+        )
+      ) : variableExpenses.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
-          title="Jeszcze nie śledzisz wydatków"
-          description="Zacznij od największych kategorii - czynsz, jedzenie, transport. Im więcej dodasz, tym dokładniejsza będzie projekcja budżetu domowego."
+          title="Jeszcze nie masz budżetów zmiennych"
+          description="Dodaj roczne pulę na kategorię, aby śledzić wydatki i logować zakupy w ramach budżetu."
           className="my-12 max-w-2xl mx-auto"
         />
       ) : (
         <div className="grid lg:grid-cols-2 gap-6 items-start auto-rows-max animate-fade-up">
-          {grouped.map((g) => {
-            const Icon = getCategoryIcon(g.category);
-            const color = getCategoryColor(g.category);
-            const pct = monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100) : 0;
-            const isExpanded = expandedCategories.has(g.category);
-
-            return (
-              <Collapsible
-                key={g.category}
-                open={isExpanded}
-                onOpenChange={() => toggleCategory(g.category)}
-              >
-                <div
-                  className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
-                >
-                  {/* Accent border left */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
-                    style={{ backgroundColor: color }}
-                  />
-
-                  <CollapsibleTrigger asChild>
-                    <button className="w-full text-left hover:opacity-80 transition-opacity cursor-pointer">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl relative"
-                            style={{ 
-                              backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, 
-                              color,
-                            }}
-                          >
-                            <Icon className="h-5 w-5" />
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full flex items-center justify-center opacity-80">
-                              <ChevronDown className="h-1.5 w-1.5 text-accent-foreground transition-transform" style={{ transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
-                            </div>
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-display text-2xl tabular-nums leading-none mb-1">
-                            {formatPLN2(g.monthly)}
-                          </p>
-                          <span
-                            className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                            style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
-                          >
-                            {pct.toFixed(0)}% sumy
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  </CollapsibleTrigger>
-
-                  <CollapsibleContent>
-                    <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
-                      {g.items.map((e) => (
-                        <ExpenseRow key={e.id} expense={e} color={color} />
-                      ))}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
-                      <AddExpenseDialog defaultCategory={g.category} variant="ghost" />
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            );
-          })}
+          {variableExpenses.map((e) => (
+            <VariableExpenseCard key={e.id} expense={e} />
+          ))}
         </div>
       )}
     </main>
@@ -357,11 +431,22 @@ function ExpenseForm({
     initialData?.category ? !SUGGESTED_CATEGORIES.includes(initialData.category) : false
   );
   const [label, setLabel] = useState(initialData?.label || "");
+  const [mode, setMode] = useState<Expense["mode"]>(initialData?.mode ?? "fixed");
+
   const [amount, setAmount] = useState(initialData?.amount || 0);
   const [amountInput, setAmountInput] = useState(initialData?.amount ? formatLocaleAmount(initialData.amount) : "");
   const [frequency, setFrequency] = useState<Frequency>(initialData?.frequency || "monthly");
   const [selectedMonths, setSelectedMonths] = useState<number[]>(
     initialData?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  );
+
+  const [annualBudget, setAnnualBudget] = useState(initialData?.annualBudget || 0);
+  const [annualBudgetInput, setAnnualBudgetInput] = useState(
+    initialData?.annualBudget ? formatLocaleAmount(initialData.annualBudget) : "",
+  );
+  const [loggingThreshold, setLoggingThreshold] = useState(initialData?.loggingThreshold ?? 300);
+  const [loggingThresholdInput, setLoggingThresholdInput] = useState(
+    initialData?.loggingThreshold ? formatLocaleAmount(initialData.loggingThreshold) : formatLocaleAmount(300),
   );
 
   const handleFrequencyChange = (f: Frequency) => {
@@ -387,9 +472,11 @@ function ExpenseForm({
     }
   };
 
-  const currentPreview = amount > 0
-    ? (frequency === "monthly" ? amount : (amount * selectedMonths.length / 12))
-    : 0;
+  const currentPreview = mode === "variable"
+    ? annualBudget / 12
+    : amount > 0
+      ? (frequency === "monthly" ? amount : (amount * selectedMonths.length / 12))
+      : 0;
 
   return (
     <div className="p-6 sm:p-8">
@@ -401,119 +488,231 @@ function ExpenseForm({
         onSubmit={(e) => {
           e.preventDefault();
           const parsedAmount = parseLocaleAmount(amountInput);
-          if (!label.trim() || parsedAmount <= 0) return;
+          const parsedAnnualBudget = parseLocaleAmount(annualBudgetInput);
+          const parsedThreshold = parseLocaleAmount(loggingThresholdInput);
+          if (!label.trim()) return;
+          if (mode === "fixed") {
+            if (parsedAmount <= 0) return;
+            onSave({
+              category: isCustomCategory ? category.trim() || "Inne" : category,
+              label: label.trim(),
+              mode,
+              amount: parsedAmount,
+              frequency,
+              months: selectedMonths,
+              month: selectedMonths[0],
+              annualBudget: undefined,
+              loggingThreshold: undefined,
+              actuals: undefined,
+            });
+            return;
+          }
+          if (parsedAnnualBudget <= 0) return;
           onSave({
             category: isCustomCategory ? category.trim() || "Inne" : category,
             label: label.trim(),
-            amount: parsedAmount,
-            frequency,
-            months: selectedMonths,
-            month: selectedMonths[0],
+            mode,
+            amount: 0,
+            frequency: "monthly",
+            annualBudget: parsedAnnualBudget,
+            loggingThreshold: parsedThreshold > 0 ? parsedThreshold : 300,
+            actuals: initialData?.actuals ?? [],
+            months: undefined,
+            month: undefined,
           });
         }}
         className="space-y-6"
       >
-        {/* Step 1: Category and Name */}
         <div className="bg-muted/30 p-4 rounded-2xl border border-border space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1.3fr] items-center">
+            <div className="grid gap-2">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Tryb wydatku
+              </div>
+              <div className="grid grid-cols-2 rounded-2xl border border-border bg-card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setMode("fixed")}
+                  className={cn(
+                    "px-4 py-3 text-left text-sm font-semibold transition",
+                    mode === "fixed"
+                      ? "bg-background text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <div>Stały wydatek</div>
+                  <div className="text-[11px] text-muted-foreground">znana kwota</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("variable")}
+                  className={cn(
+                    "px-4 py-3 text-left text-sm font-semibold transition",
+                    mode === "variable"
+                      ? "bg-background text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <div>Zmienny / Budżet</div>
+                  <div className="text-[11px] text-muted-foreground">planujesz pulę</div>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                  Kategoria
+                </label>
+                {isCustomCategory ? (
+                  <div className="relative">
+                    <Input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="h-11 pr-8 bg-card"
+                      autoFocus
+                      placeholder="Wpisz własną..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Select
+                    value={category}
+                    onValueChange={(v) => {
+                      if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
+                      else { setCategory(v); }
+                    }}
+                  >
+                    <SelectTrigger className="h-11 bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUGGESTED_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                  Nazwa
+                </label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="np. Prąd, Netflix"
+                  className="h-11 bg-card"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 2: Amount and Frequency or Budget inputs */}
+        {mode === "fixed" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                Kategoria
+                Kwota pojedynczej płatności
               </label>
-              {isCustomCategory ? (
-                <div className="relative">
-                  <Input
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="h-11 pr-8 bg-card"
-                    autoFocus
-                    placeholder="Wpisz własną..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <Select
-                  value={category}
-                  onValueChange={(v) => {
-                    if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
-                    else { setCategory(v); }
+              <div className="relative">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={amountInput}
+                  onChange={(e) => {
+                    setAmountInput(e.target.value);
+                    setAmount(parseLocaleAmount(e.target.value));
                   }}
-                >
-                  <SelectTrigger className="h-11 bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUGGESTED_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                    <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+                  onBlur={() => setAmountInput(formatLocaleAmount(amount))}
+                  placeholder="0"
+                  className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+              </div>
             </div>
 
             <div>
               <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-                Nazwa
+                Częstotliwość
               </label>
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="np. Prąd, Netflix"
-                className="h-11 bg-card"
-              />
+              <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
+                <SelectTrigger className="h-12 bg-card font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCIES.map((f) => (
+                    <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-
-        {/* Step 2: Amount and Frequency */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-              Kwota pojedynczej płatności
-            </label>
-            <div className="relative">
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={amountInput}
-                onChange={(e) => {
-                  setAmountInput(e.target.value);
-                  setAmount(parseLocaleAmount(e.target.value));
-                }}
-                onBlur={() => setAmountInput(formatLocaleAmount(amount))}
-                placeholder="0"
-                className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Roczny budżet
+              </label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={annualBudgetInput}
+                  onChange={(e) => {
+                    setAnnualBudgetInput(e.target.value);
+                    setAnnualBudget(parseLocaleAmount(e.target.value));
+                  }}
+                  onBlur={() => setAnnualBudgetInput(formatLocaleAmount(annualBudget))}
+                  placeholder="0"
+                  className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+                Próg logowania
+              </label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={loggingThresholdInput}
+                  onChange={(e) => {
+                    setLoggingThresholdInput(e.target.value);
+                    setLoggingThreshold(parseLocaleAmount(e.target.value));
+                  }}
+                  onBlur={() => setLoggingThresholdInput(formatLocaleAmount(loggingThreshold))}
+                  placeholder="300"
+                  className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground leading-6">
+                Sugerujemy logować zakupy powyżej {formatPLN(loggingThreshold)}. Mniejsze traktujesz jako drobiazgi.
+              </p>
             </div>
           </div>
+        )}
 
-          <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-              Częstotliwość
-            </label>
-            <Select value={frequency} onValueChange={(v) => handleFrequencyChange(v as Frequency)}>
-              <SelectTrigger className="h-12 bg-card font-medium">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FREQUENCIES.map((f) => (
-                  <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {mode === "variable" && (
+          <div className="rounded-2xl border border-border bg-muted/30 p-4">
+            <p className="text-sm text-muted-foreground">Średnio {formatPLN2(currentPreview)} / miesiąc</p>
           </div>
-        </div>
+        )}
 
         {/* Step 3: Months (if applicable) */}
-        {frequency !== "monthly" && (
+        {mode === "fixed" && frequency !== "monthly" && (
           <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10">
             <MonthSelector
               frequency={frequency}
@@ -539,7 +738,10 @@ function ExpenseForm({
             <Button
               type="submit"
               className="flex-1 sm:w-auto h-12 rounded-full px-8 bg-accent-gradient text-accent-foreground shadow-warm font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-transform"
-              disabled={amount <= 0 || !label.trim() || selectedMonths.length === 0}
+              disabled={
+                !label.trim() ||
+                (mode === "fixed" ? amount <= 0 || selectedMonths.length === 0 : annualBudget <= 0)
+              }
             >
               {submitLabel}
             </Button>
@@ -608,6 +810,217 @@ function EditExpenseDialog({ expense }: { expense: Expense }) {
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LogActualDialog({
+  expense,
+  open,
+  onOpenChange,
+}: {
+  expense: Expense;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [amountInput, setAmountInput] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+  const threshold = expense.loggingThreshold ?? 300;
+
+  useEffect(() => {
+    if (!open) return;
+    setAmountInput("");
+    setAmount(0);
+    setDate(new Date().toISOString().slice(0, 10));
+    setNote("");
+  }, [open]);
+
+  const positiveThreshold = amount >= threshold && amount > 0;
+
+  return (
+    <div className="p-6 sm:p-8">
+      <DialogHeader className="mb-6">
+        <DialogTitle className="font-display text-2xl">Zaloguj zakup</DialogTitle>
+        <DialogDescription>Dodaj zakup do budżetu {expense.label}.</DialogDescription>
+      </DialogHeader>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (amount <= 0) return;
+          actions.addActualEntry(expense.id, {
+            date,
+            amount,
+            note: note.trim() || undefined,
+          });
+          toast.success("Zakup zapisany!");
+          onOpenChange(false);
+        }}
+        className="space-y-6"
+      >
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+              Kwota
+            </label>
+            <div className="relative">
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={amountInput}
+                onChange={(e) => {
+                  setAmountInput(e.target.value);
+                  setAmount(parseLocaleAmount(e.target.value));
+                }}
+                onBlur={() => setAmountInput(formatLocaleAmount(amount))}
+                placeholder="0"
+                className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
+                autoFocus
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+              Data
+            </label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-12 bg-card"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
+              Notatka
+            </label>
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="np. Zara, buty zimowe"
+              className="h-12 bg-card"
+            />
+          </div>
+        </div>
+
+        {positiveThreshold && (
+          <div className="rounded-2xl bg-success/10 border border-success/30 p-4 text-sm text-success-foreground">
+            ✓ Super, że to logujesz! Zakupy powyżej {formatPLN(threshold)} zł warto śledzić — dzięki temu zobaczysz dokładnie gdzie idzie budżet.
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <Button type="button" variant="ghost" className="h-12" onClick={() => onOpenChange(false)}>
+            Anuluj
+          </Button>
+          <Button type="submit" className="h-12 bg-accent-gradient text-accent-foreground shadow-warm">
+            Zapisz zakup
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function VariableExpenseCard({ expense }: { expense: Expense }) {
+  const stats = getVariableExpenseStats(expense);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const recentActuals = useMemo(
+    () =>
+      [...(expense.actuals ?? [])]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 3),
+    [expense.actuals],
+  );
+
+  const progressClass = stats.spentPct > 100
+    ? "bg-destructive"
+    : stats.spentPct > 90
+      ? "bg-orange-500"
+      : stats.spentPct > 70
+        ? "bg-warning"
+        : "bg-success";
+
+  return (
+    <div className="bg-card rounded-3xl border border-border p-6 shadow-card space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground font-semibold">Budżet zmienny</p>
+          <h3 className="font-display text-2xl font-bold leading-none mt-2">{expense.label}</h3>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold tabular-nums">{formatPLN2(stats.spent)}</p>
+          <p className="text-sm text-muted-foreground">/ {formatPLN(stats.budgeted)} budżet</p>
+        </div>
+      </div>
+
+      {stats.spentPct > 100 && (
+        <div className="rounded-2xl bg-destructive/10 border border-destructive/30 p-4 text-sm text-destructive-foreground">
+          🔴 Przekroczono budżet o {formatPLN(Math.abs(stats.remaining))}!
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <div className="h-3 overflow-hidden rounded-full bg-muted border border-border">
+          <div className={`${progressClass} h-full`} style={{ width: `${Math.min(100, stats.spentPct)}%` }} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span>Pozostało: <span className="text-foreground font-semibold">{formatPLN2(stats.remaining)}</span></span>
+          <span>Średnio: <span className="text-foreground font-semibold">{formatPLN2(stats.monthlyAvg)}/m-c</span></span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-foreground">Ostatnie wpisy:</p>
+        {recentActuals.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Brak zapisanych zakupów.</p>
+        ) : (
+          <div className="space-y-3">
+            {recentActuals.map((actual) => (
+              <div key={actual.id} className="flex items-start justify-between gap-3 rounded-2xl bg-muted/50 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {new Date(actual.date).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })} — {formatPLN2(actual.amount)}
+                  </p>
+                  {actual.note && <p className="text-sm text-muted-foreground truncate">{actual.note}</p>}
+                </div>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => actions.removeActualEntry(expense.id, actual.id)}
+                  aria-label="Usuń wpis"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {stats.daysSinceLastEntry !== null && stats.daysSinceLastEntry > 45 && stats.spentPct < 100 && (
+        <div className="rounded-2xl bg-orange-50 border border-orange-200 p-4 text-sm text-orange-700">
+          ⏰ Dawno nie logowano. Pamiętaj o zakupach powyżej {formatPLN(expense.loggingThreshold ?? 300)} zł.
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button type="button" className="h-11 rounded-full bg-accent-gradient text-accent-foreground shadow-warm">
+              + Zaloguj zakup
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md p-0 rounded-2xl overflow-hidden">
+            <LogActualDialog expense={expense} open={dialogOpen} onOpenChange={setDialogOpen} />
+          </DialogContent>
+        </Dialog>
+        <EditExpenseDialog expense={expense} />
+      </div>
+    </div>
   );
 }
 

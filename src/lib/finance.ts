@@ -175,10 +175,13 @@ export interface BaseExpense {
   frequency: Frequency;
   month?: number;
   months?: number[];
+  mode?: "fixed" | "variable";
+  annualBudget?: number;
 }
 
 /** Get total annual cost for an expense, prioritizing specific months if set. */
 export function getExpenseAnnualTotal(e: BaseExpense): number {
+  if (e.mode === "variable") return e.annualBudget ?? 0;
   if (e.months && e.months.length > 0) {
     return e.amount * e.months.length;
   }
@@ -187,8 +190,41 @@ export function getExpenseAnnualTotal(e: BaseExpense): number {
 
 /** Get average monthly cost. */
 export function getExpenseMonthlyAverage(e: BaseExpense): number {
+  if (e.mode === "variable") {
+    return (e.annualBudget ?? 0) / 12;
+  }
   if (e.frequency === "oneoff") return 0;
   return getExpenseAnnualTotal(e) / 12;
+}
+
+export function getVariableExpenseStats(e: BaseExpense & { actuals?: { date: string; amount: number; note?: string }[]; annualBudget?: number }): {
+  budgeted: number;
+  spent: number;
+  remaining: number;
+  spentPct: number;
+  monthlyAvg: number;
+  daysSinceLastEntry: number | null;
+} {
+  const year = new Date().getFullYear();
+  const yearActuals = (e.actuals ?? []).filter((a) => a.date.startsWith(String(year)));
+  const spent = yearActuals.reduce((s, a) => s + a.amount, 0);
+  const budgeted = e.annualBudget ?? 0;
+
+  const lastEntry = yearActuals
+    .map((a) => new Date(a.date).getTime())
+    .sort((a, b) => b - a)[0] ?? null;
+  const daysSinceLastEntry = lastEntry
+    ? Math.floor((Date.now() - lastEntry) / (1000 * 60 * 60 * 24))
+    : null;
+
+  return {
+    budgeted,
+    spent,
+    remaining: budgeted - spent,
+    spentPct: budgeted > 0 ? (spent / budgeted) * 100 : 0,
+    monthlyAvg: budgeted / 12,
+    daysSinceLastEntry,
+  };
 }
 
 /** Check if an expense occurs in a given month (1-12). */

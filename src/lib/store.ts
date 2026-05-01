@@ -38,14 +38,31 @@ export type Spouse = {
   assignedUserId?: string;
 };
 
+export type ExpenseMode = "fixed" | "variable";
+
+export type ActualEntry = {
+  id: string;
+  date: string; // ISO date e.g. "2025-07-15"
+  amount: number;
+  note?: string;
+};
+
 export type Expense = {
   id: string;
   category: string;
   label: string;
+  mode: ExpenseMode;
+
+  // Fixed mode fields
   amount: number; // amount per occurrence
   frequency: Frequency; // monthly | quarterly | semiannual | annual | oneoff
   month?: number; // legacy/single month (1-12)
   months?: number[]; // list of months (1-12) when the payment occurs
+
+  // Variable mode fields
+  annualBudget?: number;
+  loggingThreshold?: number;
+  actuals?: ActualEntry[];
 };
 
 export type Investment = {
@@ -208,7 +225,13 @@ function loadInitial(): AppState {
         }))
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses
-        ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
+        ? parsed.expenses.map((e) => ({
+          ...e,
+          frequency: e.frequency ?? "monthly",
+          mode: e.mode ?? "fixed",
+          loggingThreshold: e.loggingThreshold ?? (e.mode === "variable" ? 300 : 300),
+          actuals: Array.isArray(e.actuals) ? e.actuals : [],
+        }))
         : DEFAULT_STATE.expenses,
       investments: parsed.investments
         ? parsed.investments.map((i) => ({
@@ -773,7 +796,19 @@ export const actions = {
 
   // Expenses
   addExpense(e: Omit<Expense, "id">) {
-    setState((s) => ({ ...s, expenses: [...s.expenses, { ...e, id: uid() }] }));
+    setState((s) => ({
+      ...s,
+      expenses: [
+        ...s.expenses,
+        {
+          ...e,
+          id: uid(),
+          mode: e.mode ?? "fixed",
+          loggingThreshold: e.loggingThreshold ?? 300,
+          actuals: e.actuals ?? [],
+        },
+      ],
+    }));
   },
   updateExpense(id: string, patch: Partial<Expense>) {
     setState((s) => ({
@@ -783,6 +818,32 @@ export const actions = {
   },
   removeExpense(id: string) {
     setState((s) => ({ ...s, expenses: s.expenses.filter((x) => x.id !== id) }));
+  },
+  addActualEntry(expenseId: string, entry: Omit<ActualEntry, "id">) {
+    setState((s) => ({
+      ...s,
+      expenses: s.expenses.map((e) =>
+        e.id === expenseId
+          ? {
+              ...e,
+              actuals: [...(e.actuals ?? []), { ...entry, id: uid() }],
+            }
+          : e,
+      ),
+    }));
+  },
+  removeActualEntry(expenseId: string, entryId: string) {
+    setState((s) => ({
+      ...s,
+      expenses: s.expenses.map((e) =>
+        e.id === expenseId
+          ? {
+              ...e,
+              actuals: (e.actuals ?? []).filter((a) => a.id !== entryId),
+            }
+          : e,
+      ),
+    }));
   },
 
   // Investments
