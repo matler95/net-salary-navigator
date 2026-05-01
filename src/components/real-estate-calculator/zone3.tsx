@@ -162,7 +162,8 @@ function LongtermTab() {
   const finalProfitPct = s.sellAtEnd ? r.totalReturnPct : r.totalReturnNoSalePct;
   const propertyValueAtEnd = r.yearly[r.yearly.length - 1].propertyValue;
   const remainingLoan = r.yearly[r.yearly.length - 1].loanBalance;
-  const netFromSale = propertyValueAtEnd - remainingLoan;
+  const netFromSale = r.netFromSale;
+  const saleCosts = r.saleCosts;
   const formatSignedPLN = (value: number) => (value >= 0 ? `+${formatPLN(value)}` : formatPLN(value));
   const valueTone = (value: number) => (value >= 0 ? "text-success" : "text-destructive");
 
@@ -244,61 +245,110 @@ function LongtermTab() {
       </div>
 
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm">
-        <h3 className="font-display text-xl mb-4">Struktura Zysku</h3>
-        <div className="text-xs text-muted-foreground mb-4">
-          {s.sellAtEnd
-            ? "Wartość sprzedaży po zakończeniu okresu + zysk/strata z wynajmu - inwestycja początkowa."
-            : "Wynik pokazuje jedynie rzeczywisty cashflow z najmu; wartość nieruchomości pozostaje nierozliczona."
-          }
+        <h3 className="font-display text-xl mb-4">Przepływ Pieniędzy</h3>
+        <div className="text-xs text-muted-foreground mb-6">
+          Klarowny podział na to, co zainwestowałeś, co wróciło w trakcie, i co dostaniesz na wyjściu.
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead>
-              <tr className="border-b border-border/50">
-                <th className="py-2 text-[10px] uppercase tracking-widest text-muted-foreground">Składnik</th>
-                <th className="py-2 text-[10px] uppercase tracking-widest text-muted-foreground text-right">Wartość</th>
-                <th className="py-2 text-[10px] uppercase tracking-widest text-muted-foreground text-right">% Wkładu</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
-              {s.sellAtEnd && (
-                <>
-                  <tr>
-                    <td className="py-2.5 font-medium">Cena sprzedaży (po {s.holdingYears} latach)</td>
-                    <td className={cn("py-2.5 text-right font-mono", valueTone(propertyValueAtEnd))}>{formatSignedPLN(propertyValueAtEnd)}</td>
-                    <td className="py-2.5 text-right font-mono text-muted-foreground">{((propertyValueAtEnd / r.totalUpfront) * 100).toFixed(0)}%</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-medium text-destructive">Spłata kredytu</td>
-                    <td className="py-2.5 text-right font-mono text-destructive">-{formatPLN(remainingLoan)}</td>
-                    <td className="py-2.5 text-right font-mono text-muted-foreground">-{((remainingLoan / r.totalUpfront) * 100).toFixed(0)}%</td>
-                  </tr>
-                  <tr className="border-t-2 border-border/50 bg-muted/30">
-                    <td className="py-2.5 font-medium">Netto ze sprzedaży</td>
-                    <td className={cn("py-2.5 text-right font-mono", valueTone(netFromSale))}>{formatSignedPLN(netFromSale)}</td>
-                    <td className="py-2.5 text-right font-mono text-muted-foreground">{((netFromSale / r.totalUpfront) * 100).toFixed(0)}%</td>
-                  </tr>
-                </>
+
+        <div className="space-y-6">
+          {/* Zone 1: What you invested */}
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+            <h4 className="font-semibold text-red-800 dark:text-red-200 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              Co zainwestowałeś (pieniądze z Twojej kieszeni)
+            </h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Inwestycja początkowa (zaliczka + koszty + remont)</span>
+                <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.totalUpfront)}</span>
+              </div>
+              {r.yearly.length > 0 && r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Dopłaty w miesiącach ujemnego cashflow</span>
+                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow)}</span>
+                </div>
               )}
-              <tr>
-                <td className="py-2.5 font-medium">Zysk/strata z wynajmu</td>
-                <td className={cn("py-2.5 text-right font-mono", valueTone(r.totalCashflow))}>{formatSignedPLN(r.totalCashflow)}</td>
-                <td className="py-2.5 text-right font-mono text-muted-foreground">{((r.totalCashflow / r.totalUpfront) * 100).toFixed(0)}%</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 font-medium text-destructive">Inwestycja początkowa</td>
-                <td className="py-2.5 text-right font-mono text-destructive">-{formatPLN(r.totalUpfront)}</td>
-                <td className="py-2.5 text-right font-mono text-muted-foreground">-100%</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-border font-bold text-base">
-                <td className="py-3">Łączny zysk na koniec {s.sellAtEnd ? "(ze sprzedażą)" : "(bez sprzedaży)"}</td>
-                <td className={cn("py-3 text-right font-display", finalProfit >= 0 ? "text-success" : "text-destructive")}>{finalProfit >= 0 ? "+" : ""}{formatPLN(finalProfit)}</td>
-                <td className={cn("py-3 text-right font-mono", finalProfitPct >= 0 ? "text-success" : "text-destructive")}>{finalProfitPct.toFixed(0)}%</td>
-              </tr>
-            </tfoot>
-          </table>
+              <div className="border-t border-red-200 dark:border-red-800 pt-2 flex justify-between font-semibold">
+                <span>Łącznie zainwestowane</span>
+                <span className="font-mono text-red-800 dark:text-red-200">-{formatPLN(r.totalUpfront + (r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0))}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Zone 2: What came back during holding */}
+          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+            <h4 className="font-semibold text-green-800 dark:text-green-200 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Co wróciło w trakcie trzymania (już w Twojej kieszeni)
+            </h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Gross rent collected</span>
+                <span className="font-mono text-green-600 dark:text-green-400">+{formatPLN(r.yearly.reduce((sum, y) => sum + y.rent, 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Minus: wszystkie koszty (mortgage + ubezpieczenie + koszty stałe + podatek)</span>
+                <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.yearly.reduce((sum, y) => sum + y.rent - y.cashflow, 0))}</span>
+              </div>
+              <div className="border-t border-green-200 dark:border-green-800 pt-2 flex justify-between font-semibold">
+                <span>Net cashflow w trakcie (już otrzymane)</span>
+                <span className="font-mono text-green-800 dark:text-green-200">{r.totalCashflow >= 0 ? '+' : ''}{formatPLN(r.totalCashflow)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Zone 3: What you get on exit */}
+          {s.sellAtEnd && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+              <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                Co dostaniesz na wyjściu (jednorazowe zdarzenie)
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Cena sprzedaży nieruchomości</span>
+                  <span className="font-mono text-green-600 dark:text-green-400">+{formatPLN(propertyValueAtEnd)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Minus: pozostały kredyt do spłaty</span>
+                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(remainingLoan)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Minus: koszty transakcji sprzedaży (~2% prowizja)</span>
+                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(saleCosts)}</span>
+                </div>
+                <div className="border-t border-blue-200 dark:border-blue-800 pt-2 flex justify-between font-semibold">
+                  <span>Netto ze sprzedaży</span>
+                  <span className="font-mono text-blue-800 dark:text-blue-200">{netFromSale >= 0 ? '+' : ''}{formatPLN(netFromSale)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom line */}
+          <div className="bg-muted/50 border border-border rounded-xl p-4">
+            <h4 className="font-semibold mb-3">Twój całkowity zwrot</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Łącznie zainwestowane</span>
+                <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.totalUpfront + (r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Łącznie zwrócone</span>
+                <span className="font-mono text-green-600 dark:text-green-400">+{formatPLN(r.totalCashflow + (s.sellAtEnd ? netFromSale : 0))}</span>
+              </div>
+              <div className="border-t border-border pt-2 flex justify-between font-bold text-lg">
+                <span>Zysk/Strata</span>
+                <span className={cn("font-display", finalProfit >= 0 ? "text-success" : "text-destructive")}>
+                  {finalProfit >= 0 ? "+" : ""}{formatPLN(finalProfit)} ({finalProfitPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Annual IRR</span>
+                <span className="font-mono">{r.irrAnnualPct.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

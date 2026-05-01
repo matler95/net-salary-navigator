@@ -316,8 +316,10 @@ export interface RealEstateResult {
   yearly: RealEstateYearPoint[];
   totalCashflow: number;
   finalEquity: number;
-  totalReturn: number; // cashflow + (final equity − upfront)
-  totalReturnPct: number; // % of upfront
+  saleCosts: number; // sale transaction costs
+  netFromSale: number; // finalEquity - saleCosts
+  totalReturn: number; // netFromSale + totalCashflow - totalUpfront
+  totalReturnPct: number; // % of total invested (totalUpfront + cumulativeNegative)
   totalReturnNoSale: number; // cashflow only, no sale
   totalReturnNoSalePct: number; // % of upfront if not sold
   irrAnnualPct: number; // approximate IRR
@@ -328,6 +330,8 @@ export interface RealEstateYearPoint {
   rent: number;
   cashflow: number;
   cumulativeCashflow: number;
+  cumulativePositiveCashflow: number;
+  cumulativeNegativeCashflow: number;
   propertyValue: number;
   loanBalance: number;
   equity: number;
@@ -380,6 +384,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   // Yearly projection
   const yearly: RealEstateYearPoint[] = [];
   let cumulative = 0;
+  let cumulativePositive = 0;
+  let cumulativeNegative = 0;
   let propertyValue = s.purchasePrice;
   for (let y = 1; y <= s.holdingYears; y++) {
     const rentYear = (y === 1 ? annualRentFirstYear : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1));
@@ -402,6 +408,11 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
     const cf = effectiveYear - costsYear - pmtYear - taxYear - insuranceYear;
     cumulative += cf;
+    if (cf > 0) {
+      cumulativePositive += cf;
+    } else {
+      cumulativeNegative += Math.abs(cf);
+    }
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
     let loanBalance = 0;
     if (s.mortgageType === "decreasing") {
@@ -420,6 +431,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
       rent: round2(rentYear),
       cashflow: round2(cf),
       cumulativeCashflow: round2(cumulative),
+      cumulativePositiveCashflow: round2(cumulativePositive),
+      cumulativeNegativeCashflow: round2(cumulativeNegative),
       propertyValue: round2(propertyValue),
       loanBalance: round2(loanBalance),
       equity: round2(equity),
@@ -459,7 +472,9 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
   const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
   const totalCashflow = cumulative;
-  const totalReturn = totalCashflow + (finalEquity - totalUpfront);
+  const saleCosts = s.sellAtEnd ? finalEquity * 0.02 : 0; // 2% sale costs
+  const netFromSale = s.sellAtEnd ? finalEquity - saleCosts : 0;
+  const totalReturn = netFromSale + totalCashflow - totalUpfront;
   const totalReturnNoSale = totalCashflow;
 
   // Invested capital for ROI should include all monthly top-ups if cashflow was negative
@@ -497,6 +512,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     yearly,
     totalCashflow: round2(totalCashflow),
     finalEquity: round2(finalEquity),
+    saleCosts: round2(saleCosts),
+    netFromSale: round2(netFromSale),
     totalReturn: round2(totalReturn),
     totalReturnPct: round2(totalReturnPct),
     totalReturnNoSale: round2(totalReturnNoSale),
