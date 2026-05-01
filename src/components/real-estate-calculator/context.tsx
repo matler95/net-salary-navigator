@@ -7,6 +7,7 @@ import {
   minBreakEvenRent,
   getInvestmentVerdict,
   wiborSensitivity,
+  calcRequiredOverpayment,
   type RealEstateScenario,
   type RealEstateResult,
   type InvestmentVerdict,
@@ -35,6 +36,7 @@ export interface RealEstateContextValue {
   cashflowPositive: boolean;
   rentMargin: number;
   rentMarginPct: number;
+  requiredOverpayment: number;
 }
 
 const RealEstateContext = createContext<RealEstateContextValue | null>(null);
@@ -62,6 +64,8 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     mortgageType: "equal",
     bankCommissionPct: 0,
     mortgageInsuranceMonthly: 150,
+    tsoverpaymentEnabled: false,
+    overpaymentMonthly: null,
     monthlyRent: 3500,
     monthlyCosts: 300,
     tenantPaysAdmin: true,
@@ -124,6 +128,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const requiredOverpayment = useMemo(() => calcRequiredOverpayment(s), [s]);
   const r = useMemo(() => calculateRealEstate(s), [s]);
   const cashflowPositive = r.monthlyCashflow >= 0;
   const minRent = useMemo(() => minBreakEvenRent(s, r), [s, r]);
@@ -180,6 +185,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     cashflowPositive,
     rentMargin,
     rentMarginPct,
+    requiredOverpayment,
   };
 
   return <RealEstateContext.Provider value={value}>{children}</RealEstateContext.Provider>;

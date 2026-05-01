@@ -1,7 +1,9 @@
 import { useRealEstate } from "./context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { formatPLN, formatPLN2 } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Legend, ReferenceLine
@@ -157,7 +159,7 @@ function CashflowTab() {
 }
 
 function LongtermTab() {
-  const { r, s } = useRealEstate();
+  const { r, s, requiredOverpayment, updateS } = useRealEstate();
   const finalProfit = s.sellAtEnd ? r.totalReturn : r.totalReturnNoSale;
   const finalProfitPct = s.sellAtEnd ? r.totalReturnPct : r.totalReturnNoSalePct;
   const propertyValueAtEnd = r.yearly[r.yearly.length - 1].propertyValue;
@@ -324,6 +326,62 @@ function LongtermTab() {
               </div>
             </div>
           )}
+
+          <div className="bg-card rounded-3xl border border-border p-4 mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h4 className="font-semibold text-lg">Nadpłata kredytu</h4>
+                <p className="text-xs text-muted-foreground">Włącz nadpłatę, aby przyspieszyć spłatę kredytu w czasie analizy.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium">Chcę nadpłacać kredyt</span>
+                <Switch
+                  checked={s.tsoverpaymentEnabled}
+                  onCheckedChange={(checked) => updateS({ tsoverpaymentEnabled: checked })}
+                />
+              </div>
+            </div>
+
+            {s.tsoverpaymentEnabled && (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl bg-muted/20 p-4 border border-border">
+                  <p className="text-sm text-muted-foreground">Wymagana nadpłata</p>
+                  <p className="font-semibold text-lg">{formatPLN(requiredOverpayment)} zł/m-c aby spłacić kredyt w {s.holdingYears} latach</p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-[1.6fr_1fr]">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Nadpłata miesięczna</label>
+                    <Input
+                      type="text"
+                      placeholder={formatPLN(requiredOverpayment)}
+                      value={s.overpaymentMonthly !== null ? formatLocaleAmount(s.overpaymentMonthly) : ""}
+                      onChange={(e) => {
+                        const value = e.target.value.trim();
+                        if (value === "") {
+                          updateS({ overpaymentMonthly: null });
+                          return;
+                        }
+                        updateS({ overpaymentMonthly: Math.max(0, parseLocaleAmount(value)) });
+                      }}
+                      className="h-11 text-right font-mono bg-background border-border"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Efektywna nadpłata</p>
+                    <p className="font-display text-2xl mt-2">{formatPLN(s.tsoverpaymentEnabled ? (s.overpaymentMonthly ?? requiredOverpayment) : 0)}</p>
+                  </div>
+                </div>
+
+                {s.overpaymentMonthly !== null && s.overpaymentMonthly < requiredOverpayment && (
+                  <div className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm text-warning-foreground">
+                    Kredyt nie zostanie spłacony w czasie analizy. Pozostała kwota kredytu: <span className="font-semibold">{formatPLN(remainingLoan)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Bottom line */}
           <div className="bg-muted/50 border border-border rounded-xl p-4">

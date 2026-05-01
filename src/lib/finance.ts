@@ -99,6 +99,104 @@ export function amortizationSchedule(
   return rows;
 }
 
+export function amortizationScheduleDecreasing(
+  principal: number,
+  annualRatePct: number,
+  months: number,
+  monthlyOverpayment = 0,
+): AmortRow[] {
+  const rows: AmortRow[] = [];
+  if (principal <= 0 || months <= 0) return rows;
+  const r = annualRatePct / 100 / 12;
+  let balance = principal;
+  const principalRepayment = principal / months;
+  let m = 0;
+  const maxMonths = months + 24;
+
+  while (balance > 0.01 && m < maxMonths) {
+    m++;
+    const interest = balance * r;
+    let overpayment = monthlyOverpayment;
+    if (principalRepayment + overpayment > balance) {
+      overpayment = Math.max(0, balance - principalRepayment);
+    }
+    balance = Math.max(0, balance - principalRepayment - overpayment);
+    rows.push({
+      month: m,
+      payment: round2(principalRepayment + interest + overpayment),
+      interest: round2(interest),
+      principal: round2(principalRepayment),
+      overpayment: round2(overpayment),
+      balance: round2(balance),
+    });
+  }
+
+  return rows;
+}
+
+function remainingBalanceWithDecreasingOverpayment(
+  principal: number,
+  annualRatePct: number,
+  months: number,
+  targetMonths: number,
+  monthlyOverpayment: number,
+) {
+  const r = annualRatePct / 100 / 12;
+  let balance = principal;
+  const principalRepayment = principal / months;
+  for (let m = 1; m <= targetMonths && balance > 0.001; m++) {
+    const interest = balance * r;
+    let overpayment = monthlyOverpayment;
+    if (principalRepayment + overpayment > balance) {
+      overpayment = Math.max(0, balance - principalRepayment);
+    }
+    balance = Math.max(0, balance - principalRepayment - overpayment);
+  }
+  return balance;
+}
+
+export function calcRequiredOverpayment(s: RealEstateScenario): number {
+  const downPayment = s.purchasePrice * (s.downPaymentPct / 100);
+  const renovationFinancedPct = Math.max(0, Math.min(100, s.renovationFinancedPct || 0));
+  const renovationFinancedAmount = (s.renovationCost * renovationFinancedPct) / 100;
+  const loanAmount = Math.max(0, s.purchasePrice - downPayment) + renovationFinancedAmount;
+  const months = Math.max(1, s.mortgageYears * 12);
+  const targetMonths = Math.max(1, Math.round(s.holdingYears * 12));
+
+  if (loanAmount <= 0 || targetMonths >= months) return 0;
+
+  const balanceAfter = (monthlyOverpayment: number) => {
+    if (s.mortgageType === "equal") {
+      const schedule = amortizationSchedule(loanAmount, s.mortgageRatePct, months, monthlyOverpayment, "fixed");
+      if (schedule.length < targetMonths) return 0;
+      return schedule[targetMonths - 1].balance;
+    }
+    return remainingBalanceWithDecreasingOverpayment(
+      loanAmount,
+      s.mortgageRatePct,
+      months,
+      targetMonths,
+      monthlyOverpayment,
+    );
+  };
+
+  if (balanceAfter(0) <= 0) return 0;
+
+  let low = 0;
+  let high = loanAmount;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    const balance = balanceAfter(mid);
+    if (balance > 0) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  return round2(high);
+}
+
 export interface RentalInput {
   monthlyRent: number;
   monthlyCosts: number;
@@ -279,6 +377,9 @@ export interface RealEstateScenario {
   mortgageType: "equal" | "decreasing";
   bankCommissionPct: number; // bank commission upfront %
   mortgageInsuranceMonthly: number; // monthly life/property insurance required by bank
+  // Overpayment
+  tsoverpaymentEnabled: boolean;
+  overpaymentMonthly: number | null; // null = use calculated required overpayment, number = user override
   // Rent
   monthlyRent: number;
   monthlyCosts: number; // czynsz admin., zarządzanie, ubezpieczenie /m-c
@@ -372,7 +473,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const annualRentFirstYear = s.monthlyRent * rentedMonthsFirstYear;
   const effectiveRent = annualRentFirstYear / 12;
   const monthlyTax = annualRentFirstYear * (s.taxRatePct / 100) / 12;
-  const monthlyCashflow = effectiveRent - s.monthlyCosts - totalMonthlyMortgageCost - monthlyTax;
+  const effectiveOverpayment = s.tsoverpaymentEnabled ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s)) : 0;
+  const monthlyCashflow = effectiveRent - s.monthlyCosts - totalMonthlyMortgageCost - monthlyTax - effectiveOverpayment;
   const annualCashflow = monthlyCashflow * 12;
 
   const grossYieldPct = s.purchasePrice > 0 ? (annualRentFirstYear / s.purchasePrice) * 100 : 0;
@@ -382,6 +484,11 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const capRate = s.purchasePrice > 0 ? (noi / s.purchasePrice) * 100 : 0;
 
   // Yearly projection
+  const loanSchedule =
+    s.mortgageType === "equal"
+      ? amortizationSchedule(loanAmount, s.mortgageRatePct, months, effectiveOverpayment, "fixed")
+      : amortizationScheduleDecreasing(loanAmount, s.mortgageRatePct, months, effectiveOverpayment);
+
   const yearly: RealEstateYearPoint[] = [];
   let cumulative = 0;
   let cumulativePositive = 0;
@@ -394,17 +501,10 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const costsYear = s.monthlyCosts * 12;
     const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
 
-    let pmtYear = 0;
-    if (s.mortgageType === "decreasing") {
-      // Sum installments for months (y-1)*12 + 1 to y*12
-      for (let m = (y - 1) * 12 + 1; m <= y * 12; m++) {
-        if (m > months) break;
-        const interest = Math.max(0, loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
-        pmtYear += loanAmount / months + interest;
-      }
-    } else {
-      pmtYear = monthlyPmt * 12;
-    }
+    const startIdx = (y - 1) * 12;
+    const endIdx = y * 12;
+    const yearRows = loanSchedule.slice(startIdx, endIdx);
+    const pmtYear = yearRows.reduce((sum: number, row: AmortRow) => sum + row.payment, 0);
 
     const cf = effectiveYear - costsYear - pmtYear - taxYear - insuranceYear;
     cumulative += cf;
@@ -414,17 +514,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
       cumulativeNegative += Math.abs(cf);
     }
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
-    let loanBalance = 0;
-    if (s.mortgageType === "decreasing") {
-      loanBalance = Math.max(0, loanAmount - (loanAmount / months) * Math.min(y * 12, months));
-    } else {
-      loanBalance = remainingBalance(
-        loanAmount,
-        s.mortgageRatePct,
-        months,
-        Math.min(y * 12, months),
-      );
-    }
+    const loanBalance = yearRows.length > 0 ? yearRows[yearRows.length - 1].balance : Math.max(0, loanSchedule[loanSchedule.length - 1]?.balance ?? 0);
     const equity = propertyValue - loanBalance;
     yearly.push({
       year: y,
@@ -440,26 +530,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     });
   }
 
-  const totalInterestPaid = yearly.reduce((sum, y, idx) => {
-    // This is a bit simplified for interest calculation from CF, let's do it properly
-    // Interest = (Installment - PrincipalRepayment)
-    const prevBalance = idx === 0 ? loanAmount : yearly[idx - 1].loanBalance;
-    const principalRepaid = prevBalance - y.loanBalance;
-
-    // We need the total pmt for that year
-    let pmtYear = 0;
-    const yearNum = idx + 1;
-    if (s.mortgageType === "decreasing") {
-      for (let m = (yearNum - 1) * 12 + 1; m <= yearNum * 12; m++) {
-        if (m > months) break;
-        const interest = Math.max(0, loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
-        pmtYear += loanAmount / months + interest;
-      }
-    } else {
-      pmtYear = monthlyPmt * 12;
-    }
-    return sum + (pmtYear - principalRepaid);
-  }, 0);
+  const totalInterestPaid = loanSchedule.reduce((sum: number, row: AmortRow) => sum + row.interest, 0);
 
   const totalInsurancePaid = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
   const totalMortgageCost = totalInterestPaid + bankCommission + totalInsurancePaid;
@@ -529,7 +600,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 export function minBreakEvenRent(s: RealEstateScenario, r: RealEstateResult): number {
   const initialVacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
   const monthsRented = Math.max(0, 12 - initialVacancyMonths);
-  const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts;
+  const effectiveOverpayment = s.tsoverpaymentEnabled ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s)) : 0;
+  const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts + effectiveOverpayment;
   const factor = monthsRented > 0 ? (monthsRented / 12) * (1 - s.taxRatePct / 100) : 0;
   return factor > 0 ? round2(totalFixed / factor) : 0;
 }
