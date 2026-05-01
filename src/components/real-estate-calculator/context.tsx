@@ -49,8 +49,10 @@ export function useRealEstate() {
   return context;
 }
 
+const REAL_ESTATE_SCENARIO_STORAGE_KEY = "realEstateScenario";
+
 export function RealEstateProvider({ children }: { children: React.ReactNode }) {
-  const [s, setS] = useState<RealEstateScenario>({
+  const defaultScenario: RealEstateScenario = {
     purchasePrice: 650000,
     downPaymentPct: 20,
     renovationCost: 50000,
@@ -75,6 +77,17 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     appreciationPct: 4,
     holdingYears: 15,
     sellAtEnd: true,
+  };
+
+  const [s, setS] = useState<RealEstateScenario>(() => {
+    if (typeof window === "undefined") return defaultScenario;
+    try {
+      const stored = window.localStorage.getItem(REAL_ESTATE_SCENARIO_STORAGE_KEY);
+      if (!stored) return defaultScenario;
+      return { ...defaultScenario, ...JSON.parse(stored) };
+    } catch {
+      return defaultScenario;
+    }
   });
 
   const [costs, setCosts] = useState({
@@ -84,6 +97,14 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     insurance: 50,
     reserve: 250,
   });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(REAL_ESTATE_SCENARIO_STORAGE_KEY, JSON.stringify(s));
+    } catch {
+      // ignore write errors
+    }
+  }, [s]);
 
   const updateS = (patch: Partial<RealEstateScenario>) => setS((prev) => ({ ...prev, ...patch }));
 
