@@ -1032,7 +1032,7 @@ function AddInvestmentDialog() {
             />
           </div>
 
-          <div className="grid gap-2">
+          {/* <div className="grid gap-2">
             <label className="text-left text-sm font-medium">Cena zakupu</label>
             <div className="relative">
               <Input
@@ -1045,7 +1045,7 @@ function AddInvestmentDialog() {
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{draft.currency}</span>
             </div>
-          </div>
+          </div> */}
 
           <div className="grid gap-2">
             <label className="text-left text-sm font-medium">Wartość pozycji</label>
