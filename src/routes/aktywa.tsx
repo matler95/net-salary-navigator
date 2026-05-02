@@ -825,8 +825,10 @@ function InvestmentsSummaryView({
 function AddInvestmentDialog() {
   const { rates } = useDailyFxRates();
   const [open, setOpen] = useState(false);
-  const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency, volume: 0, price: 0 };
+  const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency };
   const [draft, setDraft] = useState(EMPTY);
+  const [volumeInput, setVolumeInput] = useState("");
+  const [priceInput, setPriceInput] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TickerSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -864,6 +866,8 @@ function AddInvestmentDialog() {
 
   const handleReset = () => {
     setDraft(EMPTY);
+    setVolumeInput("");
+    setPriceInput("");
     setQuery("");
     setResults([]);
     setDropOpen(false);
@@ -896,19 +900,21 @@ function AddInvestmentDialog() {
           onSubmit={(e) => {
             e.preventDefault();
             const ticker = draft.ticker.trim();
-            if (!ticker || draft.volume <= 0) return;
+            const volume = parseLocaleAmount(volumeInput);
+            const price = parseLocaleAmount(priceInput);
+            if (!ticker || volume <= 0 || price <= 0) return;
 
             // To account for currency effects, we store the cost in PLN at the moment of adding.
-            const totalCostPLN = convertToPLN(draft.volume * draft.price, draft.currency, rates);
+            const totalCostPLN = convertToPLN(volume * price, draft.currency, rates);
 
             actions.addInvestment({
               label: draft.name || ticker,
               type: "ETF",
               ticker: ticker.toLowerCase(),
               currency: draft.currency,
-              volume: draft.volume,
+              volume,
               value: 0,
-              tickerPriceAtAdd: draft.price,
+              tickerPriceAtAdd: price,
               tickerPriceDate: new Date().toISOString().slice(0, 10),
               monthlyContribution: 0,
               totalCostPLN,
@@ -1005,8 +1011,8 @@ function AddInvestmentDialog() {
             <Input
               type="text"
               inputMode="decimal"
-              value={formatLocaleAmount(draft.volume, 4)}
-              onChange={(e) => setDraft({ ...draft, volume: parseLocaleAmount(e.target.value) })}
+              value={volumeInput}
+              onChange={(e) => setVolumeInput(e.target.value)}
               placeholder="np. 10"
               className="col-span-3 font-mono tabular-nums h-10"
             />
@@ -1018,8 +1024,8 @@ function AddInvestmentDialog() {
               <Input
                 type="text"
                 inputMode="decimal"
-                value={formatLocaleAmount(draft.price, 4)}
-                onChange={(e) => setDraft({ ...draft, price: parseLocaleAmount(e.target.value) })}
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
                 placeholder="0"
                 className="font-mono tabular-nums h-10 pr-12"
               />
@@ -1028,7 +1034,10 @@ function AddInvestmentDialog() {
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={!draft.ticker.trim() || draft.volume <= 0}>
+            <Button
+              type="submit"
+              disabled={!draft.ticker.trim() || parseLocaleAmount(volumeInput) <= 0 || parseLocaleAmount(priceInput) <= 0}
+            >
               Dodaj do portfolio
             </Button>
           </DialogFooter>

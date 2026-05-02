@@ -123,13 +123,13 @@ function ExpensesPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex-1">
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2">
-            Wydatki (mies.)
+            Stałe i zaplanowane wydatki
           </p>
           <h1 className="font-display text-4xl sm:text-5xl">
             Gdzie uciekają <span className="italic text-accent">pieniądze?</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Śledź swoje stałe i zmienne koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej projekcji budżetu i znalezienie potencjalnych oszczędności.
+            Śledź swoje stałe koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej projekcji budżetu i znalezienie potencjalnych oszczędności.
           </p>
           <div className="flex items-baseline gap-4 mt-6">
             <div className="flex items-baseline gap-1.5">

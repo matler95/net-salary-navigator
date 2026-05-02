@@ -330,7 +330,7 @@ function Dashboard() {
             <div className="space-y-6">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                  {selectedMonthCashflow >= 0 ? "Zysk miesiąca" : "Strata miesiąca"}
+                  {selectedMonthCashflow >= 0 ? "Zysk miesiąca - na inne wydatki i oszczędności" : "Strata miesiąca"}
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-6">
                   <div className="flex flex-col">
@@ -395,7 +395,7 @@ function Dashboard() {
                   <p className="font-mono text-sm font-bold text-income">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Wydatki (mies.)</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stałe wydatki</p>
                   <p className="font-mono text-sm font-bold text-expense">{formatPLN(selectedMonthExpenses)}</p>
                 </div>
                 <div>
