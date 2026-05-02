@@ -244,6 +244,9 @@ function FlowTab() {
   const saleCosts = r.saleCosts;
   const finalProfit = s.sellAtEnd ? r.totalReturn : r.totalReturnNoSale;
   const finalProfitPct = s.sellAtEnd ? r.totalReturnPct : r.totalReturnNoSalePct;
+  const formatSignedPLN = (value: number) => `${value >= 0 ? "+" : ""}${formatPLN(value)}`;
+  const valueToneClass = (value: number) =>
+    value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground";
 
   return (
     <div className="space-y-6">
@@ -258,18 +261,18 @@ function FlowTab() {
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co zainwestowałeś</p>
                 <h4 className="font-semibold text-base">Pieniądze z Twojej kieszeni</h4>
               </div>
-              <div className="font-mono text-red-700 dark:text-red-300 font-semibold">-{formatPLN(r.totalUpfront)}</div>
+              <div className={`font-mono font-semibold ${valueToneClass(-r.totalUpfront)}`}>{formatSignedPLN(-r.totalUpfront)}</div>
             </div>
             <div className="mt-4 space-y-3">
               {r.yearly.length > 0 && r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow > 0 && (
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Dopłaty w miesiącach ujemnego cashflow</span>
-                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow)}</span>
+                  <span className={`font-mono ${valueToneClass(-r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow)}`}>{formatSignedPLN(-r.yearly[r.yearly.length - 1].cumulativeNegativeCashflow)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-semibold border-t border-border pt-3">
                 <span>Łącznie zainwestowane</span>
-                <span className="font-mono text-red-800 dark:text-red-200">-{formatPLN(r.totalUpfront + (r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0))}</span>
+                <span className={`font-mono ${valueToneClass(-(r.totalUpfront + (r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0)))}`}>{formatSignedPLN(-(r.totalUpfront + (r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0)))}</span>
               </div>
             </div>
           </div>
@@ -280,17 +283,23 @@ function FlowTab() {
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co wróciło w trakcie</p>
                 <h4 className="font-semibold text-base">Już w Twojej kieszeni</h4>
               </div>
-              <div className="font-mono text-green-700 dark:text-green-300 font-semibold">+{formatPLN(r.totalCashflow)}</div>
+              <div className={`font-mono font-semibold ${valueToneClass(r.totalCashflow)}`}>{formatSignedPLN(r.totalCashflow)}</div>
             </div>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <div className="flex justify-between">
                 <span>Gross rent collected</span>
-                <span className="font-mono text-green-600 dark:text-green-400">+{formatPLN(r.yearly.reduce((sum, y) => sum + y.rent, 0))}</span>
+                <span className={`font-mono ${valueToneClass(r.yearly.reduce((sum, y) => sum + y.rent, 0))}`}>{formatSignedPLN(r.yearly.reduce((sum, y) => sum + y.rent, 0))}</span>
               </div>
               <div className="flex justify-between">
-                <span>Minus: wszystkie koszty (mortgage + ubezpieczenie + koszty stałe + podatek)</span>
-                <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(r.yearly.reduce((sum, y) => sum + y.rent - y.cashflow, 0))}</span>
+                <span>Minus: koszty operacyjne (mortgage + ubezpieczenie + koszty stałe + podatek)</span>
+                <span className={`font-mono ${valueToneClass(-r.totalOperationalCosts)}`}>{formatSignedPLN(-r.totalOperationalCosts)}</span>
               </div>
+              {r.netOverpaymentCost > 0.01 && (
+                <div className="flex justify-between">
+                  <span>Minus: nadpłaty kredytu (netto)</span>
+                  <span className={`font-mono ${valueToneClass(-r.netOverpaymentCost)}`}>{formatSignedPLN(-r.netOverpaymentCost)}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -301,20 +310,20 @@ function FlowTab() {
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co dostaniesz na wyjściu</p>
                   <h4 className="font-semibold text-base">Jednorazowe zdarzenie</h4>
                 </div>
-                <div className="font-mono text-green-700 dark:text-green-300 font-semibold">+{formatPLN(netFromSale)}</div>
+                <div className={`font-mono font-semibold ${valueToneClass(netFromSale)}`}>{formatSignedPLN(netFromSale)}</div>
               </div>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <div className="flex justify-between">
                   <span>Cena sprzedaży nieruchomości</span>
-                  <span className="font-mono text-green-600 dark:text-green-400">+{formatPLN(r.yearly[r.yearly.length - 1].propertyValue)}</span>
+                  <span className={`font-mono ${valueToneClass(r.yearly[r.yearly.length - 1].propertyValue)}`}>{formatSignedPLN(r.yearly[r.yearly.length - 1].propertyValue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Minus: pozostały kredyt do spłaty</span>
-                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(remainingLoan)}</span>
+                  <span className={`font-mono ${valueToneClass(-remainingLoan)}`}>{formatSignedPLN(-remainingLoan)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Minus: koszty transakcji sprzedaży (~2% prowizja)</span>
-                  <span className="font-mono text-red-600 dark:text-red-400">-{formatPLN(saleCosts)}</span>
+                  <span className={`font-mono ${valueToneClass(-saleCosts)}`}>{formatSignedPLN(-saleCosts)}</span>
                 </div>
               </div>
             </div>
@@ -336,7 +345,7 @@ function FlowTab() {
               <div className="mt-4 space-y-4">
                 <div className="rounded-2xl bg-muted/20 p-4 border border-border">
                   <p className="text-sm text-muted-foreground">Wymagana nadpłata</p>
-                  <p className="font-semibold text-lg">{formatPLN(requiredOverpayment)} zł/m-c aby spłacić kredyt w {s.holdingYears} latach</p>
+                  <p className="font-semibold text-lg">{formatPLN(requiredOverpayment)}/m-c aby spłacić kredyt w {s.holdingYears} lat.</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-[1.6fr_1fr]">

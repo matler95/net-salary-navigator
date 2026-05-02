@@ -402,6 +402,7 @@ export interface RealEstateResult {
   monthlyPmt: number;
   totalMortgageCost: number; // total interest + commission + insurance over holdingYears
   totalInterestPaid: number; // total interest over holdingYears
+  totalOverpaymentPaid: number; // total overpayments made over holdingYears
   // First-year cashflow
   effectiveRent: number;
   monthlyTax: number;
@@ -424,6 +425,8 @@ export interface RealEstateResult {
   totalReturnNoSale: number; // cashflow only, no sale
   totalReturnNoSalePct: number; // % of upfront if not sold
   irrAnnualPct: number; // approximate IRR
+  totalOperationalCosts: number; // mortgage + insurance + fixed costs + tax (baseline, WITHOUT overpayments)
+  netOverpaymentCost: number; // overpayment amount minus interest saved (net extra cost)
 }
 
 export interface RealEstateYearPoint {
@@ -474,7 +477,18 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const effectiveRent = annualRentFirstYear / 12;
   const monthlyTax = annualRentFirstYear * (s.taxRatePct / 100) / 12;
   const effectiveOverpayment = s.tsoverpaymentEnabled ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s)) : 0;
-  const monthlyCashflow = effectiveRent - s.monthlyCosts - totalMonthlyMortgageCost - monthlyTax - effectiveOverpayment;
+
+  // Generate loan schedule to get accurate first-year payments
+  const tempLoanSchedule =
+    s.mortgageType === "equal"
+      ? amortizationSchedule(loanAmount, s.mortgageRatePct, months, effectiveOverpayment, "fixed")
+      : amortizationScheduleDecreasing(loanAmount, s.mortgageRatePct, months, effectiveOverpayment);
+
+  // Calculate actual average monthly payment for first year (including overpayments)
+  const firstYearRows = tempLoanSchedule.slice(0, 12);
+  const actualMonthlyPmtFirstYear = firstYearRows.length > 0 ? firstYearRows.reduce((sum, row) => sum + row.payment, 0) / firstYearRows.length : 0;
+
+  const monthlyCashflow = effectiveRent - s.monthlyCosts - actualMonthlyPmtFirstYear - (s.mortgageInsuranceMonthly || 0) - monthlyTax;
   const annualCashflow = monthlyCashflow * 12;
 
   const grossYieldPct = s.purchasePrice > 0 ? (annualRentFirstYear / s.purchasePrice) * 100 : 0;
@@ -488,6 +502,12 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     s.mortgageType === "equal"
       ? amortizationSchedule(loanAmount, s.mortgageRatePct, months, effectiveOverpayment, "fixed")
       : amortizationScheduleDecreasing(loanAmount, s.mortgageRatePct, months, effectiveOverpayment);
+
+  // Also generate baseline schedule WITHOUT overpayment to calculate true operational costs
+  const baselineLoanSchedule =
+    s.mortgageType === "equal"
+      ? amortizationSchedule(loanAmount, s.mortgageRatePct, months, 0, "fixed")
+      : amortizationScheduleDecreasing(loanAmount, s.mortgageRatePct, months, 0);
 
   const yearly: RealEstateYearPoint[] = [];
   let cumulative = 0;
@@ -531,6 +551,36 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   }
 
   const totalInterestPaid = loanSchedule.reduce((sum: number, row: AmortRow) => sum + row.interest, 0);
+  const totalOverpaymentPaid = loanSchedule.reduce((sum: number, row: AmortRow) => sum + row.overpayment, 0);
+  
+  // Calculate baseline interest (without overpayments) for the analysis period
+  let totalBaselineInterest = 0;
+  for (let y = 1; y <= s.holdingYears; y++) {
+    const startIdx = (y - 1) * 12;
+    const endIdx = y * 12;
+    const baselineYearRows = baselineLoanSchedule.slice(startIdx, endIdx);
+    totalBaselineInterest += baselineYearRows.reduce((sum: number, row: AmortRow) => sum + row.interest, 0);
+  }
+
+  // Net overpayment cost = (overpayment amount) - (interest saved)
+  // Interest saved = totalBaselineInterest - totalInterestPaid
+  const interestSaved = totalBaselineInterest - totalInterestPaid;
+  const netOverpaymentCost = Math.max(0, totalOverpaymentPaid - interestSaved);
+
+  // Calculate baseline operational costs (without overpayments) for the analysis period
+  let totalOperationalCosts = 0;
+  let totalBaselineMortgagePayments = 0;
+  for (let y = 1; y <= s.holdingYears; y++) {
+    const startIdx = (y - 1) * 12;
+    const endIdx = y * 12;
+    const baselineYearRows = baselineLoanSchedule.slice(startIdx, endIdx);
+    const baselinePmtYear = baselineYearRows.reduce((sum: number, row: AmortRow) => sum + row.payment, 0);
+    const taxYear = (y === 1 ? annualRentFirstYear : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1)) * (s.taxRatePct / 100);
+    const costsYear = s.monthlyCosts * 12;
+    const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
+    totalOperationalCosts += costsYear + baselinePmtYear + insuranceYear + taxYear;
+    totalBaselineMortgagePayments += baselinePmtYear;
+  }
 
   const totalInsurancePaid = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
   const totalMortgageCost = totalInterestPaid + bankCommission + totalInsurancePaid;
@@ -571,6 +621,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     monthlyPmt: round2(monthlyPmt),
     totalMortgageCost: round2(totalMortgageCost),
     totalInterestPaid: round2(totalInterestPaid),
+    totalOverpaymentPaid: round2(totalOverpaymentPaid),
     effectiveRent: round2(effectiveRent),
     monthlyTax: round2(monthlyTax),
     monthlyCashflow: round2(monthlyCashflow),
@@ -590,6 +641,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     totalReturnNoSale: round2(totalReturnNoSale),
     totalReturnNoSalePct: round2(totalReturnNoSalePct),
     irrAnnualPct: round2(irrAnnualPct),
+    totalOperationalCosts: round2(totalOperationalCosts),
+    netOverpaymentCost: round2(netOverpaymentCost),
   };
 }
 
