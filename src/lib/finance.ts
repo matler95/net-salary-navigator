@@ -503,7 +503,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   // First-year actual average monthly pmt (includes overpayment amounts)
   const firstYearRows = loanSchedule.slice(0, 12);
   const actualMonthlyPmtFirstYear = firstYearRows.length > 0
-    ? firstYearRows.reduce((sum, row) => sum + row.payment, 0) / firstYearRows.length
+    ? firstYearRows.reduce((sum, row) => sum + row.payment, 0) / 12
     : 0;
 
   const monthlyCashflow = effectiveRent - s.monthlyCosts - actualMonthlyPmtFirstYear - (s.mortgageInsuranceMonthly || 0) - monthlyTax;
@@ -591,7 +591,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   // Interest saved vs baseline
   const interestSaved = totalBaselineInterestOverHolding - totalInterestPaid;
   // Net cost of overpayments = money sent in overpayments - interest saved
-  const netOverpaymentCost = Math.max(0, totalOverpaymentPaid - interestSaved);
+  // Allow negative values when interest savings exceed overpayment amounts.
+  const netOverpaymentCost = totalOverpaymentPaid - interestSaved;
 
   const totalInsurancePaid = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
   const totalMortgageCost = totalInterestPaid + bankCommission + totalInsurancePaid;
@@ -618,7 +619,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
   const finalEquity = yearly.length ? yearly[yearly.length - 1].equity : downPayment;
   const totalCashflow = cumulative;
-  const saleCosts = s.sellAtEnd ? finalEquity * 0.02 : 0;
+  const saleCosts = s.sellAtEnd ? propertyValue * 0.02 : 0;
   const netFromSale = s.sellAtEnd ? finalEquity - saleCosts : 0;
   const totalReturn = netFromSale + totalCashflow - totalUpfront;
   const totalReturnNoSale = totalCashflow - totalUpfront; // net profit from cashflow only
