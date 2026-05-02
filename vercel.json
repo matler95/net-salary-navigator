@@ -3,15 +3,7 @@
   "outputDirectory": "dist/client",
   "rewrites": [
     {
-      "source": "/api/stooq/(.*)",
-      "destination": "/api/stooq/$1"
-    },
-    {
-      "source": "/api/yahoo/(.*)",
-      "destination": "/api/yahoo/$1"
-    },
-    {
-      "source": "/((?!assets/|api/|favicon.ico).*)",
+      "source": "/((?!assets/).*)",
       "destination": "/api/index"
     }
   ],

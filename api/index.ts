@@ -1,7 +1,118 @@
 // @ts-ignore
 import server from '../dist/server/server.js';
 
+async function handleYahooAPI(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  
+  // Strip the /api/yahoo prefix to get the true Yahoo Finance path
+  const targetPath = url.pathname.replace(/^\/api\/yahoo/, "");
+  const targetUrl = `https://query1.finance.yahoo.com${targetPath}${url.search}`;
+
+  try {
+    const proxyRequest = new Request(targetUrl, {
+      method: request.method,
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "BudgetMeister-App/1.0"
+      }
+    });
+    
+    const response = await fetch(proxyRequest);
+    
+    // Return a new response to modify headers if necessary (CORS)
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set("Access-Control-Allow-Origin", "*");
+    
+    return newResponse;
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+
+async function handleStooqAPI(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  
+  // Strip the /api/stooq prefix to get the true Stooq path
+  const targetPath = url.pathname.replace(/^\/api\/stooq/, "");
+  const targetUrl = `https://stooq.com${targetPath}${url.search}`;
+
+  try {
+    const proxyRequest = new Request(targetUrl, {
+      method: request.method,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" // Stooq sometimes blocks bots without standard UA
+      }
+    });
+    
+    const response = await fetch(proxyRequest);
+    
+    // Return a new response to modify headers if necessary (CORS)
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set("Access-Control-Allow-Origin", "*");
+    
+    return newResponse;
+  } catch (error: any) {
+    return new Response(error.message, {
+      status: 500,
+      headers: { "Content-Type": "text/plain" }
+    });
+  }
+}
+
 export default async function handler(req: any, res?: any) {
+  const url = req.url || (req.headers?.host ? `http://${req.headers.host}${req.url || '/'}` : 'http://localhost/');
+  const urlObj = new URL(url);
+  
+  // Handle API routes
+  if (urlObj.pathname.startsWith('/api/yahoo/')) {
+    const request = new Request(url, {
+      method: req.method,
+      headers: req.headers as any,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+    });
+    const response = await handleYahooAPI(request);
+    
+    if (res) {
+      // Node.js response
+      res.statusCode = response.status;
+      response.headers.forEach((value: string, key: string) => {
+        res.setHeader(key, value);
+      });
+      const arrayBuffer = await response.arrayBuffer();
+      res.end(Buffer.from(arrayBuffer));
+      return;
+    } else {
+      // Web API response
+      return response;
+    }
+  }
+  
+  if (urlObj.pathname.startsWith('/api/stooq/')) {
+    const request = new Request(url, {
+      method: req.method,
+      headers: req.headers as any,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+    });
+    const response = await handleStooqAPI(request);
+    
+    if (res) {
+      // Node.js response
+      res.statusCode = response.status;
+      response.headers.forEach((value: string, key: string) => {
+        res.setHeader(key, value);
+      });
+      const arrayBuffer = await response.arrayBuffer();
+      res.end(Buffer.from(arrayBuffer));
+      return;
+    } else {
+      // Web API response
+      return response;
+    }
+  }
+
   // If res is present, it's a Node.js (req, res) handler
   if (res) {
     const protocol = req.headers['x-forwarded-proto'] || 'http';
