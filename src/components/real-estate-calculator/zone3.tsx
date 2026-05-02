@@ -9,7 +9,7 @@ import {
   CartesianGrid, Legend, ReferenceLine
 } from "recharts";
 import { calculateRealEstate, amortizationSchedule, amortizationScheduleDecreasing, calcRequiredOverpayment } from "@/lib/finance";
-import { AlertTriangle, Info, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Info } from "lucide-react";
 
 export function InsightPanel() {
   return (
@@ -51,60 +51,33 @@ export function InsightPanel() {
   );
 }
 
-// ─── CashflowTab ────────────────────────────────────────────────────────────
-// Shows a monthly steady-state waterfall PLUS a year-1 average note when
-// vacancy is configured. Previously the two numbers were silently mixed.
+// ─── CashflowTab ─────────────────────────────────────────────────────────────
+// Shows a monthly steady-state waterfall breakdown.
+// "Steady-state" = one normal month at full rental occupancy, no vacancy months averaged in.
+// r.monthlyCashflow (from calculateRealEstate) = year-1 average including vacancy months.
+// These two numbers differ when vacancyMonths > 0 — both are shown clearly.
 
 function CashflowTab() {
   const { s, r, minRent, rentMargin, rentMarginPct } = useRealEstate();
 
-  // ── effective overpayment (mirrors calculateRealEstate logic) ──
   const effectiveOverpayment = s.tsoverpaymentEnabled
     ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s))
     : 0;
 
-  // ── steady-state cashflow (no vacancy, no overpayment in pmt display) ──
-  // This is what a "normal" month looks like once the apartment is rented.
+  // Steady-state: a normal month at full occupancy (no vacancy dilution)
+  const monthlyTax = s.monthlyRent * (s.taxRatePct / 100);
   const steadyCashflow =
-    s.monthlyRent - s.monthlyCosts - r.monthlyPmt - s.mortgageInsuranceMonthly -
-    (effectiveOverpayment) - s.monthlyRent * (s.taxRatePct / 100);
+    s.monthlyRent
+    - s.monthlyCosts
+    - r.monthlyPmt
+    - s.mortgageInsuranceMonthly
+    - effectiveOverpayment
+    - monthlyTax;
 
-  // ── vacancy context ──
   const vacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
   const hasVacancy = vacancyMonths > 0;
 
-  // ── mortgage display ──
-  // Show base installment + overpayment as separate lines so user sees what's
-  // actually coming out each month.
-  const monthlyTax = s.monthlyRent * (s.taxRatePct / 100);
-
-  const waterfallSteps: {
-    label: string;
-    value: number;
-    tone: "accent" | "subtotal" | "muted" | "destructive" | "warning" | "info";
-    hint?: string;
-    subs?: { label: string; value: number }[];
-  }[] = [
-    { label: "Czynsz od najemcy", value: s.monthlyRent, tone: "accent" },
-    { label: "Koszty stałe (czynsz admin., zarządzanie, rezerwa)", value: -s.monthlyCosts, tone: "muted" },
-    { label: "Rata kredytu (kapitał + odsetki)", value: -r.monthlyPmt, tone: "destructive",
-      subs: [
-        { label: "z czego odsetki (rok 1, śr.)", value: -(r.totalInterestPaid > 0 ? Math.min(r.totalInterestPaid / Math.max(r.yearly.length * 12, 1) , 0, r.monthlyPmt) : 0) },
-      ]
-    },
-    { label: "Ubezpieczenie kredytu", value: -s.mortgageInsuranceMonthly, tone: "destructive" },
-    ...(effectiveOverpayment > 0 ? [{
-      label: "Nadpłata kredytu / m-c",
-      value: -effectiveOverpayment,
-      tone: "warning" as const,
-      hint: "Skraca okres kredytu — to inwestycja, nie koszt",
-    }] : []),
-    { label: `Podatek ryczałtowy (${s.taxRatePct}%)`, value: -monthlyTax, tone: "warning" },
-  ];
-
-  const totalWidth = s.monthlyRent;
-
-  // ── year-1 interest estimate from first schedule row ──
+  // Year-1 average interest from amortization schedule (first 12 months)
   const loanAmount =
     Math.max(0, s.purchasePrice * (1 - s.downPaymentPct / 100)) +
     (s.renovationCost * (s.renovationFinancedPct || 0)) / 100;
@@ -118,20 +91,47 @@ function CashflowTab() {
       ? scheduleFirstYear.reduce((sum, row) => sum + row.interest, 0) / scheduleFirstYear.length
       : 0;
 
-  // Replace the sub with accurate value
-  if (waterfallSteps[2].subs) {
-    waterfallSteps[2].subs[0].value = -avgMonthlyInterestYr1;
-  }
+  // Waterfall lines for steady-state month
+  const waterfallSteps: {
+    label: string;
+    value: number;
+    tone: "accent" | "subtotal" | "muted" | "destructive" | "warning" | "info";
+    hint?: string;
+    subs?: { label: string; value: number }[];
+  }[] = [
+    { label: "Czynsz od najemcy", value: s.monthlyRent, tone: "accent" },
+    { label: "Koszty stałe właściciela", value: -s.monthlyCosts, tone: "muted",
+      hint: "Czynsz admin., zarządzanie, rezerwa, ubezpieczenie nieruchomości" },
+    {
+      label: "Rata kredytu (kapitał + odsetki)",
+      value: -r.monthlyPmt,
+      tone: "destructive",
+      subs: [
+        { label: "z czego odsetki (śr. rok 1)", value: -avgMonthlyInterestYr1 },
+        { label: "kapitał (spłata długu)", value: -(r.monthlyPmt - avgMonthlyInterestYr1) },
+      ]
+    },
+    { label: "Ubezpieczenie kredytu", value: -s.mortgageInsuranceMonthly, tone: "destructive" },
+    ...(effectiveOverpayment > 0 ? [{
+      label: "Nadpłata kredytu",
+      value: -effectiveOverpayment,
+      tone: "warning" as const,
+      hint: "Skraca okres kredytu — realny wydatek, ale budujesz kapitał szybciej",
+    }] : []),
+    { label: `Podatek ryczałtowy (${s.taxRatePct}% od czynszu)`, value: -monthlyTax, tone: "warning" },
+  ];
+
+  const totalWidth = s.monthlyRent;
 
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm space-y-6">
         <div>
-          <h3 className="font-display text-xl mb-1">Gdzie uciekają pieniądze?</h3>
+          <h3 className="font-display text-xl mb-1">Gdzie idą pieniądze każdego miesiąca?</h3>
           <p className="text-xs text-muted-foreground">
-            Miesięczny przepływ przy <span className="font-semibold text-foreground">pełnym wynajmie</span> (bez pustostanów).
+            Zysk przy <span className="font-semibold text-foreground">pełnym wynajmie</span> — jeden normalny miesiąc bez pustostanu.
             {hasVacancy && (
-              <> Średnia rok&nbsp;1 z pustostanami ({vacancyMonths}&nbsp;m-cy): <span className={cn("font-semibold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(r.monthlyCashflow)}/m-c</span>.</>
+              <> Rok&nbsp;1 z {vacancyMonths}&nbsp;m-cami pustostanu: <span className={cn("font-semibold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(r.monthlyCashflow)}/m-c średnio</span> (czynsz z {12 - vacancyMonths} m-cy rozłożony na 12).</>
             )}
           </p>
         </div>
@@ -191,7 +191,7 @@ function CashflowTab() {
 
           <div className="pt-4 border-t-2 border-border">
             <div className="flex justify-between items-center">
-              <span className="font-display text-lg">Zysk na czysto (pełny wynajem)</span>
+              <span className="font-display text-lg">Zysk miesięczny (pełny wynajem)</span>
               <div className="text-right">
                 <p className={cn(
                   "font-display text-2xl font-bold leading-none",
@@ -206,8 +206,9 @@ function CashflowTab() {
               <div className="mt-3 flex items-center gap-2 p-3 bg-warning/5 rounded-xl border border-warning/20">
                 <Info className="w-4 h-4 text-warning-foreground shrink-0" />
                 <p className="text-xs text-muted-foreground">
-                  Rok 1 (z {vacancyMonths} m-c pustostanu): <span className={cn("font-semibold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(r.monthlyCashflow)}/m-c średnio</span>.
-                  {" "}Różnica to koszt pustostanu rozłożony na 12 miesięcy.
+                  <span className="font-semibold text-foreground">Rok 1 (z {vacancyMonths} m-c pustostanu): </span>
+                  <span className={cn("font-semibold", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(r.monthlyCashflow)}/m-c</span>
+                  {" "}— czynsz z {12 - vacancyMonths} m-cy podzielony na 12. Różnica: <span className="font-mono">{formatPLN2(steadyCashflow - r.monthlyCashflow)}</span>.
                 </p>
               </div>
             )}
@@ -224,12 +225,12 @@ function CashflowTab() {
           <p className="text-xs text-muted-foreground mt-1">Wszystkie zobowiązania łącznie.</p>
         </div>
         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Efektywna stawka podatku</p>
-          <p className="font-mono text-lg font-bold">{(s.taxRatePct).toFixed(1)}%</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Stawka podatku</p>
+          <p className="font-mono text-lg font-bold">{s.taxRatePct.toFixed(1)}%</p>
           <p className="text-xs text-muted-foreground mt-1">Ryczałt od przychodu brutto.</p>
         </div>
         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Próg opłacalności</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Próg rentowności</p>
           <p className="font-mono text-lg font-bold">{formatPLN(minRent)}</p>
           <p className={cn("text-xs mt-1 font-bold", rentMargin >= 0 ? "text-success" : "text-destructive")}>
             Zapas: {rentMargin >= 0 ? "+" : ""}{formatPLN(rentMargin)} ({rentMarginPct.toFixed(0)}%)
@@ -249,7 +250,7 @@ function LongtermTab() {
 
   const milestones = [
     { year: cfPositiveYear > 0 ? cfPositiveYear : null, label: "Zaczynasz zarabiać co miesiąc" },
-    { year: breakEvenYear, label: "Zwrot włożonej gotówki (Próg opłacalności)" },
+    { year: breakEvenYear, label: "Zwrot włożonej gotówki" },
     { year: halfPaidYear > 0 ? halfPaidYear : null, label: "Spłacasz połowę kredytu" },
     { year: s.holdingYears, label: `Zysk po sprzedaży i spłacie: ${formatPLN(r.totalReturn)}` },
   ]
@@ -315,83 +316,113 @@ function LongtermTab() {
 }
 
 // ─── FlowTab ─────────────────────────────────────────────────────────────────
-// Fixed: totalCashflow/totalOperationalCosts reconciliation now shows
-// overpayments as a separate line; the "Co wróciło" section adds up correctly.
+//
+// CASH FLOW ACCOUNTING (corrected):
+//
+// Total invested (cash out of pocket, one-time):
+//   = downPayment + (renovationCost - renovationFinancedAmount) + closingCosts + bankCommission
+//   = r.totalUpfront
+//
+// Cash flow over holding period (sum of monthly: positive months minus negative months):
+//   = r.totalCashflow  (= r.yearly[last].cumulativeCashflow)
+//
+// Note: r.totalCashflow already nets out negative months. The "cumulativeNegativeCashflow"
+// field is informational only — showing it separately as "extra invested" would double-count
+// because those negative months are already subtracted from r.totalCashflow.
+//
+// Exit (if selling):
+//   netFromSale = propertyValue - remainingLoan - saleCosts
+//
+// Total return:
+//   = r.totalReturn = netFromSale + totalCashflow - totalUpfront
+//   (This is the profit/loss vs the initial cash committed)
+//
+// ROI%:
+//   r.totalReturnPct = totalReturn / investedCapital * 100
+//   where investedCapital = totalUpfront + sum of negative cashflow months (r.totalCashflow negative injections)
+//   This is correct for IRR purposes — it reflects all actual cash committed.
 
 function FlowTab() {
   const { r, s, requiredOverpayment, updateS } = useRealEstate();
+
   const remainingLoan = r.yearly[r.yearly.length - 1].loanBalance;
   const netFromSale = r.netFromSale;
   const saleCosts = r.saleCosts;
   const finalProfit = s.sellAtEnd ? r.totalReturn : r.totalReturnNoSale;
   const finalProfitPct = s.sellAtEnd ? r.totalReturnPct : r.totalReturnNoSalePct;
+
   const formatSignedPLN = (value: number) => `${value >= 0 ? "+" : ""}${formatPLN(value)}`;
   const valueToneClass = (value: number) =>
     value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground";
 
-  // ── gross rent collected over holding period ──
+  // Gross rent collected over holding period
   const totalGrossRent = r.yearly.reduce((sum, y) => sum + y.rent, 0);
 
-  // ── actual mortgage payments paid (with overpayments) ──
-  // = totalOperationalCosts + any overpayments that were paid
-  // totalOperationalCosts uses baseline; overpaymentPaid is tracked separately
-  const totalMortgageAndInsurance = r.totalOperationalCosts - r.yearly.reduce((sum, y) => {
-    const taxY = (y.rent * s.taxRatePct) / 100;
-    const costsY = s.monthlyCosts * 12;
-    return sum + taxY + costsY;
-  }, 0);
-
-  // For display: split operational into components
+  // Break down totalOperationalCosts (baseline, no overpayments) into components
+  // totalOperationalCosts = baseline mortgage payments + insurance + fixed costs + tax
   const totalTax = r.yearly.reduce((sum, y) => sum + (y.rent * s.taxRatePct) / 100, 0);
   const totalMonthlyCosts = s.monthlyCosts * 12 * s.holdingYears;
-  // baseline mortgage (no overpayments) = totalOperationalCosts - tax - monthlyCosts
-  const totalBaselineMortgageAndInsurance = r.totalOperationalCosts - totalTax - totalMonthlyCosts;
+  const totalInsurance = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
+  // Baseline mortgage payments (capital + interest, no overpayments, no insurance)
+  const totalBaselineMortgagePayments = r.totalOperationalCosts - totalTax - totalMonthlyCosts - totalInsurance;
 
+  // Informational: months where cashflow was negative (money had to be injected)
   const totalCumNegative = r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0;
+
+  // Renovation: own funds vs financed portions
+  const renovationFinancedAmount = (s.renovationCost * (s.renovationFinancedPct || 0)) / 100;
+  const renovationOwnFunds = s.renovationCost - renovationFinancedAmount;
 
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm">
-        <h3 className="font-display text-xl mb-4">Przepływ Pieniędzy</h3>
+        <h3 className="font-display text-xl mb-2">Przepływ Pieniędzy</h3>
         <p className="text-xs text-muted-foreground mb-6">
-          Klarowny podział na to, co zainwestowałeś, co wróciło w trakcie, i co dostaniesz na wyjściu.
+          Pełny obraz inwestycji: ile włożyłeś, ile wróciło co miesiąc, ile dostaniesz przy sprzedaży.
         </p>
 
         <div className="space-y-4">
-          {/* ── BLOCK 1: Zainwestowane ── */}
+          {/* ── BLOCK 1: Co zainwestowałeś ── */}
           <div className="border border-border rounded-3xl bg-card p-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co zainwestowałeś</p>
-                <h4 className="font-semibold text-base">Pieniądze z Twojej kieszeni</h4>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Wkład własny (jednorazowo)</p>
+                <h4 className="font-semibold text-base">Twoje pieniądze na start</h4>
               </div>
-              <div className={`font-mono font-semibold ${valueToneClass(-r.totalUpfront)}`}>{formatSignedPLN(-r.totalUpfront)}</div>
+              <div className={`font-mono font-semibold text-destructive`}>{formatSignedPLN(-r.totalUpfront)}</div>
             </div>
             <div className="mt-4 space-y-2 text-sm text-muted-foreground">
               <div className="flex justify-between">
-                <span>Wkład własny</span>
+                <span>Wkład własny ({s.downPaymentPct}% ceny)</span>
                 <span className="font-mono">{formatSignedPLN(-r.downPayment)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Remont (część własna)</span>
-                <span className="font-mono">{formatSignedPLN(-(s.renovationCost - s.renovationCost * (s.renovationFinancedPct || 0) / 100))}</span>
-              </div>
+              {renovationOwnFunds > 0 && (
+                <div className="flex justify-between">
+                  <span>Remont — część własna{renovationFinancedAmount > 0 ? ` (${100 - (s.renovationFinancedPct || 0)}%)` : ""}</span>
+                  <span className="font-mono">{formatSignedPLN(-renovationOwnFunds)}</span>
+                </div>
+              )}
+              {renovationFinancedAmount > 0 && (
+                <div className="flex justify-between text-xs opacity-70">
+                  <span>Remont — sfinansowany kredytem ({s.renovationFinancedPct}%)</span>
+                  <span className="font-mono">{formatSignedPLN(-renovationFinancedAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Koszty transakcyjne</span>
                 <span className="font-mono">{formatSignedPLN(-r.closingCosts)}</span>
               </div>
               {totalCumNegative > 0 && (
                 <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
-                  <span>Dopłaty w miesiącach ujemnego cashflow</span>
+                  <div>
+                    <span>Dopłaty w ujemnych miesiącach</span>
+                    <p className="text-[10px] italic opacity-70 mt-0.5">
+                      Łączna kwota miesięcy, gdy koszty &gt; czynsz — już uwzględniona w cashflow poniżej
+                    </p>
+                  </div>
                   <span className={`font-mono ${valueToneClass(-totalCumNegative)}`}>{formatSignedPLN(-totalCumNegative)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-semibold border-t border-border pt-3">
-                <span>Łącznie z kieszeni</span>
-                <span className={`font-mono ${valueToneClass(-(r.totalUpfront + totalCumNegative))}`}>
-                  {formatSignedPLN(-(r.totalUpfront + totalCumNegative))}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -399,8 +430,8 @@ function FlowTab() {
           <div className="border border-border rounded-3xl bg-card p-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co wróciło w trakcie</p>
-                <h4 className="font-semibold text-base">Cashflow przez {s.holdingYears} lat</h4>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Cashflow przez {s.holdingYears} lat</p>
+                <h4 className="font-semibold text-base">Co wróciło co miesiąc</h4>
               </div>
               <div className={`font-mono font-semibold ${valueToneClass(r.totalCashflow)}`}>{formatSignedPLN(r.totalCashflow)}</div>
             </div>
@@ -410,61 +441,83 @@ function FlowTab() {
                 <span className={`font-mono ${valueToneClass(totalGrossRent)}`}>{formatSignedPLN(totalGrossRent)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Minus: raty kredytu + ubezpieczenie</span>
-                <span className={`font-mono ${valueToneClass(-totalBaselineMortgageAndInsurance)}`}>
-                  {formatSignedPLN(-totalBaselineMortgageAndInsurance)}
+                <span>Minus: raty kredytu (bez nadpłat)</span>
+                <span className={`font-mono ${valueToneClass(-totalBaselineMortgagePayments)}`}>
+                  {formatSignedPLN(-totalBaselineMortgagePayments)}
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Minus: ubezpieczenie kredytu</span>
+                <span className={`font-mono ${valueToneClass(-totalInsurance)}`}>{formatSignedPLN(-totalInsurance)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Minus: koszty stałe ({s.monthlyCosts.toFixed(0)} zł/m-c)</span>
                 <span className={`font-mono ${valueToneClass(-totalMonthlyCosts)}`}>{formatSignedPLN(-totalMonthlyCosts)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Minus: podatek ryczałtowy</span>
+                <span>Minus: podatek ryczałtowy ({s.taxRatePct}%)</span>
                 <span className={`font-mono ${valueToneClass(-totalTax)}`}>{formatSignedPLN(-totalTax)}</span>
               </div>
               {r.totalOverpaymentPaid > 0 && (
-                <div className="flex justify-between pt-1 border-t border-border/50">
-                  <div>
-                    <span>Minus: nadpłaty kredytu (łącznie)</span>
-                    <p className="text-[10px] text-muted-foreground italic">
-                      Zaoszczędzono {formatPLN(r.totalOverpaymentPaid - r.netOverpaymentCost)} na odsetkach → netto: {formatSignedPLN(-r.netOverpaymentCost)}
-                    </p>
+                <div className="pt-2 border-t border-border/50 space-y-1">
+                  <div className="flex justify-between">
+                    <div>
+                      <span>Minus: nadpłaty łącznie</span>
+                      <p className="text-[10px] italic opacity-70 mt-0.5">Realny wydatek — budujesz kapitał szybciej</p>
+                    </div>
+                    <span className={`font-mono ${valueToneClass(-r.totalOverpaymentPaid)}`}>{formatSignedPLN(-r.totalOverpaymentPaid)}</span>
                   </div>
-                  <span className={`font-mono ${valueToneClass(-r.totalOverpaymentPaid)}`}>{formatSignedPLN(-r.totalOverpaymentPaid)}</span>
+                  <div className="flex justify-between text-xs bg-success/5 rounded-lg px-3 py-2">
+                    <span className="text-success">Zaoszczędzone odsetki dzięki nadpłatom</span>
+                    <span className="font-mono text-success font-semibold">
+                      +{formatPLN(r.totalOverpaymentPaid - r.netOverpaymentCost)}
+                    </span>
+                  </div>
                 </div>
               )}
-              <div className="flex justify-between font-semibold border-t border-border pt-3">
-                <span>Cashflow łącznie</span>
+              <div className="flex justify-between font-semibold border-t border-border pt-3 mt-1">
+                <span>Cashflow netto przez {s.holdingYears} lat</span>
                 <span className={`font-mono ${valueToneClass(r.totalCashflow)}`}>{formatSignedPLN(r.totalCashflow)}</span>
               </div>
             </div>
+
+            {/* Reconciliation note: how the sum checks out */}
+            <div className="mt-3 p-3 bg-muted/30 rounded-xl text-[10px] text-muted-foreground leading-relaxed">
+              <span className="font-semibold">Jak sprawdzić:</span>{" "}
+              czynsz ({formatPLN(totalGrossRent)}) − raty ({formatPLN(totalBaselineMortgagePayments)}) − ubezpieczenie ({formatPLN(totalInsurance)}) − koszty ({formatPLN(totalMonthlyCosts)}) − podatek ({formatPLN(totalTax)})
+              {r.totalOverpaymentPaid > 0 ? ` − nadpłaty (${formatPLN(r.totalOverpaymentPaid)}) + odsetki zaoszcz. (${formatPLN(r.totalOverpaymentPaid - r.netOverpaymentCost)})` : ""}
+              {" "}= <span className={cn("font-bold", r.totalCashflow >= 0 ? "text-success" : "text-destructive")}>{formatSignedPLN(r.totalCashflow)}</span>
+            </div>
           </div>
 
-          {/* ── BLOCK 3: Wyjście (sprzedaż) ── */}
+          {/* ── BLOCK 3: Wyjście ── */}
           {s.sellAtEnd && (
             <div className="border border-border rounded-3xl bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Co dostaniesz na wyjściu</p>
-                  <h4 className="font-semibold text-base">Jednorazowe zdarzenie (sprzedaż)</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Sprzedaż po {s.holdingYears} latach</p>
+                  <h4 className="font-semibold text-base">Co dostaniesz na wyjściu</h4>
                 </div>
                 <div className={`font-mono font-semibold ${valueToneClass(netFromSale)}`}>{formatSignedPLN(netFromSale)}</div>
               </div>
               <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>Cena sprzedaży nieruchomości</span>
+                  <span>Szacowana cena sprzedaży</span>
                   <span className={`font-mono ${valueToneClass(r.yearly[r.yearly.length - 1].propertyValue)}`}>
                     {formatSignedPLN(r.yearly[r.yearly.length - 1].propertyValue)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Minus: pozostały kredyt do spłaty</span>
+                  <span>Minus: pozostały kredyt</span>
                   <span className={`font-mono ${valueToneClass(-remainingLoan)}`}>{formatSignedPLN(-remainingLoan)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Minus: koszty transakcji (~2%)</span>
                   <span className={`font-mono ${valueToneClass(-saleCosts)}`}>{formatSignedPLN(-saleCosts)}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t border-border pt-3">
+                  <span>Zysk ze sprzedaży (netto)</span>
+                  <span className={`font-mono ${valueToneClass(netFromSale)}`}>{formatSignedPLN(netFromSale)}</span>
                 </div>
               </div>
             </div>
@@ -474,7 +527,7 @@ function FlowTab() {
           <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Nadpłata kredytu</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nadpłata kredytu</p>
                 <h4 className="font-semibold text-base">Przyspiesz spłatę</h4>
               </div>
               <div className="flex items-center gap-3">
@@ -519,7 +572,7 @@ function FlowTab() {
 
                 {s.overpaymentMonthly !== null && s.overpaymentMonthly < requiredOverpayment && (
                   <div className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm text-warning-foreground">
-                    Kredyt nie zostanie spłacony w czasie analizy. Pozostała kwota kredytu: <span className="font-semibold">{formatPLN(remainingLoan)}</span>
+                    Kredyt nie zostanie spłacony w czasie analizy. Pozostała kwota: <span className="font-semibold">{formatPLN(remainingLoan)}</span>
                   </div>
                 )}
 
@@ -553,9 +606,9 @@ function FlowTab() {
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Podsumowanie inwestycji</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Łącznie zainwestowane</span>
+                <span>Wkład własny na start</span>
                 <span className="font-mono text-destructive">
-                  {formatSignedPLN(-(r.totalUpfront + totalCumNegative))}
+                  {formatSignedPLN(-r.totalUpfront)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -581,6 +634,15 @@ function FlowTab() {
                 <span className="font-mono">{r.irrAnnualPct.toFixed(1)}%</span>
               </div>
             </div>
+
+            {/* Summary explanation */}
+            <div className="mt-4 p-3 bg-muted/20 rounded-xl text-[10px] text-muted-foreground leading-relaxed">
+              <span className="font-semibold">Jak sprawdzić wynik: </span>
+              cashflow ({formatSignedPLN(r.totalCashflow)})
+              {s.sellAtEnd ? ` + sprzedaż (${formatSignedPLN(netFromSale)})` : ""}
+              {" "}− wkład własny ({formatPLN(r.totalUpfront)})
+              {" "}= <span className={cn("font-bold", finalProfit >= 0 ? "text-success" : "text-destructive")}>{formatSignedPLN(finalProfit)}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -605,9 +667,9 @@ function RiskTab() {
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm overflow-x-auto">
         <div className="mb-6">
           <h3 className="font-display text-xl mb-1 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-warning-foreground" /> Analiza "Co jeśli?"
+            Analiza "Co jeśli?"
           </h3>
-          <p className="text-xs text-muted-foreground">Jak zmiana stóp procentowych i czynszu wpłynie na Twój miesięczny zysk (przy pełnym wynajmie).</p>
+          <p className="text-xs text-muted-foreground">Jak zmiana stóp procentowych i czynszu wpłynie na miesięczny zysk przy pełnym wynajmie.</p>
         </div>
 
         <div className="min-w-[500px]">
@@ -696,6 +758,8 @@ function RiskFactor({ label, level, desc, fill, tone }: {
 }
 
 // ─── BudgetTab ────────────────────────────────────────────────────────────────
+import { ShieldAlert } from "lucide-react";
+
 function BudgetTab() {
   const { r, budgetImpact, s } = useRealEstate();
 
@@ -744,7 +808,7 @@ function BudgetTab() {
               <div className="text-right">
                 <span className="font-display text-2xl">{formatPLN(budgetImpact.newDisposable)}</span>
                 <p className={cn("text-[10px] uppercase tracking-widest font-bold mt-1", r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>
-                  {r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)} zysku
+                  {r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN(r.monthlyCashflow)} zysku z najmu
                 </p>
               </div>
             </div>
