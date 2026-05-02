@@ -828,6 +828,7 @@ function AddInvestmentDialog() {
   const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency };
   const [draft, setDraft] = useState(EMPTY);
   const [volumeInput, setVolumeInput] = useState("");
+  const [priceInput, setPriceInput] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TickerSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -866,6 +867,7 @@ function AddInvestmentDialog() {
   const handleReset = () => {
     setDraft(EMPTY);
     setVolumeInput("");
+    setPriceInput("");
     setQuery("");
     setResults([]);
     setDropOpen(false);
@@ -880,10 +882,12 @@ function AddInvestmentDialog() {
   const currentTickerCurrency = selectedTicker
     ? (getTickerCurrency(selectedTicker, tickerPrices) ?? draft.currency) as InvestmentCurrency
     : draft.currency;
+  const enteredPrice = parseLocaleAmount(priceInput);
+  const effectivePrice = enteredPrice > 0 ? enteredPrice : currentTickerPrice;
   const volume = parseLocaleAmount(volumeInput);
   const positionValue =
-    volume > 0 && currentTickerPrice > 0
-      ? convertToPLN(volume * currentTickerPrice, currentTickerCurrency, rates)
+    volume > 0 && effectivePrice > 0
+      ? convertToPLN(volume * effectivePrice, currentTickerCurrency, rates)
       : 0;
 
   return (
@@ -912,10 +916,10 @@ function AddInvestmentDialog() {
           onSubmit={(e) => {
             e.preventDefault();
             const ticker = draft.ticker.trim();
-            if (!ticker || volume <= 0 || currentTickerPrice <= 0) return;
+            if (!ticker || volume <= 0 || effectivePrice <= 0) return;
 
-            // Use the current market price at the time of adding
-            const totalCostPLN = convertToPLN(volume * currentTickerPrice, currentTickerCurrency, rates);
+            // Use the effective price (manual or fetched)
+            const totalCostPLN = convertToPLN(volume * effectivePrice, currentTickerCurrency, rates);
 
             actions.addInvestment({
               label: draft.name || ticker,
@@ -924,7 +928,7 @@ function AddInvestmentDialog() {
               currency: draft.currency,
               volume,
               value: 0,
-              tickerPriceAtAdd: currentTickerPrice,
+              tickerPriceAtAdd: effectivePrice,
               tickerPriceDate: new Date().toISOString().slice(0, 10),
               monthlyContribution: 0,
               totalCostPLN,
@@ -1029,6 +1033,21 @@ function AddInvestmentDialog() {
           </div>
 
           <div className="grid gap-2">
+            <label className="text-left text-sm font-medium">Cena zakupu</label>
+            <div className="relative">
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
+                placeholder={currentTickerPrice > 0 ? "pozostaw puste, aby użyć ceny bieżącej" : "np. 100.50"}
+                className="font-mono tabular-nums h-10 pr-12"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{draft.currency}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
             <label className="text-left text-sm font-medium">Wartość pozycji</label>
             <div className="relative">
               <Input
@@ -1040,14 +1059,16 @@ function AddInvestmentDialog() {
             </div>
           </div>
           <div className="px-4 text-sm text-muted-foreground h-5">
-            {currentTickerPrice > 0
+            {currentTickerPrice > 0 && !priceInput.trim()
               ? `Aktualna cena/szt: ${formatLocaleAmount(currentTickerPrice, 4)} ${currentTickerCurrency}`
+              : enteredPrice > 0
+              ? `Wprowadzona cena: ${formatLocaleAmount(enteredPrice, 4)} ${draft.currency}`
               : ""}
           </div>
           <DialogFooter>
             <Button
               type="submit"
-              disabled={!draft.ticker.trim() || volume <= 0 || currentTickerPrice <= 0}
+              disabled={!draft.ticker.trim() || volume <= 0 || effectivePrice <= 0}
             >
               Dodaj do portfolio
             </Button>
