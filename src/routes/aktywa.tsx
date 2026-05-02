@@ -828,7 +828,6 @@ function AddInvestmentDialog() {
   const EMPTY = { ticker: "", name: "", currency: "EUR" as InvestmentCurrency };
   const [draft, setDraft] = useState(EMPTY);
   const [volumeInput, setVolumeInput] = useState("");
-  const [priceInput, setPriceInput] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TickerSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -867,12 +866,25 @@ function AddInvestmentDialog() {
   const handleReset = () => {
     setDraft(EMPTY);
     setVolumeInput("");
-    setPriceInput("");
     setQuery("");
     setResults([]);
     setDropOpen(false);
     setSearching(false);
   };
+
+  const selectedTicker = draft.ticker.trim().toLowerCase();
+  const { prices: tickerPrices, loading: tickerPricesLoading } = useDailyTickerPrices(
+    selectedTicker ? [selectedTicker] : [],
+  );
+  const currentTickerPrice = selectedTicker ? tickerPrices.byTicker[selectedTicker] ?? 0 : 0;
+  const currentTickerCurrency = selectedTicker
+    ? (getTickerCurrency(selectedTicker, tickerPrices) ?? draft.currency) as InvestmentCurrency
+    : draft.currency;
+  const volume = parseLocaleAmount(volumeInput);
+  const positionValue =
+    volume > 0 && currentTickerPrice > 0
+      ? convertToPLN(volume * currentTickerPrice, currentTickerCurrency, rates)
+      : 0;
 
   return (
     <Dialog
@@ -900,12 +912,10 @@ function AddInvestmentDialog() {
           onSubmit={(e) => {
             e.preventDefault();
             const ticker = draft.ticker.trim();
-            const volume = parseLocaleAmount(volumeInput);
-            const price = parseLocaleAmount(priceInput);
-            if (!ticker || volume <= 0 || price <= 0) return;
+            if (!ticker || volume <= 0 || currentTickerPrice <= 0) return;
 
-            // To account for currency effects, we store the cost in PLN at the moment of adding.
-            const totalCostPLN = convertToPLN(volume * price, draft.currency, rates);
+            // Use the current market price at the time of adding
+            const totalCostPLN = convertToPLN(volume * currentTickerPrice, currentTickerCurrency, rates);
 
             actions.addInvestment({
               label: draft.name || ticker,
@@ -914,7 +924,7 @@ function AddInvestmentDialog() {
               currency: draft.currency,
               volume,
               value: 0,
-              tickerPriceAtAdd: price,
+              tickerPriceAtAdd: currentTickerPrice,
               tickerPriceDate: new Date().toISOString().slice(0, 10),
               monthlyContribution: 0,
               totalCostPLN,
@@ -987,13 +997,13 @@ function AddInvestmentDialog() {
             )}
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Waluta</label>
+          <div className="grid gap-2">
+            <label className="text-left text-sm font-medium">Waluta</label>
             <Select
               value={draft.currency}
               onValueChange={(v: any) => setDraft({ ...draft, currency: v })}
             >
-              <SelectTrigger className="col-span-3 h-10">
+              <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1006,37 +1016,38 @@ function AddInvestmentDialog() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Wolumen</label>
+          <div className="grid gap-2">
+            <label className="text-left text-sm font-medium">Wolumen</label>
             <Input
               type="text"
               inputMode="decimal"
               value={volumeInput}
               onChange={(e) => setVolumeInput(e.target.value)}
               placeholder="np. 10"
-              className="col-span-3 font-mono tabular-nums h-10"
+              className="font-mono tabular-nums h-10"
             />
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Cena zakupu</label>
-            <div className="col-span-3 relative">
+          <div className="grid gap-2">
+            <label className="text-left text-sm font-medium">Wartość pozycji</label>
+            <div className="relative">
               <Input
                 type="text"
-                inputMode="decimal"
-                value={priceInput}
-                onChange={(e) => setPriceInput(e.target.value)}
-                placeholder="0"
-                className="font-mono tabular-nums h-10 pr-12"
+                disabled
+                value={positionValue > 0 ? formatPLN(positionValue) : "0 zł"}
+                className="font-mono tabular-nums h-10 bg-muted"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{draft.currency}</span>
             </div>
           </div>
-
+          <div className="px-4 text-sm text-muted-foreground h-5">
+            {currentTickerPrice > 0
+              ? `Aktualna cena/szt: ${formatLocaleAmount(currentTickerPrice, 4)} ${currentTickerCurrency}`
+              : ""}
+          </div>
           <DialogFooter>
             <Button
               type="submit"
-              disabled={!draft.ticker.trim() || parseLocaleAmount(volumeInput) <= 0 || parseLocaleAmount(priceInput) <= 0}
+              disabled={!draft.ticker.trim() || volume <= 0 || currentTickerPrice <= 0}
             >
               Dodaj do portfolio
             </Button>
