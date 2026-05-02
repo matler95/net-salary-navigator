@@ -83,6 +83,21 @@ export type Rental = {
   monthlyMortgage: number;
   taxRatePct: number; // 8.5 default
   marketValue: number;
+
+  purchasePrice?: number;
+  purchaseDate?: string;
+  renovationCost?: number;
+  closingCostsPct?: number;
+  hasLoanLink?: boolean;
+  linkedLoanId?: string;
+  mortgageRatePct?: number;
+  mortgageYears?: number;
+  mortgageRemaining?: number;
+  mortgageMonthly?: number;
+  mortgageInsuranceMonthly?: number;
+  appreciationPct?: number;
+  rentGrowthPct?: number;
+  vacancyMonthsPerYear?: number;
 };
 
 export type SavingsAccountType = "zwykłe" | "oszczędnościowe" | "lokata";
@@ -229,6 +244,30 @@ function loadInitial(): AppState {
           overpaymentType: l.overpaymentType ?? "fixed",
         }))
         : DEFAULT_STATE.loans,
+      rentals: parsed.rentals
+        ? parsed.rentals.map((r) => ({
+            ...r,
+            monthlyRent: r.monthlyRent ?? 0,
+            monthlyCosts: r.monthlyCosts ?? 0,
+            monthlyMortgage: r.monthlyMortgage ?? 0,
+            taxRatePct: r.taxRatePct ?? 8.5,
+            marketValue: r.marketValue ?? 0,
+            purchasePrice: r.purchasePrice ?? 0,
+            purchaseDate: r.purchaseDate ?? "",
+            renovationCost: r.renovationCost ?? 0,
+            closingCostsPct: r.closingCostsPct ?? 2.5,
+            hasLoanLink: r.hasLoanLink ?? false,
+            linkedLoanId: r.linkedLoanId ?? "",
+            mortgageRatePct: r.mortgageRatePct ?? 0,
+            mortgageYears: r.mortgageYears ?? 0,
+            mortgageRemaining: r.mortgageRemaining ?? 0,
+            mortgageMonthly: r.mortgageMonthly ?? 0,
+            mortgageInsuranceMonthly: r.mortgageInsuranceMonthly ?? 0,
+            appreciationPct: r.appreciationPct ?? 4,
+            rentGrowthPct: r.rentGrowthPct ?? 3,
+            vacancyMonthsPerYear: r.vacancyMonthsPerYear ?? 0,
+          }))
+        : DEFAULT_STATE.rentals,
       savings: parsed.savings
         ? parsed.savings.map((a) => ({ ...a, ratePct: (a as any).ratePct ?? 0 }))
         : DEFAULT_STATE.savings,

@@ -1,3 +1,5 @@
+import type { Loan, Rental } from "./store";
+
 /**
  * Loan amortization (equal installments / "raty równe"), rental P&L,
  * expense frequency, portfolio projection, real-estate buy-to-let scenarios.
@@ -31,6 +33,96 @@ export function loanTotalInterest(
   months: number,
 ): number {
   return monthlyPayment(principal, annualRatePct, months) * months - principal;
+}
+
+function estimateLoanPrincipal(rental: Rental): number {
+  if (!rental.mortgageRemaining || !rental.mortgageRatePct || !rental.mortgageMonthly) return 0;
+  const monthlyRate = rental.mortgageRatePct / 100 / 12;
+  const payment = rental.mortgageMonthly - (rental.mortgageInsuranceMonthly ?? 0);
+  if (payment <= 0) return 0;
+  if (monthlyRate === 0) return payment * rental.mortgageRemaining;
+  return payment * (1 - Math.pow(1 + monthlyRate, -rental.mortgageRemaining)) / monthlyRate;
+}
+
+function estimateRemainingLoan(rental: Rental): number {
+  if (rental.mortgageRemaining && rental.mortgageRatePct && rental.mortgageMonthly) {
+    return estimateLoanPrincipal(rental);
+  }
+  return 0;
+}
+
+function getLtvPct(rental: Rental, loan: Loan | null): number {
+  if (!rental.purchasePrice || rental.purchasePrice <= 0) return 100;
+  if (loan && loan.principal > 0) {
+    return Math.min(100, (loan.principal / rental.purchasePrice) * 100);
+  }
+  const estimatedPrincipal = estimateLoanPrincipal(rental);
+  if (estimatedPrincipal > 0) {
+    return Math.min(100, (estimatedPrincipal / rental.purchasePrice) * 100);
+  }
+  return 100;
+}
+
+export interface RentalAnalysis {
+  monthlyCashflow: number;
+  monthlyTax: number;
+  grossYieldPct: number;
+  netYieldPct: number;
+  equity: number;
+  totalInvestedCash: number;
+  roi: number;
+  projectedValueIn10y: number;
+  projectedEquityIn10y: number;
+  irrEstimate: number;
+}
+
+export function analyzeRental(
+  r: Rental,
+  loans: Loan[],
+  holdingYears = 10,
+): RentalAnalysis {
+  const linkedLoan = r.linkedLoanId ? loans.find((l) => l.id === r.linkedLoanId) ?? null : null;
+  const monthlyMortgage = linkedLoan
+    ? monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0)
+    : r.mortgageMonthly ?? r.monthlyMortgage ?? 0;
+
+  const effectiveRentMonthly = r.monthlyRent * (1 - (r.vacancyMonthsPerYear ?? 0) / 12);
+  const monthlyTax = effectiveRentMonthly * ((r.taxRatePct ?? 8.5) / 100);
+  const monthlyCashflow = effectiveRentMonthly - (r.monthlyCosts ?? 0) - monthlyMortgage - monthlyTax;
+
+  const purchasePrice = r.purchasePrice && r.purchasePrice > 0 ? r.purchasePrice : r.marketValue;
+  const grossYieldPct = purchasePrice > 0 ? ((r.monthlyRent * 12) / purchasePrice) * 100 : 0;
+  const netYieldPct = purchasePrice > 0 ? ((monthlyCashflow * 12) / purchasePrice) * 100 : 0;
+
+  const remainingLoan = linkedLoan
+    ? linkedLoan.principal
+    : estimateRemainingLoan(r);
+  const equity = r.marketValue - remainingLoan;
+
+  const totalInvestedCash = purchasePrice
+    ? purchasePrice * ((100 - getLtvPct(r, linkedLoan)) / 100) + (r.renovationCost ?? 0) + purchasePrice * ((r.closingCostsPct ?? 2.5) / 100)
+    : r.marketValue;
+
+  const projectedValueIn10y = r.marketValue * Math.pow(1 + ((r.appreciationPct ?? 4) / 100), holdingYears);
+  const projectedEquityIn10y = projectedValueIn10y - remainingLoan;
+
+  const totalReturn = (projectedValueIn10y - r.marketValue) + (monthlyCashflow * 12 * holdingYears);
+  const irrEstimate = totalInvestedCash > 0
+    ? (Math.pow((totalInvestedCash + totalReturn) / totalInvestedCash, 1 / holdingYears) - 1) * 100
+    : 0;
+
+  return {
+    monthlyCashflow: Math.round(monthlyCashflow * 100) / 100,
+    monthlyTax: Math.round(monthlyTax * 100) / 100,
+    grossYieldPct: Math.round(grossYieldPct * 100) / 100,
+    netYieldPct: Math.round(netYieldPct * 100) / 100,
+    equity: Math.round(equity * 100) / 100,
+    totalInvestedCash: Math.round(totalInvestedCash * 100) / 100,
+    roi: totalInvestedCash > 0 ? Math.round(((equity - totalInvestedCash) / totalInvestedCash) * 10000) / 100 : 0,
+    projectedValueIn10y: Math.round(projectedValueIn10y * 100) / 100,
+    projectedEquityIn10y: Math.round(projectedEquityIn10y * 100) / 100,
+    irrEstimate: Math.round(irrEstimate * 100) / 100,
+  };
 }
 
 /**

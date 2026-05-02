@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { actions, useAppState, type SavingsAccount } from "@/lib/store";
+import { actions, useAppState, type SavingsAccount, type Rental, type Loan } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
@@ -21,6 +21,7 @@ import {
   loanTotalInterest,
   rentalCashflow,
   amortizationSchedule,
+  analyzeRental,
 } from "@/lib/finance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import {
   Plus,
   Trash2,
@@ -72,6 +74,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -1524,14 +1527,24 @@ function LoanCard({
 /* RENTALS */
 function RentalsSection() {
   const rentals = useAppState((s) => s.rentals);
-  const totalCashflow = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
+  const loans = useAppState((s) => s.loans);
+  const rentalAnalyses = useMemo(
+    () => rentals.map((r) => analyzeRental(r, loans)),
+    [rentals, loans],
+  );
+
+  const totalCashflow = rentalAnalyses.reduce((s, a) => s + a.monthlyCashflow, 0);
   const totalValue = rentals.reduce((s, r) => s + r.marketValue, 0);
+  const totalEquity = rentalAnalyses.reduce((s, a) => s + a.equity, 0);
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          {formatPLN(totalValue)} · {totalCashflow >= 0 ? "zysk" : "strata"} {formatPLN(totalCashflow)}/m-c
+        <div className="flex flex-col gap-1 text-muted-foreground text-sm">
+          <span>Łączna wartość: {formatPLN(totalValue)}</span>
+          <span>
+            {totalCashflow >= 0 ? "Zysk" : "Strata"} {formatPLN(totalCashflow)}/m-c · equity {formatPLN(totalEquity)}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <AddRentalDialog />
@@ -1547,127 +1560,332 @@ function RentalsSection() {
         />
       ) : (
         <div className="grid lg:grid-cols-2 gap-4 animate-fade-up">
-          {rentals.map((r) => {
-            const cf = rentalCashflow(r);
-            const yieldPct = r.marketValue > 0 ? (cf.annualCashflow / r.marketValue) * 100 : 0;
-            return (
-              <div
-                key={r.id}
-                className="bg-card rounded-2xl p-8 border border-border shadow-card"
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <Input
-                    value={r.label}
-                    onChange={(e) => actions.updateRental(r.id, { label: e.target.value })}
-                    className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
-                  />
-                  <button
-                    onClick={() => {
-                      const copy = { ...r };
-                      actions.removeRental(r.id);
-                      toast(`Usunięto wynajem: ${r.label}`, {
-                        action: {
-                          label: "Cofnij",
-                          onClick: () => {
-                            const { id, ...rest } = copy;
-                            actions.addRental(rest as any);
-                          },
-                        },
-                        duration: 5000,
-                      });
-                    }}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
-                    aria-label={`Usuń wynajem: ${r.label}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Field label="Czynsz / m-c">
-                    <LocalNumInput
-                      value={r.monthlyRent}
-                      onChange={(v) => actions.updateRental(r.id, { monthlyRent: v })}
-                      className="h-10 font-mono tabular-nums"
-                      decimals={0}
-                    />
-                  </Field>
-                  <Field label="Koszty / m-c">
-                    <LocalNumInput
-                      value={r.monthlyCosts}
-                      onChange={(v) => actions.updateRental(r.id, { monthlyCosts: v })}
-                      className="h-10 font-mono tabular-nums"
-                      decimals={0}
-                    />
-                  </Field>
-                  <Field label="Rata kredytu / m-c">
-                    <LocalNumInput
-                      value={r.monthlyMortgage}
-                      onChange={(v) => actions.updateRental(r.id, { monthlyMortgage: v })}
-                      className="h-10 font-mono tabular-nums"
-                      decimals={0}
-                    />
-                  </Field>
-                  <Field label="Wartość">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={r.marketValue}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          marketValue: parseLocaleAmount(e.target.value),
-                        })
-                      }
-                      className="h-10 font-mono tabular-nums"
-                    />
-                  </Field>
-
-                  <Field label="Podatek %">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={r.taxRatePct}
-                      onChange={(e) =>
-                        actions.updateRental(r.id, {
-                          taxRatePct: parseLocaleAmount(e.target.value),
-                        })
-                      }
-                      className="h-10 font-mono tabular-nums"
-                    />
-                  </Field>
-                </div>
-
-                <div
-                  className={`rounded-xl p-3 grid grid-cols-3 gap-2 text-center ${cf.cashflow >= 0
-                    ? "bg-success/10 border border-success/30"
-                    : "bg-destructive/10 border border-destructive/30"
-                    }`}
-                >
-                  <div>
-                    <p className="text-xs text-muted-foreground">{cf.cashflow >= 0 ? "Zysk" : "Strata"} / m-c</p>
-                    <p className={`font-mono tabular-nums text-sm font-semibold ${cf.cashflow >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatPLN2(cf.cashflow)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Rocznie</p>
-                    <p className="font-mono tabular-nums text-sm font-semibold">
-                      {formatPLN(cf.annualCashflow)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Yield brutto</p>
-                    <p className="font-mono tabular-nums text-sm font-semibold">
-                      {yieldPct.toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {rentals.map((r) => (
+            <RentalCard key={r.id} rental={r} loans={loans} />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
+  const analysis = useMemo(() => analyzeRental(rental, loans), [rental, loans]);
+  const [expanded, setExpanded] = useState(false);
+  const linkedLoan = rental.linkedLoanId ? loans.find((l) => l.id === rental.linkedLoanId) : null;
+
+  const chartData = useMemo(() => {
+    const startLoan = Math.max(0, rental.marketValue - analysis.equity);
+    const loanYears = Math.max(1, (rental.mortgageRemaining ?? 120) / 12);
+    return Array.from({ length: 11 }, (_, index) => {
+      const year = index;
+      const value = rental.marketValue * Math.pow(1 + ((rental.appreciationPct ?? 4) / 100), year);
+      const balance = Math.max(0, startLoan - (startLoan / loanYears) * year);
+      return {
+        year: `${year}`,
+        value: Math.round(value),
+        equity: Math.round(value - balance),
+      };
+    });
+  }, [rental, analysis.equity]);
+
+  return (
+    <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <Input
+            value={rental.label}
+            onChange={(e) => actions.updateRental(rental.id, { label: e.target.value })}
+            className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
+          />
+          <p className="text-xs text-muted-foreground mt-1">{linkedLoan ? `Powiązany kredyt: ${linkedLoan.label}` : "Brak powiązanego kredytu"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-2 text-sm font-semibold transition hover:bg-muted/80"
+          >
+            Szczegóły
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => {
+              const copy = { ...rental };
+              actions.removeRental(rental.id);
+              toast(`Usunięto wynajem: ${rental.label}`, {
+                action: {
+                  label: "Cofnij",
+                  onClick: () => {
+                    const { id, ...rest } = copy;
+                    actions.addRental(rest as any);
+                  },
+                },
+                duration: 5000,
+              });
+            }}
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-2 rounded-lg"
+            aria-label={`Usuń wynajem: ${rental.label}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-2xl border border-border bg-muted p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Cashflow / m-c</p>
+          <p className={`mt-2 font-mono text-lg font-semibold ${analysis.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}>
+            {formatPLN2(analysis.monthlyCashflow)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Wartość</p>
+          <p className="mt-2 font-mono text-lg font-semibold">{formatPLN(rental.marketValue)}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Yield brutto</p>
+          <p className="mt-2 font-mono text-lg font-semibold">{analysis.grossYieldPct.toFixed(1)}%</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Equity</p>
+          <p className="mt-2 font-mono text-lg font-semibold">{formatPLN(analysis.equity)}</p>
+        </div>
+      </div>
+
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger asChild>
+          <button type="button" className="sr-only">Toggle rental details</button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-6 pt-4 border-t border-border">
+          <div className="grid gap-4">
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold">A. Nabycie i finansowanie</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <Field label="Cena zakupu">
+                  <LocalNumInput
+                    value={rental.purchasePrice ?? 0}
+                    onChange={(v) => actions.updateRental(rental.id, { purchasePrice: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+                <Field label="Data zakupu">
+                  <Input
+                    type="date"
+                    value={rental.purchaseDate ?? ""}
+                    onChange={(e) => actions.updateRental(rental.id, { purchaseDate: e.target.value })}
+                    className="h-10"
+                  />
+                </Field>
+                <Field label="Koszt remontu">
+                  <LocalNumInput
+                    value={rental.renovationCost ?? 0}
+                    onChange={(v) => actions.updateRental(rental.id, { renovationCost: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+                <Field label="Koszty transakcyjne %">
+                  <LocalNumInput
+                    value={rental.closingCostsPct ?? 2.5}
+                    onChange={(v) => actions.updateRental(rental.id, { closingCostsPct: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={2}
+                  />
+                </Field>
+                <Field label="Powiązany kredyt">
+                  <Select
+                    value={rental.linkedLoanId ?? "none"}
+                    onValueChange={(value) =>
+                      actions.updateRental(rental.id, {
+                        linkedLoanId: value === "none" ? undefined : value,
+                        hasLoanLink: value !== "none",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Brak" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Brak powiązania</SelectItem>
+                      {loans.map((loan) => (
+                        <SelectItem key={loan.id} value={loan.id}>
+                          {loan.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <Field label="Rata kredytu / m-c">
+                  <LocalNumInput
+                    value={linkedLoan ? monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0) : rental.mortgageMonthly ?? rental.monthlyMortgage}
+                    onChange={(v) => actions.updateRental(rental.id, { mortgageMonthly: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+                <Field label="Ubezpieczenie / m-c">
+                  <LocalNumInput
+                    value={rental.mortgageInsuranceMonthly ?? 0}
+                    onChange={(v) => actions.updateRental(rental.id, { mortgageInsuranceMonthly: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold">B. Wynajem i koszty</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <Field label="Czynsz brutto / m-c">
+                  <LocalNumInput
+                    value={rental.monthlyRent}
+                    onChange={(v) => actions.updateRental(rental.id, { monthlyRent: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+                <Field label="Puste miesiące / rok">
+                  <div className="space-y-2">
+                    <Slider
+                      value={[rental.vacancyMonthsPerYear ?? 0]}
+                      min={0}
+                      max={3}
+                      step={0.5}
+                      onValueChange={(value) =>
+                        actions.updateRental(rental.id, { vacancyMonthsPerYear: value[0] })
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">{rental.vacancyMonthsPerYear ?? 0} mies.</div>
+                  </div>
+                </Field>
+                <Field label="Koszty / m-c">
+                  <LocalNumInput
+                    value={rental.monthlyCosts}
+                    onChange={(v) => actions.updateRental(rental.id, { monthlyCosts: v })}
+                    className="h-10 font-mono tabular-nums"
+                    decimals={0}
+                  />
+                </Field>
+                <Field label="Podatek">
+                  <Select
+                    value={(rental.taxRatePct ?? 8.5).toString()}
+                    onValueChange={(value) =>
+                      actions.updateRental(rental.id, { taxRatePct: parseLocaleAmount(value) })
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[8.5, 12.5, 12].map((rate) => (
+                        <SelectItem key={rate} value={rate.toString()}>
+                          {rate}%
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold">C. Prognozy</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <Field label="Wzrost wartości % rocznie">
+                  <div className="space-y-2">
+                    <Slider
+                      value={[rental.appreciationPct ?? 4]}
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      onValueChange={(value) =>
+                        actions.updateRental(rental.id, { appreciationPct: value[0] })
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">{(rental.appreciationPct ?? 4).toFixed(1)}%</div>
+                  </div>
+                </Field>
+                <Field label="Wzrost czynszu % rocznie">
+                  <div className="space-y-2">
+                    <Slider
+                      value={[rental.rentGrowthPct ?? 3]}
+                      min={0}
+                      max={8}
+                      step={0.1}
+                      onValueChange={(value) =>
+                        actions.updateRental(rental.id, { rentGrowthPct: value[0] })
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">{(rental.rentGrowthPct ?? 3).toFixed(1)}%</div>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold">D. Analiza inwestycji</p>
+              <div className="grid gap-3 mt-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Cashflow / m-c">
+                    <div className="text-sm font-semibold">{formatPLN2(analysis.monthlyCashflow)}</div>
+                  </Field>
+                  <Field label="Podatek / m-c">
+                    <div className="text-sm font-semibold">{formatPLN2(analysis.monthlyTax)}</div>
+                  </Field>
+                  <Field label="ROI">
+                    <div className="text-sm font-semibold">{analysis.roi.toFixed(1)}%</div>
+                  </Field>
+                  <Field label="Yield netto">
+                    <div className="text-sm font-semibold">{analysis.netYieldPct.toFixed(1)}%</div>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-xl bg-muted p-3">
+                    <p className="text-xs text-muted-foreground">Wkład</p>
+                    <p className="mt-2 font-mono font-semibold">{formatPLN(analysis.totalInvestedCash)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted p-3">
+                    <p className="text-xs text-muted-foreground">Equity</p>
+                    <p className="mt-2 font-mono font-semibold">{formatPLN(analysis.equity)}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted p-3">
+                    <p className="text-xs text-muted-foreground">IRR</p>
+                    <p className="mt-2 font-mono font-semibold">{analysis.irrEstimate.toFixed(1)}%</p>
+                  </div>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="valueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--foreground)" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="var(--foreground)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="year" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={(value: number) => formatPLN2(value)} />
+                      <Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#valueGradient)" strokeWidth={2} dot={false} />
+                      <Area type="monotone" dataKey="equity" stroke="var(--foreground)" fill="url(#equityGradient)" strokeWidth={2} dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
 
@@ -1696,12 +1914,14 @@ function LocalNumInput({
   className = "",
   placeholder = "",
   decimals = 2,
+  readOnly = false,
 }: {
   value: number;
   onChange: (v: number) => void;
   className?: string;
   placeholder?: string;
   decimals?: number;
+  readOnly?: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(formatLocaleAmount(value, decimals));
 
@@ -1724,6 +1944,7 @@ function LocalNumInput({
       onBlur={() => setLocalValue(formatLocaleAmount(value, decimals))}
       placeholder={placeholder}
       className={className}
+      readOnly={readOnly}
     />
   );
 }
@@ -1934,75 +2155,470 @@ function AddLoanDialog() {
 }
 
 function AddRentalDialog() {
+  const loans = useAppState((s) => s.loans);
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({
+  const [step, setStep] = useState(1);
+  const [isMortgageMonthlyManual, setIsMortgageMonthlyManual] = useState(false);
+  const [isInsuranceManual, setIsInsuranceManual] = useState(false);
+
+  type RentalDraft = Omit<Rental, "id"> & {
+    loanMode: "none" | "link" | "manual";
+  } & Required<Pick<Rental, "purchasePrice" | "mortgageRatePct" | "mortgageYears" | "mortgageRemaining" | "mortgageMonthly" | "mortgageInsuranceMonthly">>;
+
+  const [draft, setDraft] = useState<RentalDraft>({
     label: "",
     monthlyRent: 0,
     monthlyCosts: 0,
     monthlyMortgage: 0,
     taxRatePct: 8.5,
     marketValue: 0,
+    purchasePrice: 0,
+    purchaseDate: "",
+    renovationCost: 0,
+    closingCostsPct: 2.5,
+    hasLoanLink: false,
+    linkedLoanId: undefined,
+    mortgageRatePct: 0,
+    mortgageYears: 240,
+    mortgageRemaining: 240,
+    mortgageMonthly: 0,
+    mortgageInsuranceMonthly: 0,
+    appreciationPct: 4,
+    rentGrowthPct: 3,
+    vacancyMonthsPerYear: 0,
+    loanMode: "none",
   });
 
+  const loanPrincipal = Math.max(
+    0,
+    (draft.purchasePrice || draft.marketValue || 0) + (draft.renovationCost || 0),
+  );
+  const calculatedMortgageMonthly =
+    draft.loanMode === "manual" && draft.mortgageRatePct > 0 && draft.mortgageRemaining > 0
+      ? monthlyPayment(loanPrincipal, draft.mortgageRatePct, draft.mortgageRemaining)
+      : 0;
+  const displayMortgageMonthly = isMortgageMonthlyManual
+    ? draft.mortgageMonthly ?? calculatedMortgageMonthly
+    : calculatedMortgageMonthly;
+  const totalMortgageCost = Math.round((displayMortgageMonthly + (draft.mortgageInsuranceMonthly || 0)) * 100) / 100;
+
+  useEffect(() => {
+    if (!isInsuranceManual && loanPrincipal > 0) {
+      const suggestedInsurance = Math.round(loanPrincipal * 0.0004);
+      setDraft((prev) => ({ ...prev, mortgageInsuranceMonthly: suggestedInsurance }));
+    }
+  }, [loanPrincipal, isInsuranceManual]);
+
+  useEffect(() => {
+    if (
+      draft.loanMode === "manual" &&
+      !isMortgageMonthlyManual &&
+      loanPrincipal > 0 &&
+      draft.mortgageRatePct > 0 &&
+      draft.mortgageRemaining > 0
+    ) {
+      setDraft((prev) => ({ ...prev, mortgageMonthly: calculatedMortgageMonthly }));
+    }
+  }, [calculatedMortgageMonthly, draft.loanMode, draft.mortgageRatePct, draft.mortgageRemaining, loanPrincipal, isMortgageMonthlyManual]);
+
+  const canProceedStep1 = draft.label.trim().length > 0 && (draft.purchasePrice > 0 || draft.marketValue > 0);
+  const canProceedStep2 =
+    draft.loanMode === "none" ||
+    (draft.loanMode === "link" && !!draft.linkedLoanId) ||
+    draft.loanMode === "manual";
+  const canSubmit = draft.monthlyRent > 0 && draft.taxRatePct > 0;
+
+  const previewRental: Rental = useMemo(
+    () => ({
+      id: "preview",
+      label: draft.label,
+      monthlyRent: draft.monthlyRent,
+      monthlyCosts: draft.monthlyCosts,
+      monthlyMortgage: draft.loanMode === "link" ? 0 : draft.mortgageMonthly ?? draft.monthlyMortgage,
+      taxRatePct: draft.taxRatePct,
+      marketValue: draft.marketValue || draft.purchasePrice,
+      purchasePrice: draft.purchasePrice,
+      purchaseDate: draft.purchaseDate,
+      renovationCost: draft.renovationCost,
+      closingCostsPct: draft.closingCostsPct,
+      hasLoanLink: draft.loanMode === "link",
+      linkedLoanId: draft.loanMode === "link" ? draft.linkedLoanId : undefined,
+      mortgageRatePct: draft.loanMode === "manual" ? draft.mortgageRatePct : undefined,
+      mortgageYears: draft.loanMode === "manual" ? draft.mortgageYears : undefined,
+      mortgageRemaining: draft.loanMode === "manual" ? draft.mortgageRemaining : undefined,
+      mortgageMonthly: draft.loanMode === "manual" ? draft.mortgageMonthly : undefined,
+      mortgageInsuranceMonthly: draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
+      appreciationPct: draft.appreciationPct,
+      rentGrowthPct: draft.rentGrowthPct,
+      vacancyMonthsPerYear: draft.vacancyMonthsPerYear,
+    }),
+    [draft],
+  );
+
+  const previewAnalysis = analyzeRental(previewRental, loans);
+
+  const resetDraft = () => {
+    setStep(1);
+    setIsMortgageMonthlyManual(false);
+    setIsInsuranceManual(false);
+    setDraft({
+      label: "",
+      monthlyRent: 0,
+      monthlyCosts: 0,
+      monthlyMortgage: 0,
+      taxRatePct: 8.5,
+      marketValue: 0,
+      purchasePrice: 0,
+      purchaseDate: "",
+      renovationCost: 0,
+      closingCostsPct: 2.5,
+      hasLoanLink: false,
+      linkedLoanId: undefined,
+      mortgageRatePct: 0,
+      mortgageYears: 240,
+      mortgageRemaining: 240,
+      mortgageMonthly: 0,
+      mortgageInsuranceMonthly: 0,
+      appreciationPct: 4,
+      rentGrowthPct: 3,
+      vacancyMonthsPerYear: 0,
+      loanMode: "none",
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(value) => {
+      setOpen(value);
+      if (!value) resetDraft();
+    }}>
       <DialogTrigger asChild>
         <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
           Dodaj nieruchomość
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
-          <DialogTitle>Dodaj wynajem / nieruchomość</DialogTitle>
-          <DialogDescription>Wprowadź dane lokalu na wynajem i oblicz cashflow.</DialogDescription>
+          <DialogTitle>Dodaj nieruchomość</DialogTitle>
+          <DialogDescription>Wprowadź podstawowe dane, finansowanie i parametry wynajmu.</DialogDescription>
         </DialogHeader>
+
         <form
           className="grid gap-4 py-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!draft.label.trim()) return;
-            actions.addRental(draft);
-            setDraft({
-              label: "",
-              monthlyRent: 0,
-              monthlyCosts: 0,
-              monthlyMortgage: 0,
-              taxRatePct: 8.5,
-              marketValue: 0,
-            });
+            if (!canSubmit) return;
+            const rentalToSave: Omit<Rental, "id"> = {
+              label: draft.label.trim(),
+              monthlyRent: draft.monthlyRent,
+              monthlyCosts: draft.monthlyCosts,
+              monthlyMortgage: draft.loanMode === "link" ? 0 : draft.mortgageMonthly ?? draft.monthlyMortgage,
+              taxRatePct: draft.taxRatePct,
+              marketValue: draft.marketValue || draft.purchasePrice,
+              purchasePrice: draft.purchasePrice,
+              purchaseDate: draft.purchaseDate,
+              renovationCost: draft.renovationCost,
+              closingCostsPct: draft.closingCostsPct,
+              hasLoanLink: draft.loanMode === "link",
+              linkedLoanId: draft.loanMode === "link" ? draft.linkedLoanId : undefined,
+              mortgageRatePct: draft.loanMode === "manual" ? draft.mortgageRatePct : undefined,
+              mortgageYears: draft.loanMode === "manual" ? draft.mortgageYears : undefined,
+              mortgageRemaining: draft.loanMode === "manual" ? draft.mortgageRemaining : undefined,
+              mortgageMonthly: draft.loanMode === "manual" ? draft.mortgageMonthly : undefined,
+              mortgageInsuranceMonthly: draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
+              appreciationPct: draft.appreciationPct,
+              rentGrowthPct: draft.rentGrowthPct,
+              vacancyMonthsPerYear: draft.vacancyMonthsPerYear,
+            };
+            actions.addRental(rentalToSave);
+            resetDraft();
             setOpen(false);
           }}
         >
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Nazwa</label>
-            <Input
-              value={draft.label}
-              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-              placeholder="np. Kawalerka centrum"
-              className="col-span-3 h-10"
-            />
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Nazwa</label>
+                <Input
+                  value={draft.label}
+                  onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                  placeholder="np. Kawalerka centrum"
+                  className="col-span-3 h-10"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Cena zakupu</label>
+                <LocalNumInput
+                  value={draft.purchasePrice ?? 0}
+                  onChange={(v) => setDraft({ ...draft, purchasePrice: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={0}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Wartość rynkowa</label>
+                <LocalNumInput
+                  value={draft.marketValue ?? 0}
+                  onChange={(v) => setDraft({ ...draft, marketValue: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={0}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Data zakupu</label>
+                <Input
+                  type="date"
+                  value={draft.purchaseDate ?? ""}
+                  onChange={(e) => setDraft({ ...draft, purchaseDate: e.target.value })}
+                  className="col-span-3 h-10"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Masz kredyt?</label>
+                <div className="col-span-3 grid grid-cols-3 gap-2">
+                  {(["none", "link", "manual"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, loanMode: mode });
+                        if (mode !== "manual") setIsMortgageMonthlyManual(false);
+                      }}
+                      className={cn(
+                        "rounded-full px-3 py-2 text-sm font-semibold transition",
+                        draft.loanMode === mode
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted/70 text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {mode === "none" ? "Nie" : mode === "link" ? "Linkuj" : "Ręcznie"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {draft.loanMode === "link" && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label className="text-right text-sm font-medium">Wybierz kredyt</label>
+                  <Select
+                    value={draft.linkedLoanId ?? ""}
+                    onValueChange={(value) => setDraft({ ...draft, linkedLoanId: value || undefined })}
+                  >
+                    <SelectTrigger className="col-span-3 h-10">
+                      <SelectValue placeholder="Wybierz kredyt" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loans.map((loan) => (
+                        <SelectItem key={loan.id} value={loan.id}>
+                          {loan.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {draft.loanMode === "manual" && (
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Oprocentowanie %</label>
+                    <LocalNumInput
+                      value={draft.mortgageRatePct ?? 0}
+                      onChange={(v) => setDraft({ ...draft, mortgageRatePct: v })}
+                      className="col-span-3 font-mono tabular-nums h-10"
+                      decimals={2}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Pozostałe m-cy</label>
+                    <Input
+                      type="number"
+                      value={draft.mortgageRemaining ?? 0}
+                      onChange={(e) => setDraft({ ...draft, mortgageRemaining: parseInt(e.target.value) || 0 })}
+                      className="col-span-3 font-mono tabular-nums h-10"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Rata kredytu (kapitał + odsetki)</label>
+                    <div className="col-span-3 space-y-2">
+                      <LocalNumInput
+                        value={displayMortgageMonthly}
+                        onChange={(v) => {
+                          setDraft({ ...draft, mortgageMonthly: v });
+                          setIsMortgageMonthlyManual(true);
+                        }}
+                        className="w-full font-mono tabular-nums h-10"
+                        decimals={0}
+                        readOnly={!isMortgageMonthlyManual}
+                      />
+                      <div className="flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
+                        <p>
+                          {isMortgageMonthlyManual
+                            ? "Ręczne nadpisanie raty"
+                            : `Obliczona automatycznie z kwoty kredytu ${formatPLN(loanPrincipal)}.`}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsMortgageMonthlyManual((prev) => !prev)}
+                          className="rounded-full border border-border bg-muted px-3 py-1 text-[10px] font-semibold transition hover:bg-muted/80"
+                        >
+                          {isMortgageMonthlyManual ? "Przywróć auto" : "Nadpisz ręcznie"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Ubezpieczenie / m-c</label>
+                    <LocalNumInput
+                      value={draft.mortgageInsuranceMonthly ?? 0}
+                      onChange={(v) => {
+                        setDraft({ ...draft, mortgageInsuranceMonthly: v });
+                        setIsInsuranceManual(true);
+                      }}
+                      className="col-span-3 font-mono tabular-nums h-10"
+                      decimals={0}
+                    />
+                    {!isInsuranceManual && loanPrincipal > 0 && (
+                      <p className="col-start-2 col-span-3 text-[10px] -mt-3 italic text-muted-foreground">
+                        Sugerowane: 0.04% kwoty kredytu ({formatPLN(Math.round(loanPrincipal * 0.0004))})
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Rata razem</label>
+                    <Input
+                      value={formatLocaleAmount(totalMortgageCost, 0)}
+                      readOnly
+                      className="col-span-3 font-mono tabular-nums h-10 bg-muted/70"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Koszty transakcyjne %</label>
+                <LocalNumInput
+                  value={draft.closingCostsPct ?? 2.5}
+                  onChange={(v) => setDraft({ ...draft, closingCostsPct: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={2}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Koszt remontu</label>
+                <LocalNumInput
+                  value={draft.renovationCost ?? 0}
+                  onChange={(v) => setDraft({ ...draft, renovationCost: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={0}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Czynsz / m-c</label>
+                <LocalNumInput
+                  value={draft.monthlyRent}
+                  onChange={(v) => setDraft({ ...draft, monthlyRent: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={0}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Koszty / m-c</label>
+                <LocalNumInput
+                  value={draft.monthlyCosts}
+                  onChange={(v) => setDraft({ ...draft, monthlyCosts: v })}
+                  className="col-span-3 font-mono tabular-nums h-10"
+                  decimals={0}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Podatek</label>
+                <Select
+                  value={(draft.taxRatePct ?? 8.5).toString()}
+                  onValueChange={(value) => setDraft({ ...draft, taxRatePct: parseLocaleAmount(value) })}
+                >
+                  <SelectTrigger className="col-span-3 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[8.5, 12.5, 12].map((rate) => (
+                      <SelectItem key={rate} value={rate.toString()}>
+                        {rate}%
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Puste miesiące / rok</label>
+                <div className="col-span-3 space-y-2">
+                  <Slider
+                    value={[draft.vacancyMonthsPerYear ?? 0]}
+                    min={0}
+                    max={3}
+                    step={0.5}
+                    onValueChange={(value) => setDraft({ ...draft, vacancyMonthsPerYear: value[0] })}
+                  />
+                  <div className="text-xs text-muted-foreground">{draft.vacancyMonthsPerYear ?? 0} mies.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground mb-2">Podsumowanie</p>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-muted-foreground">Cashflow / m-c</p>
+                <p className="font-semibold">{formatPLN2(previewAnalysis.monthlyCashflow)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Yield brutto</p>
+                <p className="font-semibold">{previewAnalysis.grossYieldPct.toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Equity</p>
+                <p className="font-semibold">{formatPLN(previewAnalysis.equity)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">IRR</p>
+                <p className="font-semibold">{previewAnalysis.irrEstimate.toFixed(1)}%</p>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium text-success">Czynsz</label>
-            <LocalNumInput
-              value={draft.monthlyRent}
-              onChange={(v) => setDraft({ ...draft, monthlyRent: v })}
-              className="col-span-3 font-mono tabular-nums h-10"
-              decimals={0}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">Wartość</label>
-            <LocalNumInput
-              value={draft.marketValue}
-              onChange={(v) => setDraft({ ...draft, marketValue: v })}
-              className="col-span-3 font-mono tabular-nums h-10"
-              decimals={0}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="submit">Dodaj nieruchomość</Button>
+
+          <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setStep((value) => Math.max(1, value - 1))}
+              disabled={step === 1}
+            >
+              Wstecz
+            </Button>
+            {step < 3 ? (
+              <Button
+                type="button"
+                onClick={() => setStep((value) => Math.min(3, value + 1))}
+                disabled={!((step === 1 && canProceedStep1) || (step === 2 && canProceedStep2))}
+              >
+                Dalej
+              </Button>
+            ) : (
+              <Button type="submit" disabled={!canSubmit}>
+                Dodaj nieruchomość
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

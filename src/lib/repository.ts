@@ -675,6 +675,18 @@ function mapRentalToRow(householdId: string, x: Rental) {
     monthly_mortgage: x.monthlyMortgage,
     tax_rate_pct: x.taxRatePct,
     market_value: x.marketValue,
+    purchase_price: x.purchasePrice ?? 0,
+    purchase_date: x.purchaseDate,
+    renovation_cost: x.renovationCost ?? 0,
+    closing_costs_pct: x.closingCostsPct ?? 2.5,
+    linked_loan_id: x.linkedLoanId,
+    mortgage_rate_pct: x.mortgageRatePct,
+    mortgage_years: x.mortgageYears,
+    mortgage_remaining_months: x.mortgageRemaining,
+    mortgage_insurance_monthly: x.mortgageInsuranceMonthly ?? 0,
+    appreciation_pct: x.appreciationPct ?? 4,
+    rent_growth_pct: x.rentGrowthPct ?? 3,
+    vacancy_months_per_year: x.vacancyMonthsPerYear ?? 0,
   };
 }
 function mapRentalFromRow(row: unknown): Rental {
@@ -687,6 +699,18 @@ function mapRentalFromRow(row: unknown): Rental {
     monthlyMortgage: Number(r.monthly_mortgage ?? 0),
     taxRatePct: Number(r.tax_rate_pct ?? 8.5),
     marketValue: Number(r.market_value ?? 0),
+    purchasePrice: Number(r.purchase_price ?? 0),
+    purchaseDate: r.purchase_date ? String(r.purchase_date) : undefined,
+    renovationCost: Number(r.renovation_cost ?? 0),
+    closingCostsPct: Number(r.closing_costs_pct ?? 2.5),
+    linkedLoanId: r.linked_loan_id ? String(r.linked_loan_id) : undefined,
+    mortgageRatePct: r.mortgage_rate_pct ? Number(r.mortgage_rate_pct) : undefined,
+    mortgageYears: r.mortgage_years ? Number(r.mortgage_years) : undefined,
+    mortgageRemaining: r.mortgage_remaining_months ? Number(r.mortgage_remaining_months) : undefined,
+    mortgageInsuranceMonthly: Number(r.mortgage_insurance_monthly ?? 0),
+    appreciationPct: Number(r.appreciation_pct ?? 4),
+    rentGrowthPct: Number(r.rent_growth_pct ?? 3),
+    vacancyMonthsPerYear: Number(r.vacancy_months_per_year ?? 0),
   };
 }
 function mapSavingsToRow(householdId: string, account: AppState["savings"][number]) {

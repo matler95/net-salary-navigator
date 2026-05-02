@@ -13,6 +13,7 @@ import {
   Banknote,
   PiggyBank,
   ShieldPlus,
+  Building2,
 } from "lucide-react";
 import {
   PieChart,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/salary";
 import {
   rentalCashflow,
+  analyzeRental,
   monthlyPayment,
   getExpenseMonthlyAverage,
   isExpenseInMonth,
@@ -119,9 +121,17 @@ function Dashboard() {
       (l.mortgageInsuranceMonthly ?? 0),
     0,
   );
-  const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
+  const rentalAnalyses = useMemo(
+    () => rentals.map((r) => analyzeRental(r, loans)),
+    [rentals, loans],
+  );
+  const rentalNet = rentalAnalyses.reduce((s, a) => s + a.monthlyCashflow, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
+  const totalRentalEquity = rentalAnalyses.reduce((s, a) => s + a.equity, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
+  const averageRentalAppreciation = rentals.length
+    ? rentals.reduce((s, r) => s + (r.appreciationPct ?? 4), 0) / rentals.length
+    : 4;
 
   const getExpensesForMonth = (mIdx: number) => {
     return expenses.reduce((sum, e) => {
@@ -188,6 +198,7 @@ function Dashboard() {
 
   const [includeSavings, setIncludeSavings] = useState(true);
   const [includeInvestments, setIncludeInvestments] = useState(false);
+  const [includeRentalGrowth, setIncludeRentalGrowth] = useState(false);
 
   const cumulativeData = useMemo(() => {
     const annualBreakdowns = spouses.map((s) => calculateAnnualBreakdown(s.inputs, globalSettings));
@@ -200,12 +211,22 @@ function Dashboard() {
       const mCashflow = monthlyNet + rentalNet - mExpenses - monthlyLoanPmt;
       cumulativeSurplus += mCashflow;
       const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
+      const rentalGrowthFactor = includeRentalGrowth
+        ? Math.pow(1 + averageRentalAppreciation / 100, idx)
+        : 1;
+      const rentalProjection = includeRentalGrowth ? Math.round(totalRentalEquity * rentalGrowthFactor) : 0;
       return {
         month: monthLabel(month),
         "Suma nadwyżek": Math.round(cumulativeSurplus),
         "Konta bankowe": includeSavings ? totalSavings : 0,
         "Inwestycje": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
-        "Wartość": Math.round(cumulativeSurplus + (includeSavings ? totalSavings : 0) + (includeInvestments ? totalInvestments * growthFactor : 0)),
+        "Nieruchomości": rentalProjection,
+        "Wartość": Math.round(
+          cumulativeSurplus +
+            (includeSavings ? totalSavings : 0) +
+            (includeInvestments ? totalInvestments * growthFactor : 0) +
+            rentalProjection,
+        ),
       };
     });
   }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments, globalSettings]);
@@ -600,6 +621,15 @@ function Dashboard() {
               )}
             >
               <TrendingUp className="h-3.5 w-3.5" /> Giełda
+            </button>
+            <button
+              onClick={() => setIncludeRentalGrowth(!includeRentalGrowth)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                includeRentalGrowth ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              <Building2 className="h-3.5 w-3.5" /> Nieruchomości
             </button>
           </div>
         </div>
