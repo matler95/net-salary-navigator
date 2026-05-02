@@ -4,12 +4,14 @@ import { cn } from "@/lib/utils";
 import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Legend, ReferenceLine
 } from "recharts";
 import { calculateRealEstate, amortizationSchedule, amortizationScheduleDecreasing, calcRequiredOverpayment } from "@/lib/finance";
-import { Info } from "lucide-react";
+import { actions } from "@/lib/store";
+import { Info, Save } from "lucide-react";
 
 export function InsightPanel() {
   return (
@@ -769,6 +771,35 @@ function BudgetTab() {
   const dtiAfter = budgetImpact.totalDTI;
   const dtiTone = dtiAfter > 50 ? "destructive" : dtiAfter > 35 ? "warning" : "success";
 
+  const saveToPortfolio = () => {
+    // Convert calculator scenario to rental format
+    const rentalData = {
+      label: `Scenariusz: ${s.purchasePrice ? formatPLN(s.purchasePrice) : 'Nieruchomość'}`,
+      monthlyRent: s.monthlyRent,
+      monthlyCosts: s.monthlyCosts,
+      monthlyMortgage: 0, // Will be calculated from mortgage fields
+      taxRatePct: s.taxRatePct,
+      marketValue: s.purchasePrice, // Use purchase price as initial market value
+      purchasePrice: s.purchasePrice,
+      purchaseDate: new Date().toISOString().slice(0, 10), // Today
+      renovationCost: s.renovationCost,
+      closingCostsPct: 2.5, // Default
+      hasLoanLink: false,
+      linkedLoanId: undefined,
+      mortgageRatePct: s.mortgageRatePct,
+      mortgageYears: s.mortgageYears,
+      mortgageRemaining: s.mortgageYears * 12,
+      mortgageMonthly: r.monthlyPmt,
+      mortgageInsuranceMonthly: s.mortgageInsuranceMonthly,
+      appreciationPct: 4, // Default
+      rentGrowthPct: 3, // Default
+      vacancyMonthsPerYear: (s.renovationMonths || 0) + (s.tenantSearchMonths || 0),
+    };
+
+    actions.addRental(rentalData);
+    // Could add a toast notification here
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid md:grid-cols-2 gap-4">
@@ -836,6 +867,16 @@ function BudgetTab() {
             }
           </p>
         </div>
+      </div>
+
+      <div className="flex justify-center pt-4">
+        <Button
+          onClick={saveToPortfolio}
+          className="rounded-full bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0 px-6"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          Zapisz do portfela nieruchomości
+        </Button>
       </div>
     </div>
   );

@@ -1574,20 +1574,39 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
   const [expanded, setExpanded] = useState(false);
   const linkedLoan = rental.linkedLoanId ? loans.find((l) => l.id === rental.linkedLoanId) : null;
 
+  // Determine mortgage source for display
+  const getMortgageDisplay = () => {
+    if (linkedLoan) {
+      return `Powiązany kredyt: ${linkedLoan.label}`;
+    } else if (rental.mortgageMonthly && rental.mortgageMonthly > 0) {
+      return `Rata kredytu: ${formatPLN(rental.mortgageMonthly)}${rental.mortgageInsuranceMonthly ? ` + ubezp. ${formatPLN(rental.mortgageInsuranceMonthly)}` : ''}`;
+    } else if (rental.monthlyMortgage && rental.monthlyMortgage > 0) {
+      return `Rata kredytu: ${formatPLN(rental.monthlyMortgage)}`;
+    } else {
+      return "Brak kredytu";
+    }
+  };
+
   const chartData = useMemo(() => {
+    // Use actual remaining loan balance from analysis
     const startLoan = Math.max(0, rental.marketValue - analysis.equity);
-    const loanYears = Math.max(1, (rental.mortgageRemaining ?? 120) / 12);
+    const loanYears = linkedLoan
+      ? Math.max(1, linkedLoan.monthsRemaining / 12)
+      : rental.mortgageRemaining
+        ? Math.max(1, rental.mortgageRemaining / 12)
+        : 25; // Default 25 years for manual mortgages
+
     return Array.from({ length: 11 }, (_, index) => {
       const year = index;
       const value = rental.marketValue * Math.pow(1 + ((rental.appreciationPct ?? 4) / 100), year);
-      const balance = Math.max(0, startLoan - (startLoan / loanYears) * year);
+      const balance = startLoan > 0 ? Math.max(0, startLoan - (startLoan / loanYears) * year) : 0;
       return {
         year: `${year}`,
         value: Math.round(value),
         equity: Math.round(value - balance),
       };
     });
-  }, [rental, analysis.equity]);
+  }, [rental, analysis.equity, linkedLoan]);
 
   return (
     <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
@@ -1598,7 +1617,7 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
             onChange={(e) => actions.updateRental(rental.id, { label: e.target.value })}
             className="font-display text-lg h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none"
           />
-          <p className="text-xs text-muted-foreground mt-1">{linkedLoan ? `Powiązany kredyt: ${linkedLoan.label}` : "Brak powiązanego kredytu"}</p>
+          <p className="text-xs text-muted-foreground mt-1">{getMortgageDisplay()}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1854,7 +1873,7 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                     <p className="mt-2 font-mono font-semibold">{formatPLN(analysis.equity)}</p>
                   </div>
                   <div className="rounded-xl bg-muted p-3">
-                    <p className="text-xs text-muted-foreground">IRR</p>
+                    <p className="text-xs text-muted-foreground">CAGR (szac.)</p>
                     <p className="mt-2 font-mono font-semibold">{analysis.irrEstimate.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -2396,7 +2415,7 @@ function AddRentalDialog() {
                           : "bg-muted/70 text-muted-foreground hover:bg-muted",
                       )}
                     >
-                      {mode === "none" ? "Nie" : mode === "link" ? "Linkuj" : "Ręcznie"}
+                      {mode === "none" ? "Brak kredytu" : mode === "link" ? "Powiąż istniejący" : "Wprowadź ręcznie"}
                     </button>
                   ))}
                 </div>
@@ -2591,7 +2610,7 @@ function AddRentalDialog() {
                 <p className="font-semibold">{formatPLN(previewAnalysis.equity)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">IRR</p>
+                <p className="text-muted-foreground">CAGR (szac.)</p>
                 <p className="font-semibold">{previewAnalysis.irrEstimate.toFixed(1)}%</p>
               </div>
             </div>

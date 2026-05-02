@@ -81,10 +81,28 @@ export function analyzeRental(
   loans: Loan[],
   holdingYears = 10,
 ): RentalAnalysis {
-  const linkedLoan = r.linkedLoanId ? loans.find((l) => l.id === r.linkedLoanId) ?? null : null;
-  const monthlyMortgage = linkedLoan
-    ? monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0)
-    : r.mortgageMonthly ?? r.monthlyMortgage ?? 0;
+  // Determine mortgage payment in priority order: linked loan -> manual fields -> legacy monthlyMortgage
+  let monthlyMortgage = 0;
+  let remainingLoan = 0;
+  let linkedLoan: Loan | null = null;
+
+  if (r.linkedLoanId) {
+    linkedLoan = loans.find((l) => l.id === r.linkedLoanId) ?? null;
+    if (linkedLoan) {
+      monthlyMortgage = monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0);
+      remainingLoan = linkedLoan.principal;
+    }
+  } else if (r.mortgageMonthly && r.mortgageMonthly > 0) {
+    // Manual mortgage entry
+    monthlyMortgage = r.mortgageMonthly + (r.mortgageInsuranceMonthly ?? 0);
+    remainingLoan = r.mortgageRemaining && r.mortgageRatePct && r.mortgageRemaining > 0
+      ? remainingBalance(r.mortgageMonthly, r.mortgageRatePct, r.mortgageRemaining, 0)
+      : 0;
+  } else {
+    // Fallback to legacy field
+    monthlyMortgage = r.monthlyMortgage ?? 0;
+    remainingLoan = 0; // Can't estimate without rate/terms
+  }
 
   const effectiveRentMonthly = r.monthlyRent * (1 - (r.vacancyMonthsPerYear ?? 0) / 12);
   const monthlyTax = effectiveRentMonthly * ((r.taxRatePct ?? 8.5) / 100);
@@ -94,14 +112,18 @@ export function analyzeRental(
   const grossYieldPct = purchasePrice > 0 ? ((r.monthlyRent * 12) / purchasePrice) * 100 : 0;
   const netYieldPct = purchasePrice > 0 ? ((monthlyCashflow * 12) / purchasePrice) * 100 : 0;
 
-  const remainingLoan = linkedLoan
-    ? linkedLoan.principal
-    : estimateRemainingLoan(r);
   const equity = r.marketValue - remainingLoan;
 
-  const totalInvestedCash = purchasePrice
-    ? purchasePrice * ((100 - getLtvPct(r, linkedLoan)) / 100) + (r.renovationCost ?? 0) + purchasePrice * ((r.closingCostsPct ?? 2.5) / 100)
-    : r.marketValue;
+  // Calculate total invested cash properly
+  let totalInvestedCash = 0;
+  if (r.purchasePrice && r.purchasePrice > 0) {
+    // If we have purchase price, calculate down payment + costs
+    const downPayment = r.purchasePrice - remainingLoan;
+    totalInvestedCash = Math.max(0, downPayment) + (r.renovationCost ?? 0) + r.purchasePrice * ((r.closingCostsPct ?? 2.5) / 100);
+  } else {
+    // Fallback: assume full market value invested (100% equity)
+    totalInvestedCash = r.marketValue;
+  }
 
   const projectedValueIn10y = r.marketValue * Math.pow(1 + ((r.appreciationPct ?? 4) / 100), holdingYears);
   const projectedEquityIn10y = projectedValueIn10y - remainingLoan;
