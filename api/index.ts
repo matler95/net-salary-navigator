@@ -63,62 +63,47 @@ async function handleStooqAPI(request: Request): Promise<Response> {
 }
 
 export default async function handler(req: any, res?: any) {
-  const url = req.url || (req.headers?.host ? `http://${req.headers.host}${req.url || '/'}` : 'http://localhost/');
-  const urlObj = new URL(url);
-  
-  // Handle API routes
-  if (urlObj.pathname.startsWith('/api/yahoo/')) {
-    const request = new Request(url, {
-      method: req.method,
-      headers: req.headers as any,
-      body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
-    });
-    const response = await handleYahooAPI(request);
-    
-    if (res) {
-      // Node.js response
-      res.statusCode = response.status;
-      response.headers.forEach((value: string, key: string) => {
-        res.setHeader(key, value);
-      });
-      const arrayBuffer = await response.arrayBuffer();
-      res.end(Buffer.from(arrayBuffer));
-      return;
-    } else {
-      // Web API response
-      return response;
-    }
-  }
-  
-  if (urlObj.pathname.startsWith('/api/stooq/')) {
-    const request = new Request(url, {
-      method: req.method,
-      headers: req.headers as any,
-      body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
-    });
-    const response = await handleStooqAPI(request);
-    
-    if (res) {
-      // Node.js response
-      res.statusCode = response.status;
-      response.headers.forEach((value: string, key: string) => {
-        res.setHeader(key, value);
-      });
-      const arrayBuffer = await response.arrayBuffer();
-      res.end(Buffer.from(arrayBuffer));
-      return;
-    } else {
-      // Web API response
-      return response;
-    }
-  }
-
   // If res is present, it's a Node.js (req, res) handler
   if (res) {
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers.host || 'localhost';
     const url = new URL(req.url || '/', `${protocol}://${host}`);
     
+    // Handle API routes for Node.js
+    if (url.pathname.startsWith('/api/yahoo/')) {
+      const request = new Request(url.href, {
+        method: req.method,
+        headers: req.headers as any,
+        body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+      });
+      const response = await handleYahooAPI(request);
+      
+      res.statusCode = response.status;
+      response.headers.forEach((value: string, key: string) => {
+        res.setHeader(key, value);
+      });
+      const arrayBuffer = await response.arrayBuffer();
+      res.end(Buffer.from(arrayBuffer));
+      return;
+    }
+    
+    if (url.pathname.startsWith('/api/stooq/')) {
+      const request = new Request(url.href, {
+        method: req.method,
+        headers: req.headers as any,
+        body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+      });
+      const response = await handleStooqAPI(request);
+      
+      res.statusCode = response.status;
+      response.headers.forEach((value: string, key: string) => {
+        res.setHeader(key, value);
+      });
+      const arrayBuffer = await response.arrayBuffer();
+      res.end(Buffer.from(arrayBuffer));
+      return;
+    }
+
     console.log(`SSR handling (Node.js): ${url.href}`);
 
     const webRequest = new Request(url, {
@@ -151,6 +136,18 @@ export default async function handler(req: any, res?: any) {
 
   // Otherwise, it's a Web Request handler (e.g. Edge runtime or newer Vercel Node)
   const url = new URL(req.url, `http://${req.headers.get('host') || 'localhost'}`);
+  
+  // Handle API routes for Web API
+  if (url.pathname.startsWith('/api/yahoo/')) {
+    const response = await handleYahooAPI(req);
+    return response;
+  }
+  
+  if (url.pathname.startsWith('/api/stooq/')) {
+    const response = await handleStooqAPI(req);
+    return response;
+  }
+
   console.log(`SSR handling (Web): ${url.href}`);
   
   const normalizedRequest = new Request(url, {
