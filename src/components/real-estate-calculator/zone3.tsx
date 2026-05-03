@@ -12,6 +12,7 @@ import {
 import { calculateRealEstate, amortizationSchedule, amortizationScheduleDecreasing, calcRequiredOverpayment } from "@/lib/finance";
 import { actions } from "@/lib/store";
 import { Info, Save } from "lucide-react";
+import { ObligacjeTab } from "./zone4";
 
 export function InsightPanel() {
   return (
@@ -32,6 +33,9 @@ export function InsightPanel() {
         <TabsTrigger value="budget" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent">
           Mój portfel
         </TabsTrigger>
+        <TabsTrigger value="obligacje" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent whitespace-nowrap">
+          🏛 vs. Obligacje
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="flow" className="animate-fade-up">
@@ -48,6 +52,9 @@ export function InsightPanel() {
       </TabsContent>
       <TabsContent value="budget" className="animate-fade-up">
         <BudgetTab />
+      </TabsContent>
+      <TabsContent value="obligacje" className="animate-fade-up">
+        <ObligacjeTab />
       </TabsContent>
     </Tabs>
   );
@@ -318,32 +325,6 @@ function LongtermTab() {
 }
 
 // ─── FlowTab ─────────────────────────────────────────────────────────────────
-//
-// CASH FLOW ACCOUNTING (corrected):
-//
-// Total invested (cash out of pocket, one-time):
-//   = downPayment + (renovationCost - renovationFinancedAmount) + closingCosts + bankCommission
-//   = r.totalUpfront
-//
-// Cash flow over holding period (sum of monthly: positive months minus negative months):
-//   = r.totalCashflow  (= r.yearly[last].cumulativeCashflow)
-//
-// Note: r.totalCashflow already nets out negative months. The "cumulativeNegativeCashflow"
-// field is informational only — showing it separately as "extra invested" would double-count
-// because those negative months are already subtracted from r.totalCashflow.
-//
-// Exit (if selling):
-//   netFromSale = propertyValue - remainingLoan - saleCosts
-//
-// Total return:
-//   = r.totalReturn = netFromSale + totalCashflow - totalUpfront
-//   (This is the profit/loss vs the initial cash committed)
-//
-// ROI%:
-//   r.totalReturnPct = totalReturn / investedCapital * 100
-//   where investedCapital = totalUpfront + sum of negative cashflow months (r.totalCashflow negative injections)
-//   This is correct for IRR purposes — it reflects all actual cash committed.
-
 function FlowTab() {
   const { r, s, requiredOverpayment, updateS } = useRealEstate();
 
@@ -361,17 +342,13 @@ function FlowTab() {
   const totalGrossRent = r.yearly.reduce((sum, y) => sum + y.rent, 0);
 
   // Break down totalOperationalCosts (baseline, no overpayments) into components
-  // totalOperationalCosts = baseline mortgage payments + insurance + fixed costs + tax
   const totalTax = r.yearly.reduce((sum, y) => sum + (y.rent * s.taxRatePct) / 100, 0);
   const totalMonthlyCosts = s.monthlyCosts * 12 * s.holdingYears;
   const totalInsurance = (s.mortgageInsuranceMonthly || 0) * 12 * s.holdingYears;
-  // Baseline mortgage payments (capital + interest, no overpayments, no insurance)
   const totalBaselineMortgagePayments = r.totalOperationalCosts - totalTax - totalMonthlyCosts - totalInsurance;
 
-  // Informational: months where cashflow was negative (money had to be injected)
   const totalCumNegative = r.yearly[r.yearly.length - 1]?.cumulativeNegativeCashflow || 0;
 
-  // Renovation: own funds vs financed portions
   const renovationFinancedAmount = (s.renovationCost * (s.renovationFinancedPct || 0)) / 100;
   const renovationOwnFunds = s.renovationCost - renovationFinancedAmount;
 
@@ -483,7 +460,6 @@ function FlowTab() {
               </div>
             </div>
 
-            {/* Reconciliation note: how the sum checks out */}
             <div className="mt-3 p-3 bg-muted/30 rounded-xl text-[10px] text-muted-foreground leading-relaxed">
               <span className="font-semibold">Jak sprawdzić:</span>{" "}
               czynsz ({formatPLN(totalGrossRent)}) − raty ({formatPLN(totalBaselineMortgagePayments)}) − ubezpieczenie ({formatPLN(totalInsurance)}) − koszty ({formatPLN(totalMonthlyCosts)}) − podatek ({formatPLN(totalTax)})
@@ -637,7 +613,6 @@ function FlowTab() {
               </div>
             </div>
 
-            {/* Summary explanation */}
             <div className="mt-4 p-3 bg-muted/20 rounded-xl text-[10px] text-muted-foreground leading-relaxed">
               <span className="font-semibold">Jak sprawdzić wynik: </span>
               cashflow ({formatSignedPLN(r.totalCashflow)})
@@ -772,18 +747,17 @@ function BudgetTab() {
   const dtiTone = dtiAfter > 50 ? "destructive" : dtiAfter > 35 ? "warning" : "success";
 
   const saveToPortfolio = () => {
-    // Convert calculator scenario to rental format
     const rentalData = {
       label: `Scenariusz: ${s.purchasePrice ? formatPLN(s.purchasePrice) : 'Nieruchomość'}`,
       monthlyRent: s.monthlyRent,
       monthlyCosts: s.monthlyCosts,
-      monthlyMortgage: 0, // Will be calculated from mortgage fields
+      monthlyMortgage: 0,
       taxRatePct: s.taxRatePct,
-      marketValue: s.purchasePrice, // Use purchase price as initial market value
+      marketValue: s.purchasePrice,
       purchasePrice: s.purchasePrice,
-      purchaseDate: new Date().toISOString().slice(0, 10), // Today
+      purchaseDate: new Date().toISOString().slice(0, 10),
       renovationCost: s.renovationCost,
-      closingCostsPct: 2.5, // Default
+      closingCostsPct: 2.5,
       hasLoanLink: false,
       linkedLoanId: undefined,
       mortgageRatePct: s.mortgageRatePct,
@@ -791,13 +765,12 @@ function BudgetTab() {
       mortgageRemaining: s.mortgageYears * 12,
       mortgageMonthly: r.monthlyPmt,
       mortgageInsuranceMonthly: s.mortgageInsuranceMonthly,
-      appreciationPct: 4, // Default
-      rentGrowthPct: 3, // Default
+      appreciationPct: 4,
+      rentGrowthPct: 3,
       vacancyMonthsPerYear: (s.renovationMonths || 0) + (s.tenantSearchMonths || 0),
     };
 
     actions.addRental(rentalData);
-    // Could add a toast notification here
   };
 
   return (
