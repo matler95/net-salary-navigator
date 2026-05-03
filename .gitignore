@@ -40,3 +40,7 @@ package-lock.json
 query_results.json
 query_results_pinpoint.json
 .claude/settings.local.json
+supabase/migrations/20260522_bond_storage_fixes.sql
+tmp_home.html
+tmp_oferta.html
+tmp_oferta2.html

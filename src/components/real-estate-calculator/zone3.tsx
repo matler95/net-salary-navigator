@@ -34,7 +34,7 @@ export function InsightPanel() {
           Mój portfel
         </TabsTrigger>
         <TabsTrigger value="obligacje" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 bg-transparent whitespace-nowrap">
-          🏛 vs. Obligacje
+          vs. Obligacje
         </TabsTrigger>
       </TabsList>
 
@@ -751,7 +751,7 @@ function BudgetTab() {
       label: `Scenariusz: ${s.purchasePrice ? formatPLN(s.purchasePrice) : 'Nieruchomość'}`,
       monthlyRent: s.monthlyRent,
       monthlyCosts: s.monthlyCosts,
-      monthlyMortgage: 0,
+      monthlyMortgage: r.monthlyPmt,
       taxRatePct: s.taxRatePct,
       marketValue: s.purchasePrice,
       purchasePrice: s.purchasePrice,

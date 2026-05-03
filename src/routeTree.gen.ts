@@ -17,6 +17,7 @@ import { Route as KalkulatoryRouteImport } from './routes/kalkulatory'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as AktywaRouteImport } from './routes/aktywa'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiObligacjeLatestRouteImport } from './routes/api/obligacje/latest'
 
 const WynagrodzeniaRoute = WynagrodzeniaRouteImport.update({
   id: '/wynagrodzenia',
@@ -58,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiObligacjeLatestRoute = ApiObligacjeLatestRouteImport.update({
+  id: '/api/obligacje/latest',
+  path: '/api/obligacje/latest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/obligacje/latest': typeof ApiObligacjeLatestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/obligacje/latest': typeof ApiObligacjeLatestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/wydatki': typeof WydatkiRoute
   '/wynagrodzenia': typeof WynagrodzeniaRoute
+  '/api/obligacje/latest': typeof ApiObligacjeLatestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/obligacje/latest'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/obligacje/latest'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wydatki'
     | '/wynagrodzenia'
+    | '/api/obligacje/latest'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   WydatkiRoute: typeof WydatkiRoute
   WynagrodzeniaRoute: typeof WynagrodzeniaRoute
+  ApiObligacjeLatestRoute: typeof ApiObligacjeLatestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/obligacje/latest': {
+      id: '/api/obligacje/latest'
+      path: '/api/obligacje/latest'
+      fullPath: '/api/obligacje/latest'
+      preLoaderRoute: typeof ApiObligacjeLatestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   WydatkiRoute: WydatkiRoute,
   WynagrodzeniaRoute: WynagrodzeniaRoute,
+  ApiObligacjeLatestRoute: ApiObligacjeLatestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
