@@ -787,17 +787,18 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 }
 
 /**
- * Minimum monthly rent (gross, from tenant) at which monthly cash-flow = 0.
+ * Minimum monthly rent (gross, from tenant) at which steady-state monthly cash-flow = 0.
+ * "Steady-state" means a normal fully-rented month — vacancy/renovation months are a one-time
+ * Year 1 event already reflected in r.monthlyCashflow, not a structural cost driver of min rent.
  */
 export function minBreakEvenRent(s: RealEstateScenario, r: RealEstateResult): number {
-  const initialVacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
-  const monthsRented = Math.max(0, 12 - initialVacancyMonths);
   const effectiveOverpayment = s.tsoverpaymentEnabled
     ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s))
     : 0;
   const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts + effectiveOverpayment;
-  const factor = monthsRented > 0 ? (monthsRented / 12) * (1 - s.taxRatePct / 100) : 0;
-  return factor > 0 ? round2(totalFixed / factor) : 0;
+  // Steady-state break-even: rent * (1 - tax) = totalFixed
+  const taxFactor = 1 - s.taxRatePct / 100;
+  return taxFactor > 0 ? round2(totalFixed / taxFactor) : 0;
 }
 
 /** Qualitative investment verdict based on cashflow + yield + IRR */

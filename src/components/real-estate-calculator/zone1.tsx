@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import { formatPLN, formatPLN2 } from "@/lib/salary";
 import { useRealEstate } from "./context";
-import { CheckCircle2, AlertTriangle, BarChart2, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, BarChart2, XCircle, Info } from "lucide-react";
 import type { InvestmentVerdict } from "@/lib/finance";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ScenarioHeader() {
   const { r, minRent, verdict, rentMargin, rentMarginPct, cashflowPositive, s } = useRealEstate();
@@ -57,8 +58,31 @@ export function ScenarioHeader() {
 
         {/* Min Rent Card */}
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm flex flex-col justify-center">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Min. czynsz</p>
+          <div className="flex items-center gap-1 mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Min. czynsz</p>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="cursor-help text-muted-foreground/50 hover:text-muted-foreground transition-colors focus:outline-none">
+                    <Info className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px] text-center leading-relaxed">
+                  <p className="font-semibold mb-0.5">Próg opłacalności</p>
+                  <p>Czynsz pokrywający ratę kredytu, koszty stałe i podatek przy pełnym wynajmie.</p>
+                  {(s.renovationMonths || 0) + (s.tenantSearchMonths || 0) > 0 && (
+                    <p className="mt-1 opacity-80">Pustostan roku&nbsp;1 wpływa na <em>Zysk miesięczny</em>, nie na ten próg.</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className="font-display text-xl sm:text-3xl tracking-tight leading-none">{formatPLN(minRent)}</p>
+          {(s.renovationMonths || 0) + (s.tenantSearchMonths || 0) > 0 && (
+            <p className="text-[9px] text-warning-foreground mt-1 leading-tight">
+              Rok 1: {(s.renovationMonths || 0) + (s.tenantSearchMonths || 0)} m-c bez czynszu
+            </p>
+          )}
         </div>
       </div>
 

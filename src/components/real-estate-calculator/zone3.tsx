@@ -244,6 +244,9 @@ function CashflowTab() {
           <p className={cn("text-xs mt-1 font-bold", rentMargin >= 0 ? "text-success" : "text-destructive")}>
             Zapas: {rentMargin >= 0 ? "+" : ""}{formatPLN(rentMargin)} ({rentMarginPct.toFixed(0)}%)
           </p>
+          <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+            Czynsz pokrywający ratę, koszty i podatek przy pełnym wynajmie. Nie uwzględnia pustostanu — patrz Zysk rok 1.
+          </p>
         </div>
       </div>
     </div>
