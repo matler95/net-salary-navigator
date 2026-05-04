@@ -6,7 +6,8 @@ import type { InvestmentVerdict } from "@/lib/finance";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ScenarioHeader() {
-  const { r, minRent, verdict, rentMargin, rentMarginPct, cashflowPositive, s } = useRealEstate();
+  const { r, minRent, verdict, rentMargin, rentMarginPct, cashflowPositive, s, steadyCashflow } = useRealEstate();
+  const vacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
 
   const verdictMeta: Record<InvestmentVerdict, { label: string; desc: string; icon: typeof CheckCircle2; color: string }> = {
     rentowna: { label: "Opłacalna", desc: "Czynsz pokrywa koszty.", icon: CheckCircle2, color: "text-success bg-success/10 border-success/20" },
@@ -39,15 +40,38 @@ export function ScenarioHeader() {
 
       {/* 3 Hero Cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        {/* CF Card (Serves as Verdict) */}
+        {/* CF Card */}
         <div className={cn(
           "rounded-2xl border p-3 sm:p-4 transition-all flex flex-col justify-center",
           cashflowPositive ? "bg-success/10 border-success/30 shadow-warm" : "bg-destructive/10 border-destructive/30 shadow-sm"
         )}>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Zysk miesięczny</p>
+          <div className="flex items-center gap-1 mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Zysk miesięczny</p>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="cursor-help text-muted-foreground/50 hover:text-muted-foreground transition-colors focus:outline-none">
+                    <Info className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px] text-center leading-relaxed">
+                  <p className="font-semibold mb-0.5">Zysk przy pełnym wynajmie</p>
+                  <p>Miesięczny zysk przy normalnym, pełnym wynajmie — bez uwzględniania pustostanu.</p>
+                  {vacancyMonths > 0 && (
+                    <p className="mt-1 opacity-80">Rok&nbsp;1 (z {vacancyMonths}&nbsp;m-c pustostanu) pokazany niżej jako wartość pomocnicza.</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className={cn("font-display text-xl sm:text-3xl tracking-tight leading-none", cashflowPositive ? "text-success" : "text-destructive")}>
-            {cashflowPositive ? "+" : ""}{formatPLN2(r.monthlyCashflow)}
+            {steadyCashflow >= 0 ? "+" : ""}{formatPLN2(steadyCashflow)}
           </p>
+          {vacancyMonths > 0 && (
+            <p className={cn("text-[9px] mt-1 leading-tight", r.monthlyCashflow >= 0 ? "text-success/70" : "text-warning-foreground")}>
+              Rok 1 śr: {r.monthlyCashflow >= 0 ? "+" : ""}{formatPLN2(r.monthlyCashflow)}
+            </p>
+          )}
         </div>
 
         {/* IRR Card */}

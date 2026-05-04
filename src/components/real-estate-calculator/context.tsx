@@ -30,6 +30,8 @@ export interface RealEstateContextValue {
   setCosts: React.Dispatch<React.SetStateAction<{ admin: number; media: number; management: number; insurance: number; reserve: number }>>;
   r: RealEstateResult;
   minRent: number;
+  /** Steady-state monthly cashflow at full occupancy (no vacancy dilution). */
+  steadyCashflow: number;
   verdict: InvestmentVerdict;
   wiborData: WiborScenario[];
   budgetImpact: BudgetImpact;
@@ -151,7 +153,17 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
 
   const requiredOverpayment = useMemo(() => calcRequiredOverpayment(s), [s]);
   const r = useMemo(() => calculateRealEstate(s), [s]);
-  const cashflowPositive = r.monthlyCashflow >= 0;
+
+  // Steady-state: a normal fully-rented month (no vacancy dilution)
+  const steadyCashflow = useMemo(() => {
+    const overpayment = s.tsoverpaymentEnabled
+      ? (s.overpaymentMonthly ?? requiredOverpayment)
+      : 0;
+    const tax = s.monthlyRent * (s.taxRatePct / 100);
+    return s.monthlyRent - s.monthlyCosts - r.monthlyPmt - (s.mortgageInsuranceMonthly || 0) - overpayment - tax;
+  }, [s, r.monthlyPmt, requiredOverpayment]);
+
+  const cashflowPositive = steadyCashflow >= 0;
   const minRent = useMemo(() => minBreakEvenRent(s, r), [s, r]);
   const verdict = getInvestmentVerdict(r);
   const wiborData = useMemo(() => wiborSensitivity(s, r), [s, r]);
@@ -200,6 +212,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     setCosts,
     r,
     minRent,
+    steadyCashflow,
     verdict,
     wiborData,
     budgetImpact,

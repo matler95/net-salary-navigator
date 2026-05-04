@@ -8,8 +8,9 @@ import { calculateRealEstate } from "@/lib/finance";
 import { Switch } from "@/components/ui/switch";
 
 export function InputPanel() {
-  const { s, updateS, costs, setCosts, r, minRent } = useRealEstate();
+  const { s, updateS, costs, setCosts, r, minRent, steadyCashflow } = useRealEstate();
   const [isExpanded, setIsExpanded] = useState(true);
+  const vacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
 
   // Helper to calculate CF delta for a given change in scenario
   const getCfDelta = (patch: Partial<typeof s>) => {
@@ -231,8 +232,11 @@ export function InputPanel() {
             </div>
             <div className="flex-1">
               <h3 className="font-display text-lg leading-none">Wynajem</h3>
-              <p className="text-xs text-muted-foreground mt-1 font-medium flex justify-between">
-                <span>Zysk co miesiąc: <span className={cn(r.monthlyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(r.monthlyCashflow)}</span></span>
+               <p className="text-xs text-muted-foreground mt-1 font-medium flex justify-between flex-wrap gap-x-2">
+                <span>Zysk co miesiąc: <span className={cn(steadyCashflow >= 0 ? "text-success" : "text-destructive")}>{formatPLN2(steadyCashflow)}</span></span>
+                {vacancyMonths > 0 && (
+                  <span className="text-[10px] opacity-70">Rok 1 śr: <span className={cn(r.monthlyCashflow >= 0 ? "text-success" : "text-warning-foreground")}>{formatPLN2(r.monthlyCashflow)}</span></span>
+                )}
               </p>
             </div>
           </div>

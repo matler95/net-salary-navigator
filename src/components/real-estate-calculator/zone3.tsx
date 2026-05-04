@@ -67,24 +67,16 @@ export function InsightPanel() {
 // These two numbers differ when vacancyMonths > 0 — both are shown clearly.
 
 function CashflowTab() {
-  const { s, r, minRent, rentMargin, rentMarginPct } = useRealEstate();
+  const { s, r, minRent, rentMargin, rentMarginPct, steadyCashflow } = useRealEstate();
 
   const effectiveOverpayment = s.tsoverpaymentEnabled
     ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s))
     : 0;
 
-  // Steady-state: a normal month at full occupancy (no vacancy dilution)
-  const monthlyTax = s.monthlyRent * (s.taxRatePct / 100);
-  const steadyCashflow =
-    s.monthlyRent
-    - s.monthlyCosts
-    - r.monthlyPmt
-    - s.mortgageInsuranceMonthly
-    - effectiveOverpayment
-    - monthlyTax;
-
   const vacancyMonths = Math.max(0, (s.renovationMonths || 0) + (s.tenantSearchMonths || 0));
   const hasVacancy = vacancyMonths > 0;
+  // Used in waterfall chart — tax on a normal steady-state month at full occupancy
+  const monthlyTax = s.monthlyRent * (s.taxRatePct / 100);
 
   // Year-1 average interest from amortization schedule (first 12 months)
   const loanAmount =
