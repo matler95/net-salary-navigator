@@ -843,21 +843,31 @@ function IkeIkzeCard({
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Limits Usage Info */}
                 <div className="bg-muted/30 border border-border rounded-2xl p-5">
-                  <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-4 flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-accent" />
-                    Wykorzystanie limitów ({globalSettings.regulatoryYear})
+                  <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-accent" />
+                      Limity wpłat ({limits.year})
+                    </div>
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 bg-success/10 text-success rounded-md border border-success/20">
+                      Zsynchronizowano z gov.pl
+                    </span>
                   </h4>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {/* IKE Limit */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="uppercase tracking-wider">Limit IKE</span>
-                        <span className="font-mono text-muted-foreground">
-                          {formatPLN(comparison.ike.annualContributionCapped)} /{" "}
-                          {formatPLN(comparison.ike.annualLimit)}
-                        </span>
+                    <div className="space-y-2">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] uppercase tracking-wider font-bold">Limit IKE</span>
+                          <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400">
+                            ~{formatPLN(comparison.ike.annualLimit / 12)} / m-c
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground font-medium">
+                          Rocznie: {formatPLN(comparison.ike.annualLimit)}
+                        </p>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                      
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner relative">
                         <div
                           className={cn(
                             "h-full transition-all duration-500",
@@ -873,24 +883,34 @@ function IkeIkzeCard({
                           }}
                         />
                       </div>
+                      
+                      <div className="flex justify-between text-[9px] font-mono text-muted-foreground">
+                        <span>Wykorzystano: {formatPLN(comparison.ike.annualContributionCapped)}</span>
+                        <span>{Math.round((comparison.ike.annualContributionCapped / comparison.ike.annualLimit) * 100)}%</span>
+                      </div>
+
                       {comparison.ike.isCapped && (
-                        <p className="text-[9px] text-amber-600 font-medium">
-                          Uwaga: Twoja wpłata ({formatPLN(monthlyContribution * 12)}) przekracza
-                          limit. Model oblicza zysk tylko do kwoty {formatPLN(comparison.ike.annualLimit)}.
+                        <p className="text-[9px] text-amber-600 font-medium bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                          Uwaga: Twoja roczna wpłata ({formatPLN(monthlyContribution * 12)}) przekracza limit. Nadwyżka nie korzysta ze zwolnienia z podatku Belki.
                         </p>
                       )}
                     </div>
 
                     {/* IKZE Limit */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="uppercase tracking-wider">Limit IKZE</span>
-                        <span className="font-mono text-muted-foreground">
-                          {formatPLN(comparison.ikze.annualContributionCapped)} /{" "}
-                          {formatPLN(comparison.ikze.annualLimit)}
-                        </span>
+                    <div className="space-y-2">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] uppercase tracking-wider font-bold">Limit IKZE</span>
+                          <span className="text-[10px] font-mono font-bold text-accent">
+                            ~{formatPLN(comparison.ikze.annualLimit / 12)} / m-c
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground font-medium">
+                          Rocznie: {formatPLN(comparison.ikze.annualLimit)} ({ikzeTaxpayerType === "b2b" ? "B2B" : "Standard"})
+                        </p>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner relative">
                         <div
                           className={cn(
                             "h-full transition-all duration-500",
@@ -906,10 +926,15 @@ function IkeIkzeCard({
                           }}
                         />
                       </div>
+
+                      <div className="flex justify-between text-[9px] font-mono text-muted-foreground">
+                        <span>Wykorzystano: {formatPLN(comparison.ikze.annualContributionCapped)}</span>
+                        <span>{Math.round((comparison.ikze.annualContributionCapped / comparison.ikze.annualLimit) * 100)}%</span>
+                      </div>
+
                       {comparison.ikze.isCapped && (
-                        <p className="text-[9px] text-amber-600 font-medium">
-                          Uwaga: Twoja wpłata ({formatPLN(monthlyContribution * 12)}) przekracza
-                          limit. Model oblicza zysk tylko do kwoty {formatPLN(comparison.ikze.annualLimit)}.
+                        <p className="text-[9px] text-amber-600 font-medium bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                          Uwaga: Twoja roczna wpłata ({formatPLN(monthlyContribution * 12)}) przekracza limit. Nadwyżka nie podlega odliczeniu od PIT.
                         </p>
                       )}
                     </div>

@@ -164,12 +164,12 @@ const DEFAULT_STATE: AppState = {
   rentals: [],
   savings: [],
   globalSettings: {
-    avgSalaryForecast: 8673, // 2025
+    avgSalaryForecast: 9610, // 2026 forecast
     pitThresholdAnnual: 120000,
     pitFirstRate: 12,
     pitSecondRate: 32,
     taxFreeAmountAnnual: 30000,
-    regulatoryYear: 2025,
+    regulatoryYear: 2026,
     targetEmergencyFundMonths: 6,
   },
 };

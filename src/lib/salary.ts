@@ -138,16 +138,22 @@ export type RetirementLimits = {
 };
 
 const RETIREMENT_LIMITS_BY_YEAR: Record<number, RetirementLimits> = {
-  2024: { year: 2024, ikeAnnualLimit: 23472, ikzeAnnualLimit: 9388, ikzeB2bAnnualLimit: 14083.2 },
+  2024: { year: 2024, ikeAnnualLimit: 23472, ikzeAnnualLimit: 9388.8, ikzeB2bAnnualLimit: 14083.2 },
   2025: {
     year: 2025,
     ikeAnnualLimit: 26019,
     ikzeAnnualLimit: 10407.6,
     ikzeB2bAnnualLimit: 15611.4,
   },
+  2026: {
+    year: 2026,
+    ikeAnnualLimit: 28260, // Official (gov.pl)
+    ikzeAnnualLimit: 11304, // Official (gov.pl)
+    ikzeB2bAnnualLimit: 16956, // Official (gov.pl)
+  },
 };
 
-export const RETIREMENT_LIMITS_DEFAULT_YEAR = 2025;
+export const RETIREMENT_LIMITS_DEFAULT_YEAR = 2026;
 
 export function getRetirementLimits(
   requestedYear: number,
