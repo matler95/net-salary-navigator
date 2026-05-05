@@ -1,19 +1,19 @@
 // @ts-ignore
 import server from "../dist/server/server.js";
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from "http";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
-  const protocol = req.headers['x-forwarded-proto'] || 'http';
-  const host = req.headers['host'];
-  const url = new URL(req.url || '/', `${protocol}://${host}`);
+  const protocol = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers["host"];
+  const url = new URL(req.url || "/", `${protocol}://${host}`);
 
   // Construct a Fetch Request from the Node.js request
   const request = new Request(url.toString(), {
-    method: req.method || 'GET',
+    method: req.method || "GET",
     headers: req.headers as any,
-    body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+    body: req.method !== "GET" && req.method !== "HEAD" ? req : undefined,
     // Use duplex: 'half' for Node.js compatibility with streaming bodies
-    duplex: 'half',
+    duplex: "half",
   } as any);
 
   try {
@@ -23,7 +23,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     res.statusCode = response.status;
     response.headers.forEach((value: string, key: string) => {
       // Handle set-cookie specifically as it can have multiple values
-      if (key.toLowerCase() === 'set-cookie') {
+      if (key.toLowerCase() === "set-cookie") {
         const cookies = (response.headers as any).getSetCookie?.() || [value];
         res.setHeader(key, cookies);
       } else {
@@ -42,8 +42,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
     res.end();
   } catch (error) {
-    console.error('Bridge error:', error);
+    console.error("Bridge error:", error);
     res.statusCode = 500;
-    res.end('Internal Server Error');
+    res.end("Internal Server Error");
   }
 }

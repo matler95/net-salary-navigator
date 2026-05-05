@@ -20,6 +20,7 @@ import {
   getCachedHouseholdName,
   initCloudSync,
   syncFromCloud,
+  actions,
   ACTIVE_HOUSEHOLD_KEY,
   PENDING_INVITE_TOKEN_KEY,
 } from "@/lib/store";
@@ -85,7 +86,8 @@ function NotAuthenticatedScreen() {
         </div>
         <h1 className="font-display text-2xl font-bold mb-2">Zaloguj się, aby kontynuować</h1>
         <p className="mb-8 text-sm text-muted-foreground leading-relaxed">
-          Twoje dane są bezpieczne. Aby zobaczyć swój przegląd i gospodarstwo domowe, zaloguj się ponownie.
+          Twoje dane są bezpieczne. Aby zobaczyć swój przegląd i gospodarstwo domowe, zaloguj się
+          ponownie.
         </p>
         <Link
           to="/login"
@@ -135,6 +137,7 @@ export function AppShell() {
     }
 
     void initCloudSync(session);
+    void actions.fetchRetirementLimits();
     setHouseholdName(getCachedHouseholdName());
 
     const onFocus = () => void syncFromCloud();
@@ -186,9 +189,7 @@ export function AppShell() {
   }
 
   const nickname =
-    session?.user.user_metadata?.nickname?.trim() ||
-    session?.user.email?.split("@")[0] ||
-    "Ty";
+    session?.user.user_metadata?.nickname?.trim() || session?.user.email?.split("@")[0] || "Ty";
   const avatarLetter = nickname[0]?.toUpperCase() ?? "?";
 
   const mobileNav = [
@@ -272,9 +273,7 @@ export function AppShell() {
                     active ? "stroke-[2.5px]" : "stroke-[1.5px]",
                   )}
                 />
-                {!collapsed && (
-                  <span className="truncate sidebar-label-visible">{n.label}</span>
-                )}
+                {!collapsed && <span className="truncate sidebar-label-visible">{n.label}</span>}
               </Link>
             );
           })}
@@ -360,9 +359,7 @@ export function AppShell() {
       </aside>
 
       {/* ── Main View Area ────────────────────────────────────────── */}
-      <div
-        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[padding-left] duration-200 ease-in-out md:pl-[var(--sidebar-width)]"
-      >
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 transition-[padding-left] duration-200 ease-in-out md:pl-[var(--sidebar-width)]">
         {/* Mobile header (hidden on md+) */}
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 backdrop-blur-sm px-4 md:hidden">
           <Link to="/" className="flex items-center gap-2.5">
@@ -393,7 +390,11 @@ export function AppShell() {
 
         <footer className="border-t border-border px-4 py-3 pb-6 md:px-6 md:py-4 md:pb-4">
           <p className="text-[11px] md:text-xs text-muted-foreground/60 text-center">
-            Wartości szacunkowe · Stawki ZUS/PIT 2025 · {typeof window !== "undefined" && window.innerWidth >= 768 ? "Dane synchronizowane · " : ""}© 2025 Saldeo
+            Wartości szacunkowe · Stawki ZUS/PIT 2025 ·{" "}
+            {typeof window !== "undefined" && window.innerWidth >= 768
+              ? "Dane synchronizowane · "
+              : ""}
+            © 2025 Saldeo
           </p>
         </footer>
 
@@ -407,7 +408,9 @@ export function AppShell() {
             const Icon = n.icon;
             const active = n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to);
             const isMore = n.isMore;
-            const moreActive = moreNavItems.some(item => item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to));
+            const moreActive = moreNavItems.some((item) =>
+              item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to),
+            );
 
             if (isMore) {
               return (
@@ -420,7 +423,10 @@ export function AppShell() {
                       )}
                     >
                       <Icon
-                        className={cn("h-5 w-5 shrink-0", moreActive ? "stroke-[2.5px]" : "stroke-[1.5px]")}
+                        className={cn(
+                          "h-5 w-5 shrink-0",
+                          moreActive ? "stroke-[2.5px]" : "stroke-[1.5px]",
+                        )}
                         aria-hidden="true"
                       />
                       <span className="text-[10px] font-semibold truncate w-full text-center leading-tight">
@@ -431,14 +437,15 @@ export function AppShell() {
                   <DropdownMenuContent align="center" side="top" className="mb-2">
                     {moreNavItems.map((item) => {
                       const ItemIcon = item.icon;
-                      const itemActive = item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
+                      const itemActive =
+                        item.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(item.to);
                       return (
                         <DropdownMenuItem key={item.to} asChild>
                           <Link
                             to={item.to}
                             className={cn(
                               "flex items-center gap-2 cursor-pointer",
-                              itemActive && "bg-accent text-accent-foreground"
+                              itemActive && "bg-accent text-accent-foreground",
                             )}
                           >
                             <ItemIcon className="h-4 w-4" />

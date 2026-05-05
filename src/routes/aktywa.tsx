@@ -1,7 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { actions, useAppState, type SavingsAccount, type Rental, type Loan } from "@/lib/store";
+import { actions, useAppState, type SavingsAccount, type Rental, type Loan, type Spouse, type GlobalSettings } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount, calculateIkzeTaxReturn, compareIkeVsIkze } from "@/lib/salary";
+import {
+  formatPLN,
+  formatPLN2,
+  parseLocaleAmount,
+  formatLocaleAmount,
+  calculateIkzeTaxReturn,
+  compareIkeVsIkze,
+  getRetirementLimits,
+  evaluateRetirementWithdrawalEligibility,
+} from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
@@ -101,6 +110,7 @@ export const Route = createFileRoute("/aktywa")({
 function AssetsPage() {
   const { tab } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
+  const spouses = useAppState((s) => s.spouses);
   const investments = useAppState((s) => s.investments);
   const loans = useAppState((s) => s.loans);
   const rentals = useAppState((s) => s.rentals);
@@ -112,9 +122,13 @@ function AssetsPage() {
     (s, i) => s + convertToPLN(getInvestmentCurrentValue(i, tickerPrices), i.currency, rates),
     0,
   );
+  const totalRetirementAssets = spouses.reduce(
+    (sum, sp) => sum + (sp.existingIkeBalance ?? 0) + (sp.existingIkzeBalance ?? 0),
+    0,
+  );
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
-  const totalAssets = totalInvestments + totalSavings + rentalAssets;
+  const totalAssets = totalInvestments + totalSavings + rentalAssets + totalRetirementAssets;
   const totalLoans = loans.reduce((s, l) => s + l.principal, 0);
   const netWorth = totalAssets - totalLoans;
   const rentalNet = rentals.reduce((s, r) => s + rentalCashflow(r).cashflow, 0);
@@ -135,23 +149,54 @@ function AssetsPage() {
               Co masz <span className="italic text-accent">i co jest Twoje</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-              Zarządzaj swoimi oszczędnościami, portfelem giełdowym, kredytami hipotecznymi i nieruchomościami na wynajem.
+              Zarządzaj swoimi oszczędnościami, portfelem giełdowym, kredytami hipotecznymi i
+              nieruchomościami na wynajem.
             </p>
           </div>
 
           <TabsList className="flex items-center justify-start h-auto p-1 bg-muted/40 border border-border rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar">
-            <TabsTrigger value="oszczednosci" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Oszczędności</TabsTrigger>
-            <TabsTrigger value="inwestycje" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Inwestycje</TabsTrigger>
-            <TabsTrigger value="kredyty" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Kredyty</TabsTrigger>
-            <TabsTrigger value="wynajem" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Nieruchomości</TabsTrigger>
-            <TabsTrigger value="emerytura" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Emerytura (IKE/IKZE)</TabsTrigger>
+            <TabsTrigger
+              value="oszczednosci"
+              className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
+              Oszczędności
+            </TabsTrigger>
+            <TabsTrigger
+              value="inwestycje"
+              className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
+              Inwestycje
+            </TabsTrigger>
+            <TabsTrigger
+              value="kredyty"
+              className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
+              Kredyty
+            </TabsTrigger>
+            <TabsTrigger
+              value="wynajem"
+              className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
+              Nieruchomości
+            </TabsTrigger>
+            <TabsTrigger
+              value="emerytura"
+              className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
+              Emerytura (IKE/IKZE)
+            </TabsTrigger>
           </TabsList>
         </header>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-fade-up">
           <StatCard label="Aktywa razem" value={formatPLN(totalAssets)} tone="investment" animate />
           <StatCard label="Zobowiązania" value={formatPLN(totalLoans)} tone="debt" animate />
-          <StatCard label="Majątek netto" value={formatPLN(netWorth)} tone={netWorth >= 0 ? "income" : "expense"} animate />
+          <StatCard
+            label="Majątek netto"
+            value={formatPLN(netWorth)}
+            tone={netWorth >= 0 ? "income" : "expense"}
+            animate
+          />
           <StatCard
             label={rentalNet >= 0 ? "Zysk z wynajmu" : "Strata z wynajmu"}
             value={formatPLN(rentalNet)}
@@ -160,7 +205,10 @@ function AssetsPage() {
           />
         </div>
 
-        <TabsContent value="oszczednosci" className="mt-0 focus-visible:outline-none animate-fade-up">
+        <TabsContent
+          value="oszczednosci"
+          className="mt-0 focus-visible:outline-none animate-fade-up"
+        >
           <SavingsSection />
         </TabsContent>
         <TabsContent value="inwestycje" className="mt-0 focus-visible:outline-none animate-fade-up">
@@ -185,6 +233,7 @@ function AssetsPage() {
 function RetirementSection() {
   const spouses = useAppState((s) => s.spouses);
   const globalSettings = useAppState((s) => s.globalSettings);
+  const retirementLimits = useAppState((s) => s.retirementLimits);
   const navigate = useNavigate({ from: Route.fullPath });
 
   const assignedSpouses = spouses.filter((s) => s.name || s.assignedUserId);
@@ -193,7 +242,12 @@ function RetirementSection() {
   return (
     <section className="space-y-8">
       {assignedSpouses.map((spouse) => (
-        <IkeIkzeCard key={spouse.id} spouse={spouse} globalSettings={globalSettings} />
+        <IkeIkzeCard 
+          key={spouse.id} 
+          spouse={spouse} 
+          globalSettings={globalSettings} 
+          retirementLimits={retirementLimits} 
+        />
       ))}
 
       {unassignedSpouses.length > 0 && (
@@ -201,10 +255,7 @@ function RetirementSection() {
           <p className="text-sm font-semibold text-muted-foreground mb-3">
             Masz nieprzypisane osoby w sekcji Zarobki.
           </p>
-          <Button
-            variant="outline"
-            onClick={() => navigate({ to: "/wynagrodzenia" })}
-          >
+          <Button variant="outline" onClick={() => navigate({ to: "/wynagrodzenia" })}>
             Przejdź do Zarobków
           </Button>
         </div>
@@ -222,7 +273,15 @@ function RetirementSection() {
   );
 }
 
-function PayoutBar({ label, segments, total }: { label: string; segments: { color: string; value: number; label: string }[]; total: number }) {
+function PayoutBar({
+  label,
+  segments,
+  total,
+}: {
+  label: string;
+  segments: { color: string; value: number; label: string }[];
+  total: number;
+}) {
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[10px] uppercase tracking-wider font-bold">
@@ -231,9 +290,9 @@ function PayoutBar({ label, segments, total }: { label: string; segments: { colo
       </div>
       <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex shadow-inner">
         {segments.map((s, i) => (
-          <div 
-            key={i} 
-            style={{ width: `${(Math.max(0, s.value) / Math.max(1, total)) * 100}%` }} 
+          <div
+            key={i}
+            style={{ width: `${(Math.max(0, s.value) / Math.max(1, total)) * 100}%` }}
             className={cn("h-full transition-all duration-500", s.color)}
             title={`${s.label}: ${formatPLN(s.value)}`}
           />
@@ -251,29 +310,77 @@ function PayoutBar({ label, segments, total }: { label: string; segments: { colo
   );
 }
 
-function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: any }) {
+function IkeIkzeCard({
+  spouse,
+  globalSettings,
+  retirementLimits,
+}: {
+  spouse: Spouse;
+  globalSettings: GlobalSettings;
+  retirementLimits?: RetirementLimits[];
+}) {
   const [open, setOpen] = useState(true); // default open
-  const [monthlyContribution, setMonthlyContribution] = useState(500);
-  const [expectedReturn, setExpectedReturn] = useState(7);
-  const [reinvestRelief, setReinvestRelief] = useState(false);
-  
-  const [age, setAge] = useState(spouse.age || 30);
-  const [gender, setGender] = useState<"M" | "K">(spouse.gender || "M");
-  const [plannedCashoutAge, setPlannedCashoutAge] = useState(spouse.gender === "K" ? 60 : 65);
-  
-  const [existingIkeStr, setExistingIkeStr] = useState(spouse.existingIkeBalance ? String(spouse.existingIkeBalance) : "0");
-  const [existingIkzeStr, setExistingIkzeStr] = useState(spouse.existingIkzeBalance ? String(spouse.existingIkzeBalance) : "0");
-  
+
+  // Use persisted state from spouse object with fallbacks
+  const monthlyContribution = spouse.retirementMonthlyContribution ?? 500;
+  const setMonthlyContribution = (val: number) =>
+    actions.updateSpouse(spouse.id, { retirementMonthlyContribution: val });
+
+  const expectedReturn = spouse.retirementExpectedReturn ?? 7;
+  const setExpectedReturn = (val: number) =>
+    actions.updateSpouse(spouse.id, { retirementExpectedReturn: val });
+
+  const reinvestRelief = spouse.retirementReinvestRelief ?? false;
+  const setReinvestRelief = (val: boolean) =>
+    actions.updateSpouse(spouse.id, { retirementReinvestRelief: val });
+
+  const age = spouse.age || 30;
+  const gender = spouse.gender || "M";
+  const ikzeTaxpayerType = spouse.ikzeTaxpayerType === "b2b" ? "b2b" : "standard";
+  const setIkzeTaxpayerType = (val: "standard" | "b2b") =>
+    actions.updateSpouse(spouse.id, { ikzeTaxpayerType: val });
+
+  const priorContributionYears = Math.max(0, Number(spouse.priorRetirementContributionYears ?? 0));
+  const setPriorContributionYears = (val: number) =>
+    actions.updateSpouse(spouse.id, { priorRetirementContributionYears: val });
+
+  const plannedCashoutAge = spouse.retirementPlannedCashoutAge ?? (gender === "K" ? 60 : 65);
+  const setPlannedCashoutAge = (val: number) =>
+    actions.updateSpouse(spouse.id, { retirementPlannedCashoutAge: val });
+
+  const [existingIkeStr, setExistingIkeStr] = useState(
+    spouse.existingIkeBalance ? String(spouse.existingIkeBalance) : "0",
+  );
+  const [existingIkzeStr, setExistingIkzeStr] = useState(
+    spouse.existingIkzeBalance ? String(spouse.existingIkzeBalance) : "0",
+  );
+
   const existingIke = parseLocaleAmount(existingIkeStr);
   const existingIkze = parseLocaleAmount(existingIkzeStr);
 
   const years = Math.max(1, plannedCashoutAge - age);
-  const isEarlyWithdrawalIke = plannedCashoutAge < 60;
-  const isEarlyWithdrawalIkze = plannedCashoutAge < 65;
+  const contributionYearsAtWithdrawal = years + priorContributionYears;
+  const eligibility = evaluateRetirementWithdrawalEligibility(
+    plannedCashoutAge,
+    contributionYearsAtWithdrawal,
+  );
+  const isEarlyWithdrawalIke = eligibility.isEarlyWithdrawalIke;
+  const isEarlyWithdrawalIkze = eligibility.isEarlyWithdrawalIkze;
+  const limits = getRetirementLimits(
+    globalSettings.regulatoryYear,
+    ikzeTaxpayerType,
+    retirementLimits,
+  );
 
   const annualContribution = monthlyContribution * 12;
-  const taxInfo = calculateIkzeTaxReturn(spouse.inputs, annualContribution, globalSettings);
-  
+  const taxInfo = calculateIkzeTaxReturn(
+    spouse.inputs,
+    annualContribution,
+    globalSettings,
+    ikzeTaxpayerType,
+    retirementLimits,
+  );
+
   const comparison = compareIkeVsIkze(
     monthlyContribution,
     existingIke,
@@ -285,11 +392,19 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
     isEarlyWithdrawalIke,
     isEarlyWithdrawalIkze,
     reinvestRelief,
-    globalSettings
+    globalSettings,
+    ikzeTaxpayerType,
+    retirementLimits,
   );
+  const annualIkeSurplusIgnored = Math.max(0, annualContribution - limits.ikeAnnualLimit);
+  const annualIkzeSurplusIgnored = Math.max(0, annualContribution - limits.ikzeAnnualLimit);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="bg-card rounded-2xl shadow-card border border-border overflow-hidden"
+    >
       <CollapsibleTrigger className="w-full">
         <div className="p-5 bg-warm-gradient border-b border-border flex items-center justify-between hover:bg-accent/5 transition-colors text-left w-full group">
           <div className="flex items-center gap-3">
@@ -299,13 +414,19 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
             <div>
               <h3 className="font-semibold text-lg">{spouse.name || "Nieznany"}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Wygrywa:</span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                  comparison.winner === "IKZE" ? "bg-accent/20 text-accent" : 
-                  comparison.winner === "IKE" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : 
-                  "bg-muted text-muted-foreground"
-                )}>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                  Wygrywa:
+                </span>
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                    comparison.winner === "IKZE"
+                      ? "bg-accent/20 text-accent"
+                      : comparison.winner === "IKE"
+                        ? "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                        : "bg-muted text-muted-foreground",
+                  )}
+                >
                   {comparison.winner}
                 </span>
                 {comparison.difference > 0 && (
@@ -324,23 +445,25 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
 
       <CollapsibleContent>
         <div className="p-5 sm:p-6 space-y-8">
-          
           {/* Inputs Section - 3 Column Layout */}
           <div className="grid md:grid-cols-3 gap-8 items-start">
             <div className="space-y-4">
               <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
                 Osoba i Czas
               </h4>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
                     Wiek
                   </label>
-                  <Input 
-                    type="number" 
-                    value={age} 
-                    onChange={(e) => setAge(parseInt(e.target.value) || 0)} 
+                  <Input
+                    type="number"
+                    value={age}
+                    onChange={(e) => {
+                      const nextAge = parseInt(e.target.value) || 0;
+                      actions.updateSpouse(spouse.id, { age: nextAge });
+                    }}
                     className="h-9 font-mono"
                   />
                 </div>
@@ -348,10 +471,15 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
                     Płeć
                   </label>
-                  <Select value={gender} onValueChange={(v: "M" | "K") => {
-                    setGender(v);
-                    setPlannedCashoutAge(v === "K" ? 60 : 65);
-                  }}>
+                  <Select
+                    value={gender}
+                    onValueChange={(v: "M" | "K") => {
+                      actions.updateSpouse(spouse.id, { 
+                        gender: v,
+                        retirementPlannedCashoutAge: v === "K" ? 60 : 65
+                      });
+                    }}
+                  >
                     <SelectTrigger className="h-9">
                       <SelectValue />
                     </SelectTrigger>
@@ -368,7 +496,9 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
                     Planowany wiek wypłaty
                     {(isEarlyWithdrawalIke || isEarlyWithdrawalIkze) && (
-                      <span className="bg-destructive/10 text-destructive text-[9px] px-1.5 py-0.5 rounded uppercase">Wcześniejsza</span>
+                      <span className="bg-destructive/10 text-destructive text-[9px] px-1.5 py-0.5 rounded uppercase">
+                        Wcześniejsza
+                      </span>
                     )}
                   </label>
                   <span className="font-mono text-sm font-bold">{plannedCashoutAge} lat</span>
@@ -381,7 +511,32 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   onValueChange={([v]) => setPlannedCashoutAge(v)}
                 />
                 <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Czas inwestycji: <span className="font-semibold text-foreground">{years} lat</span>
+                  Czas inwestycji:{" "}
+                  <span className="font-semibold text-foreground">{years} lat</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                  Wczesniejsze lata wplat (IKE/IKZE)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={priorContributionYears}
+                  onChange={(e) => {
+                    const next = Math.max(0, parseInt(e.target.value) || 0);
+                    setPriorContributionYears(next);
+                    actions.updateSpouse(spouse.id, { priorRetirementContributionYears: next });
+                  }}
+                  className="h-9 font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Lacznie do wyplaty:{" "}
+                  <span className="font-semibold text-foreground">
+                    {eligibility.contributionYearsAtWithdrawal} lat wplat
+                  </span>
                 </p>
               </div>
             </div>
@@ -390,13 +545,15 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
               <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
                 Wpłaty i Salda
               </h4>
-              
+
               <div>
                 <div className="flex justify-between mb-2">
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Miesięczna wpłata
                   </label>
-                  <span className="font-mono text-sm font-bold">{formatPLN(monthlyContribution)}</span>
+                  <span className="font-mono text-sm font-bold">
+                    {formatPLN(monthlyContribution)}
+                  </span>
                 </div>
                 <Slider
                   value={[monthlyContribution]}
@@ -407,15 +564,30 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   className="[&>span:first-child]:bg-accent"
                 />
                 <p className="text-[10px] text-muted-foreground mt-2">
-                  Rocznie: {formatPLN(annualContribution)}. <br/>
-                  <span className={cn(monthlyContribution > 782 ? "text-amber-500 font-medium" : "")}>
-                    Limit IKZE: ~782 zł/m-c (9 388 zł rocznie).
+                  Rocznie: {formatPLN(annualContribution)}. <br />
+                  <span
+                    className={cn(
+                      monthlyContribution > limits.ikzeAnnualLimit / 12
+                        ? "text-amber-500 font-medium"
+                        : "",
+                    )}
+                  >
+                    Limit IKZE ({limits.year}, {ikzeTaxpayerType === "b2b" ? "B2B" : "standard"}): ~
+                    {formatPLN2(limits.ikzeAnnualLimit / 12)} / m-c (
+                    {formatPLN2(limits.ikzeAnnualLimit)} rocznie).
                   </span>
                 </p>
                 <div className="mt-1 h-1 w-full bg-muted rounded-full overflow-hidden flex">
-                  <div 
-                    style={{ width: `${Math.min(100, (annualContribution / 9388) * 100)}%` }} 
-                    className={cn("h-full transition-all duration-300", monthlyContribution > 782 ? "bg-amber-500" : "bg-accent")} 
+                  <div
+                    style={{
+                      width: `${Math.min(100, (annualContribution / limits.ikzeAnnualLimit) * 100)}%`,
+                    }}
+                    className={cn(
+                      "h-full transition-all duration-300",
+                      monthlyContribution > limits.ikzeAnnualLimit / 12
+                        ? "bg-amber-500"
+                        : "bg-accent",
+                    )}
                   />
                 </div>
               </div>
@@ -423,13 +595,41 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                    Typ limitu IKZE
+                  </label>
+                  <Select
+                    value={ikzeTaxpayerType}
+                    onValueChange={(v: "standard" | "b2b") => {
+                      setIkzeTaxpayerType(v);
+                      actions.updateSpouse(spouse.id, { ikzeTaxpayerType: v });
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Pracownik (standard)</SelectItem>
+                      <SelectItem value="b2b">Przedsiębiorca (B2B)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
                     Saldo IKE
                   </label>
-                  <Input 
-                    type="text" 
+                  <Input
+                    type="text"
                     inputMode="decimal"
-                    value={existingIkeStr} 
-                    onChange={(e) => setExistingIkeStr(e.target.value)} 
+                    value={existingIkeStr}
+                    onChange={(e) => setExistingIkeStr(e.target.value)}
+                    onBlur={() => {
+                      const parsed = Math.max(0, parseLocaleAmount(existingIkeStr));
+                      actions.updateSpouse(spouse.id, { existingIkeBalance: parsed });
+                    }}
                     className="h-9 font-mono tabular-nums"
                   />
                 </div>
@@ -437,11 +637,15 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
                     Saldo IKZE
                   </label>
-                  <Input 
-                    type="text" 
+                  <Input
+                    type="text"
                     inputMode="decimal"
-                    value={existingIkzeStr} 
-                    onChange={(e) => setExistingIkzeStr(e.target.value)} 
+                    value={existingIkzeStr}
+                    onChange={(e) => setExistingIkzeStr(e.target.value)}
+                    onBlur={() => {
+                      const parsed = Math.max(0, parseLocaleAmount(existingIkzeStr));
+                      actions.updateSpouse(spouse.id, { existingIkzeBalance: parsed });
+                    }}
                     className="h-9 font-mono tabular-nums"
                   />
                 </div>
@@ -478,7 +682,10 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Reinwestuj ulgę
                   </label>
-                  <Select value={reinvestRelief ? "true" : "false"} onValueChange={(v) => setReinvestRelief(v === "true")}>
+                  <Select
+                    value={reinvestRelief ? "true" : "false"}
+                    onValueChange={(v) => setReinvestRelief(v === "true")}
+                  >
                     <SelectTrigger className="h-9">
                       <SelectValue />
                     </SelectTrigger>
@@ -489,7 +696,9 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   </Select>
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-tight">
-                  {reinvestRelief ? "Ulga inwestowana na osobnym koncie (podatek Belki)." : "Suma ulg nie jest reinwestowana."}
+                  {reinvestRelief
+                    ? "Ulga inwestowana na osobnym koncie (podatek Belki)."
+                    : "Suma ulg nie jest reinwestowana."}
                 </p>
               </div>
             </div>
@@ -499,131 +708,366 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
             <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-6 text-center">
               Wizualizacja Payoutu Netto
             </h4>
-            
+
             <div className="grid md:grid-cols-2 gap-10 mb-10">
               <div className="space-y-6">
                 {/* IKE Bar */}
-                <PayoutBar 
+                <PayoutBar
                   label="IKE (Na rękę)"
                   total={comparison.ike.netPayout}
                   segments={[
-                    { color: "bg-muted-foreground/30", value: comparison.ike.totalContributions, label: "Wpłaty (w limicie)" },
-                    { color: "bg-blue-500", value: Math.max(0, comparison.ike.netPayout - comparison.ike.totalContributions), label: "Zysk netto" },
+                    {
+                      color: "bg-muted-foreground/30",
+                      value: comparison.ike.totalContributions,
+                      label: "Wpłaty (w limicie)",
+                    },
+                    {
+                      color: "bg-blue-500",
+                      value: Math.max(
+                        0,
+                        comparison.ike.netPayout - comparison.ike.totalContributions,
+                      ),
+                      label: "Zysk netto",
+                    },
                   ]}
                 />
               </div>
               <div className="space-y-6">
                 {/* IKZE Bar */}
-                <PayoutBar 
+                <PayoutBar
                   label="IKZE (Na rękę + Ulga)"
                   total={comparison.ikze.totalNet}
                   segments={[
-                    { color: "bg-muted-foreground/30", value: comparison.ikze.totalContributions, label: "Wpłaty (w limicie)" },
-                    { color: "bg-accent", value: Math.max(0, comparison.ikze.netPayout - comparison.ikze.totalContributions), label: "Zysk netto" },
-                    { color: "bg-success", value: comparison.ikze.reinvestedReliefPot, label: "Zysk z ulgi PIT" },
+                    {
+                      color: "bg-muted-foreground/30",
+                      value: comparison.ikze.totalContributions,
+                      label: "Wpłaty (w limicie)",
+                    },
+                    {
+                      color: "bg-accent",
+                      value: Math.max(
+                        0,
+                        comparison.ikze.netPayout - comparison.ikze.totalContributions,
+                      ),
+                      label: "Zysk netto",
+                    },
+                    {
+                      color: "bg-success",
+                      value: comparison.ikze.reinvestedReliefPot,
+                      label: "Zysk z ulgi PIT",
+                    },
                   ]}
                 />
               </div>
             </div>
 
             {/* Results Section */}
-          <div className="space-y-6">
-            
-            {/* Dynamic Feedback Text */}
-            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
-              <div className="flex gap-3">
-                <Info className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-                <div className="text-sm text-muted-foreground leading-relaxed">
-                  <p>
-                    {comparison.winner === "IKZE" ? (
-                      <>Dla Ciebie bardziej opłacalne jest <strong className="text-accent">IKZE</strong>, głównie dzięki corocznym zwrotom z PIT, które sumują się do pokaźnej kwoty.</>
-                    ) : comparison.winner === "IKE" ? (
-                      <>W Twojej sytuacji lepiej sprawdzi się <strong className="text-blue-500">IKE</strong>. Brak ulg podatkowych przy wpłacie rekompensuje całkowite zwolnienie z 19% podatku Belki na końcu lub znacznie łagodniejsze konsekwencje przy wcześniejszej wypłacie.</>
-                    ) : (
-                      <>Obydwa warianty (IKE i IKZE) dają w Twojej sytuacji identyczny rezultat finansowy.</>
-                    )}
-                  </p>
-                  {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
-                    <p className="mt-2 text-destructive font-medium text-xs bg-destructive/10 p-2 rounded border border-destructive/20 inline-block">
-                      Uwaga: Planujesz wypłatę przed osiągnięciem wieku emerytalnego. To oznacza utratę części przywilejów podatkowych!
+            <div className="space-y-6">
+              {/* Individual Context Section */}
+              <div className="bg-muted/40 border border-border rounded-2xl p-5 shadow-sm">
+                <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-3 h-3 text-accent" />
+                  Twoja sytuacja podatkowa (PIT-37)
+                </h4>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Roczny dochód (podstawa)</p>
+                    <p className="text-lg font-display font-bold">{formatPLN(taxInfo.annualBase)}</p>
+                    <p className="text-[10px] text-muted-foreground">Dochód brutto minus ZUS i KUP</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Twój próg podatkowy</p>
+                    <p className="text-lg font-display font-bold">
+                      {taxInfo.annualBase > globalSettings.pitThresholdAnnual ? "32%" : "12%"}
                     </p>
-                  )}
+                    <p className="text-[10px] text-muted-foreground">
+                      {taxInfo.annualBase > globalSettings.pitThresholdAnnual
+                        ? `Nadwyżka ponad ${formatPLN(globalSettings.pitThresholdAnnual)} jest opodatkowana wyżej`
+                        : "Całość dochodu mieści się w pierwszym progu"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Oszczędność z IKZE</p>
+                    <p className="text-lg font-display font-bold text-success">
+                      {formatPLN(taxInfo.taxReturn)} / rok
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Tyle realnie zostanie w portfelu po rozliczeniu PIT
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Strategy Feedback */}
+              <div className="bg-accent/5 border border-accent/20 rounded-2xl p-5">
+                <div className="flex gap-4">
+                  <div className="bg-accent/10 p-2.5 rounded-xl text-accent shrink-0 h-fit">
+                    <PieChartIcon className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      {comparison.winner === "IKZE" ? (
+                        <>IKZE wygrywa dzięki zwrotom z PIT, które reinwestujesz (lub wydajesz).</>
+                      ) : (
+                        <>IKE wygrywa dzięki całkowitemu brakowi podatku Belki na końcu.</>
+                      )}
+                    </p>
+                    <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
+                      <p>
+                        W scenariuszu <strong className="text-blue-500">IKE</strong> wpłacasz
+                        pieniądze już opodatkowane (netto), ale Twój zysk jest{" "}
+                        <strong>całkowicie zwolniony z 19% podatku Belki</strong> przy wypłacie po
+                        60. roku życia.
+                      </p>
+                      <p>
+                        W scenariuszu <strong className="text-accent">IKZE</strong> "odzyskujesz"
+                        część wpłaty w corocznym zwrocie PIT, ale przy wypłacie (po 65 r.ż.) państwo
+                        pobierze <strong>ryczałt 10% od całości zgromadzonych środków</strong>.
+                      </p>
+                    </div>
+                    {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
+                      <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 p-3 rounded-xl">
+                        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                        <p className="text-xs text-destructive font-medium">
+                          Uwaga: Planujesz wypłatę przed wiekiem emerytalnym. Stracisz przywileje
+                          (IKZE zostanie doliczone do PIT w wysokim progu, IKE zostanie obciążone
+                          podatkiem Belki).
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Breakdown Detail Tables */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Limits Usage Info */}
+                <div className="bg-muted/30 border border-border rounded-2xl p-5">
+                  <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-4 flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-accent" />
+                    Wykorzystanie limitów ({globalSettings.regulatoryYear})
+                  </h4>
+                  <div className="space-y-4">
+                    {/* IKE Limit */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="uppercase tracking-wider">Limit IKE</span>
+                        <span className="font-mono text-muted-foreground">
+                          {formatPLN(comparison.ike.annualContributionCapped)} /{" "}
+                          {formatPLN(comparison.ike.annualLimit)}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                        <div
+                          className={cn(
+                            "h-full transition-all duration-500",
+                            comparison.ike.isCapped ? "bg-amber-500" : "bg-blue-500",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (comparison.ike.annualContributionCapped /
+                                comparison.ike.annualLimit) *
+                                100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      {comparison.ike.isCapped && (
+                        <p className="text-[9px] text-amber-600 font-medium">
+                          Uwaga: Twoja wpłata ({formatPLN(monthlyContribution * 12)}) przekracza
+                          limit. Model oblicza zysk tylko do kwoty {formatPLN(comparison.ike.annualLimit)}.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* IKZE Limit */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-bold">
+                        <span className="uppercase tracking-wider">Limit IKZE</span>
+                        <span className="font-mono text-muted-foreground">
+                          {formatPLN(comparison.ikze.annualContributionCapped)} /{" "}
+                          {formatPLN(comparison.ikze.annualLimit)}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                        <div
+                          className={cn(
+                            "h-full transition-all duration-500",
+                            comparison.ikze.isCapped ? "bg-amber-500" : "bg-accent",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (comparison.ikze.annualContributionCapped /
+                                comparison.ikze.annualLimit) *
+                                100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      {comparison.ikze.isCapped && (
+                        <p className="text-[9px] text-amber-600 font-medium">
+                          Uwaga: Twoja wpłata ({formatPLN(monthlyContribution * 12)}) przekracza
+                          limit. Model oblicza zysk tylko do kwoty {formatPLN(comparison.ikze.annualLimit)}.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* IKZE Tax Return Info */}
+                <div className="bg-success/5 border border-success/20 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-success text-success-foreground p-1 rounded-md shrink-0">
+                        <Check className="w-3 h-3" />
+                      </div>
+                      <p className="text-[11px] uppercase tracking-wider text-success font-bold">
+                        Rozliczenie ulgi PIT (IKZE)
+                      </p>
+                    </div>
+                    <span className="text-xl font-display font-bold text-success">
+                      +{formatPLN(taxInfo.taxReturn)}
+                    </span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {taxInfo.breakdown.amountAt32 > 0 && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">
+                          W progu 32% (powyżej {formatPLN(globalSettings.pitThresholdAnnual)})
+                        </span>
+                        <span className="font-mono font-bold text-foreground">
+                          {formatPLN(taxInfo.breakdown.amountAt32)}
+                        </span>
+                      </div>
+                    )}
+                    {taxInfo.breakdown.amountAt12 > 0 && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">W progu 12%</span>
+                        <span className="font-mono font-bold text-foreground">
+                          {formatPLN(taxInfo.breakdown.amountAt12)}
+                        </span>
+                      </div>
+                    )}
+                    {taxInfo.breakdown.amountAt0 > 0 && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground text-amber-500">
+                          Kwota wolna od podatku (0% zwrotu)
+                        </span>
+                        <span className="font-mono font-bold text-amber-500">
+                          {formatPLN(taxInfo.breakdown.amountAt0)}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-[9px] text-muted-foreground mt-3 italic leading-tight">
+                      *Im wyższy Twój dochód, tym wyższy zwrot z IKZE (aż do 32%). Pamiętaj o rocznym
+                      limicie wpłat.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Comparison Summary */}
+              <div className="border border-border rounded-2xl p-5 bg-card">
+                <h5 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-4">
+                  Podsumowanie wypłaty netto (za {years} lat)
+                </h5>
+                <div className="grid sm:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        <span className="text-sm">IKE (0% Belki)</span>
+                      </div>
+                      <span className="font-mono font-bold">
+                        {formatPLN(comparison.ike.netPayout)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-accent" />
+                        <span className="text-sm">IKZE (-10% ryczałt)</span>
+                      </div>
+                      <span className="font-mono font-bold">
+                        {formatPLN(comparison.ikze.totalNet)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-border pt-4 sm:pt-0 sm:pl-8">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-1">
+                      Różnica na korzyść {comparison.winner}
+                    </p>
+                    <p className="text-2xl font-display font-bold text-success">
+                      +{formatPLN(comparison.difference)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              {/* IKZE Tax Return Info */}
-              <div className="bg-success/10 border border-success/20 rounded-xl p-4 flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="bg-success text-success-foreground p-1 rounded-md shrink-0">
-                    <Check className="w-3 h-3" />
-                  </div>
-                  <p className="text-[11px] uppercase tracking-wider text-success font-bold">
-                    Roczna Ulga (IKZE)
-                  </p>
-                </div>
-                <p className="font-mono text-xl font-bold text-success tabular-nums leading-none">
-                  +{formatPLN(taxInfo.taxReturn)} <span className="text-xs font-sans text-success/70">/ rok</span>
-                </p>
-                <div className="text-[10px] text-success/80 mt-2 space-y-0.5 border-t border-success/20 pt-2">
-                  <p>Obliczono z Twojej pensji:</p>
-                  {taxInfo.breakdown.amountAt32 > 0 && <p>• {formatPLN(taxInfo.breakdown.amountAt32)} rozliczane w 32%</p>}
-                  {taxInfo.breakdown.amountAt12 > 0 && <p>• {formatPLN(taxInfo.breakdown.amountAt12)} rozliczane w 12%</p>}
-                </div>
-              </div>
-              
-              {/* Early Withdrawal Warnings */}
-              {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex flex-col justify-center">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-destructive" />
-                    <p className="text-[11px] uppercase tracking-wider text-destructive font-bold">
-                      Wcześniejsza wypłata
-                    </p>
-                  </div>
-                  <div className="text-[10px] text-destructive/90 space-y-2 mt-1">
-                    {comparison.isEarlyWithdrawalIke && (
-                      <p><strong>IKE:</strong> Ponieważ wypłacasz przed {gender === "K" ? 60 : 60} r.ż., pobrane zostanie <span className="font-bold underline">19% Belki</span> od zysków.</p>
-                    )}
-                    {comparison.isEarlyWithdrawalIkze && (
-                      <p><strong>IKZE (Zwrot):</strong> Wypłacasz przed 65 r.ż. Cała kwota (kapitał+zyski) zostanie doliczona do PIT. Wpadniesz w <span className="font-bold underline">wyższy próg (np. 32%)</span>.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Side by side comparison */}
+            {/* Side by side comparison */}
             <div className="border border-border rounded-xl overflow-hidden bg-background shadow-sm">
               <div className="grid grid-cols-3 bg-muted/30 border-b border-border">
-                <div className="p-3 font-semibold text-[11px] uppercase text-muted-foreground tracking-wider">Scenariusz Payoutu</div>
-                <div className={cn("p-3 font-bold text-center border-l border-border", comparison.winner === "IKE" && "bg-blue-500/10 text-blue-500 dark:text-blue-400")}>IKE</div>
-                <div className={cn("p-3 font-bold text-center border-l border-border", comparison.winner === "IKZE" && "bg-accent/10 text-accent")}>IKZE</div>
+                <div className="p-3 font-semibold text-[11px] uppercase text-muted-foreground tracking-wider">
+                  Scenariusz Payoutu
+                </div>
+                <div
+                  className={cn(
+                    "p-3 font-bold text-center border-l border-border",
+                    comparison.winner === "IKE" &&
+                      "bg-blue-500/10 text-blue-500 dark:text-blue-400",
+                  )}
+                >
+                  IKE
+                </div>
+                <div
+                  className={cn(
+                    "p-3 font-bold text-center border-l border-border",
+                    comparison.winner === "IKZE" && "bg-accent/10 text-accent",
+                  )}
+                >
+                  IKZE
+                </div>
               </div>
-              
+
               <div className="grid grid-cols-3 border-b border-border hover:bg-muted/10 transition-colors">
                 <div className="p-3 text-xs text-muted-foreground">Suma Twoich wpłat</div>
-                <div className="p-3 text-sm font-mono text-center border-l border-border">{formatPLN(comparison.ike.totalContributions)}</div>
-                <div className="p-3 text-sm font-mono text-center border-l border-border">{formatPLN(comparison.ikze.totalContributions)}</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border">
+                  {formatPLN(comparison.ike.totalContributions)}
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border">
+                  {formatPLN(comparison.ikze.totalContributions)}
+                </div>
               </div>
 
               <div className="grid grid-cols-3 border-b border-border hover:bg-muted/10 transition-colors">
                 <div className="p-3 text-xs text-muted-foreground">Wartość konta brutto</div>
-                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">{formatPLN(comparison.ike.finalPot)}</div>
-                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">{formatPLN(comparison.ikze.finalPot)}</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">
+                  {formatPLN(comparison.ike.finalPot)}
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">
+                  {formatPLN(comparison.ikze.finalPot)}
+                </div>
               </div>
 
               <div className="grid grid-cols-3 border-b border-border bg-destructive/5 hover:bg-destructive/10 transition-colors">
                 <div className="p-3">
-                  <div className="text-xs font-semibold text-destructive/80">Podatek na wyjściu</div>
-                  <div className="text-[9px] text-destructive/60 mt-0.5 leading-tight">Ile oddasz państwu przy wypłacie</div>
+                  <div className="text-xs font-semibold text-destructive/80">
+                    Podatek na wyjściu
+                  </div>
+                  <div className="text-[9px] text-destructive/60 mt-0.5 leading-tight">
+                    Ile oddasz państwu przy wypłacie
+                  </div>
                 </div>
                 <div className="p-3 text-sm font-mono text-center border-l border-border text-destructive">
                   -{formatPLN(comparison.ike.taxPaid)}
-                  {comparison.isEarlyWithdrawalIke && <div className="text-[9px] mt-0.5 font-bold">19% Belki od zysku</div>}
-                  {!comparison.isEarlyWithdrawalIke && comparison.ike.taxPaid === 0 && <div className="text-[9px] mt-0.5 text-success font-bold">0% (zwolnienie)</div>}
+                  {comparison.isEarlyWithdrawalIke && (
+                    <div className="text-[9px] mt-0.5 font-bold">19% Belki od zysku</div>
+                  )}
+                  {!comparison.isEarlyWithdrawalIke && comparison.ike.taxPaid === 0 && (
+                    <div className="text-[9px] mt-0.5 text-success font-bold">0% (zwolnienie)</div>
+                  )}
                 </div>
                 <div className="p-3 text-sm font-mono text-center border-l border-border text-destructive">
                   -{formatPLN(comparison.ikze.taxPaid)}
@@ -639,7 +1083,9 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                 <div className="p-3">
                   <div className="text-xs font-semibold text-success/80">Zysk z ulgi PIT</div>
                   <div className="text-[9px] text-success/60 mt-0.5 leading-tight">
-                    {reinvestRelief ? "Reinwestowany zwrot z PIT (po odliczeniu Belki)" : "Suma corocznych zwrotów z urzędu skarbowego"}
+                    {reinvestRelief
+                      ? "Reinwestowany zwrot z PIT (po odliczeniu Belki)"
+                      : "Suma corocznych zwrotów z urzędu skarbowego"}
                   </div>
                 </div>
                 <div className="p-3 text-sm font-mono text-center border-l border-border text-muted-foreground flex items-center justify-center">
@@ -649,7 +1095,8 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                   +{formatPLN(comparison.ikze.reinvestedReliefPot)}
                   {reinvestRelief && (
                     <div className="text-[9px] mt-0.5 font-normal opacity-70 leading-tight text-center">
-                      Po opłaceniu {formatPLN(comparison.ikze.reinvestedReliefTotalTax)} podatku Belki
+                      Po opłaceniu {formatPLN(comparison.ikze.reinvestedReliefTotalTax)} podatku
+                      Belki
                     </div>
                   )}
                 </div>
@@ -657,16 +1104,21 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
 
               <div className="grid grid-cols-3 bg-muted/20">
                 <div className="p-3 font-semibold text-sm flex items-center">Wypłata na rękę</div>
-                <div className={cn(
-                  "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
-                  comparison.winner === "IKE" && "text-blue-500 dark:text-blue-400 bg-blue-500/10"
-                )}>
+                <div
+                  className={cn(
+                    "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
+                    comparison.winner === "IKE" &&
+                      "text-blue-500 dark:text-blue-400 bg-blue-500/10",
+                  )}
+                >
                   {formatPLN(comparison.ike.netPayout)}
                 </div>
-                <div className={cn(
-                  "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
-                  comparison.winner === "IKZE" && "text-accent bg-accent/10"
-                )}>
+                <div
+                  className={cn(
+                    "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
+                    comparison.winner === "IKZE" && "text-accent bg-accent/10",
+                  )}
+                >
                   {formatPLN(comparison.ikze.totalNet)}
                 </div>
               </div>
@@ -678,36 +1130,71 @@ function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: 
                 Analiza Twojego Scenariusza
               </h4>
               <div className="space-y-2 text-sm text-foreground/90">
-                <p>• Planujesz oszczędzać do <strong>{plannedCashoutAge}. roku życia</strong> – czyli przez <strong>{years} lat</strong>.</p>
                 <p>
-                  • Odkładasz <strong>{formatPLN(annualContribution)} rocznie</strong>. 
-                  {annualContribution > 9388 ? " Uwaga: Limit IKZE wynosi 9 388 zł. Symulacja IKZE uwzględnia tylko wpłatę do tej wysokości." : ""}
-                  {annualContribution > 23472 ? " Uwaga: Limit IKE wynosi 23 472 zł. Symulacja IKE uwzględnia tylko wpłatę do tej wysokości." : ""}
-                </p>
-                <p>• Osiągasz roczną stopę zwrotu na poziomie <strong>{expectedReturn}%</strong>.</p>
-                <p>
-                  • Twoje obecne zarobki pozwalają odliczyć wpłatę na IKZE. Ulga w tym roku została obliczona z 
-                  {taxInfo.breakdown.amountAt32 > 0 ? " progu 32%" : ""}
-                  {taxInfo.breakdown.amountAt32 > 0 && taxInfo.breakdown.amountAt12 > 0 ? " oraz " : ""}
-                  {taxInfo.breakdown.amountAt12 > 0 ? " progu 12%" : ""}
-                  . Dzięki temu zyskujesz dodatkowe <strong>{formatPLN(taxInfo.taxReturn)}</strong> z urzędu skarbowego co roku.
+                  • Planujesz oszczędzać do <strong>{plannedCashoutAge}. roku życia</strong> – czyli
+                  przez <strong>{years} lat</strong>.
                 </p>
                 <p>
-                  • Otrzymanej ulgi podatkowej z IKZE 
-                  {reinvestRelief 
+                  • Do momentu wyplaty model zaklada{" "}
+                  <strong>{eligibility.contributionYearsAtWithdrawal} lat wplat</strong> i na tej
+                  podstawie ocenia warunek 5-letni dla ulg podatkowych.
+                </p>
+                <p>
+                  • Odkładasz <strong>{formatPLN(annualContribution)} rocznie</strong>.
+                  {annualContribution > limits.ikzeAnnualLimit
+                    ? ` Uwaga: Limit IKZE (${limits.year}) wynosi ${formatPLN2(limits.ikzeAnnualLimit)}. Symulacja IKZE uwzględnia tylko wpłatę do tej wysokości.`
+                    : ""}
+                  {annualContribution > limits.ikeAnnualLimit
+                    ? ` Uwaga: Limit IKE (${limits.year}) wynosi ${formatPLN2(limits.ikeAnnualLimit)}. Symulacja IKE uwzględnia tylko wpłatę do tej wysokości.`
+                    : ""}
+                </p>
+                {(annualIkeSurplusIgnored > 0 || annualIkzeSurplusIgnored > 0) && (
+                  <p>
+                    • Nadwyżka ponad limit nie jest inwestowana w tym modelu porównania:
+                    {annualIkeSurplusIgnored > 0
+                      ? ` IKE poza limitem: ${formatPLN2(annualIkeSurplusIgnored)} / rok.`
+                      : ""}
+                    {annualIkzeSurplusIgnored > 0
+                      ? ` IKZE poza limitem: ${formatPLN2(annualIkzeSurplusIgnored)} / rok.`
+                      : ""}
+                  </p>
+                )}
+                <p>
+                  • Osiągasz roczną stopę zwrotu na poziomie <strong>{expectedReturn}%</strong>.
+                </p>
+                <p>
+                  • Twoje obecne zarobki pozwalają odliczyć wpłatę na IKZE. Ulga w tym roku została
+                  obliczona z{taxInfo.breakdown.amountAt32 > 0 ? " progu 32%" : ""}
+                  {taxInfo.breakdown.amountAt32 > 0 && taxInfo.breakdown.amountAt12 > 0
+                    ? " oraz "
+                    : ""}
+                  {taxInfo.breakdown.amountAt12 > 0 ? " progu 12%" : ""}. Dzięki temu zyskujesz
+                  dodatkowe <strong>{formatPLN(taxInfo.taxReturn)}</strong> z urzędu skarbowego co
+                  roku.
+                </p>
+                <p>
+                  • Otrzymanej ulgi podatkowej z IKZE
+                  {reinvestRelief
                     ? ` nie przejadasz, tylko inwestujesz poza IKZE (płacąc od zysków podatek Belki na wyjściu). Daje to łącznie ${formatPLN(comparison.ikze.reinvestedReliefPot)} czystego zysku netto z samej ulgi.`
                     : ` nie reinwestujesz, co oznacza, że po prostu zasila ona Twój bieżący budżet. Sumarycznie przez ${years} lat otrzymasz z powrotem ${formatPLN(comparison.ikze.reinvestedReliefPot)}.`}
                 </p>
                 {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
                   <p className="text-destructive font-medium mt-3 bg-destructive/5 p-2 border-l-2 border-destructive rounded-r">
-                    • <strong>Uwaga: Wypłacasz pieniądze przed emeryturą!</strong> 
-                    {comparison.isEarlyWithdrawalIkze ? " W przypadku IKZE to fatalny pomysł – musisz doliczyć CAŁĄ wyciąganą kwotę do tegorocznego PIT, co prawie zawsze wpycha Cię głęboko w 32% próg podatkowy. Oddasz fiskusowi bardzo dużo." : ""}
-                    {comparison.isEarlyWithdrawalIke && !comparison.isEarlyWithdrawalIkze ? " W przypadku IKE po prostu tracisz przywilej podatkowy i płacisz normalny, 19% podatek Belki od wypracowanego zysku (kapitał jest bezpieczny)." : ""}
+                    • <strong>Uwaga: Wypłacasz pieniądze przed emeryturą!</strong>
+                    {comparison.isEarlyWithdrawalIkze
+                      ? " Dla IKZE model nie kwalifikuje tej wyplaty do 10% ryczaltu (wymagane min. 65 lat i 5 lat wplat), dlatego kwota zwrotu trafia do PIT."
+                      : ""}
+                    {comparison.isEarlyWithdrawalIke && !comparison.isEarlyWithdrawalIkze
+                      ? " Dla IKE model nie kwalifikuje wyplaty do zwolnienia (wymagane min. 60 lat i 5 lat wplat), wiec naliczany jest 19% podatek Belki od zysku."
+                      : ""}
                   </p>
                 )}
+                <p className="text-[11px] text-muted-foreground mt-3">
+                  • Założenia prawne modelu: IKE (zwolnienie) = min. 60 lat i 5 lat wpłat; IKZE (10%
+                  ryczałtu) = min. 65 lat i 5 lat wpłat.
+                </p>
               </div>
             </div>
-
           </div>
         </div>
       </CollapsibleContent>
@@ -836,7 +1323,9 @@ function InvestmentsSection() {
               Łącznie {formatPLN(total)}
               {totalCost > 0 && (
                 <span className={totalProfit >= 0 ? "text-income" : "text-expense"}>
-                  {" "}({totalProfit >= 0 ? "+" : ""}{formatPLN(totalProfit)} · {totalProfitPct.toFixed(1)}%)
+                  {" "}
+                  ({totalProfit >= 0 ? "+" : ""}
+                  {formatPLN(totalProfit)} · {totalProfitPct.toFixed(1)}%)
                 </span>
               )}
               {fxLoading || tickerLoading ? " · aktualizacja..." : ""}
@@ -883,9 +1372,13 @@ function InvestmentsSection() {
                     <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Typ</th>
                     <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Ticker</th>
                     <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Waluta</th>
-                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Wolumen</th>
+                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">
+                      Wolumen
+                    </th>
                     <th className="text-right px-4 py-3 font-medium">Wartość</th>
-                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Zysk / Strata</th>
+                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">
+                      Zysk / Strata
+                    </th>
                     <th className="text-right px-4 py-3 font-medium hidden md:table-cell">%</th>
                     <th className="px-4 py-3" />
                   </tr>
@@ -894,15 +1387,22 @@ function InvestmentsSection() {
                   {investmentValues.map((i) => {
                     const portfolioPct = total > 0 ? (i.valuePLN / total) * 100 : 0;
                     return (
-                      <tr key={i.id} className="border-t border-border group hover:bg-muted/30 transition-colors">
+                      <tr
+                        key={i.id}
+                        className="border-t border-border group hover:bg-muted/30 transition-colors"
+                      >
                         <td className="px-4 py-2">
                           <Input
                             value={i.label}
-                            onChange={(e) => actions.updateInvestment(i.id, { label: e.target.value })}
+                            onChange={(e) =>
+                              actions.updateInvestment(i.id, { label: e.target.value })
+                            }
                             className="h-10 bg-transparent border-0 px-1 hover:bg-muted/50 focus-visible:ring-1 shadow-none font-medium"
                           />
                         </td>
-                        <td className="px-4 py-2 hidden md:table-cell text-muted-foreground text-xs">{i.type}</td>
+                        <td className="px-4 py-2 hidden md:table-cell text-muted-foreground text-xs">
+                          {i.type}
+                        </td>
                         <td className="px-4 py-2 hidden lg:table-cell">
                           <Input
                             value={i.ticker ?? ""}
@@ -952,18 +1452,20 @@ function InvestmentsSection() {
                             {i.valuePLN > 0 ? formatPLN(i.valuePLN) : "-"}
                           </p>
                           <p className="text-[10px] text-muted-foreground font-mono">
-                            {formatCurrencyAmount(getInvestmentCurrentValue(i, tickerPrices), i.cur)}
+                            {formatCurrencyAmount(
+                              getInvestmentCurrentValue(i, tickerPrices),
+                              i.cur,
+                            )}
                           </p>
                         </td>
                         <td className="px-4 py-2 text-right hidden sm:table-cell">
                           {i.totalCostPLN > 0 ? (
                             <div className={i.profitPLN >= 0 ? "text-income" : "text-expense"}>
                               <p className="text-xs font-mono font-semibold tabular-nums">
-                                {i.profitPLN >= 0 ? "+" : ""}{formatPLN2(i.profitPLN)}
+                                {i.profitPLN >= 0 ? "+" : ""}
+                                {formatPLN2(i.profitPLN)}
                               </p>
-                              <p className="text-[10px] font-bold">
-                                {i.profitPct.toFixed(1)}%
-                              </p>
+                              <p className="text-[10px] font-bold">{i.profitPct.toFixed(1)}%</p>
                             </div>
                           ) : (
                             <span className="text-[10px] text-muted-foreground">-</span>
@@ -1129,8 +1631,11 @@ function InvestmentsSummaryView({
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
             Zysk / Strata (P&L)
           </p>
-          <p className={`text-2xl font-bold tabular-nums font-display ${totalProfit >= 0 ? "text-income" : "text-expense"}`}>
-            {totalProfit >= 0 ? "+" : ""}{formatPLN(totalProfit)}
+          <p
+            className={`text-2xl font-bold tabular-nums font-display ${totalProfit >= 0 ? "text-income" : "text-expense"}`}
+          >
+            {totalProfit >= 0 ? "+" : ""}
+            {formatPLN(totalProfit)}
           </p>
           {totalCost > 0 && (
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1320,8 +1825,11 @@ function InvestmentsSummaryView({
                   </p>
                   <div className="flex items-center justify-end gap-1.5 mt-0.5">
                     {i.totalCostPLN > 0 && (
-                      <span className={`text-[10px] font-medium ${i.profitPLN >= 0 ? "text-income" : "text-expense"}`}>
-                        {i.profitPLN >= 0 ? "+" : ""}{formatPLN2(i.profitPLN)} ({i.profitPct.toFixed(1)}%)
+                      <span
+                        className={`text-[10px] font-medium ${i.profitPLN >= 0 ? "text-income" : "text-expense"}`}
+                      >
+                        {i.profitPLN >= 0 ? "+" : ""}
+                        {formatPLN2(i.profitPLN)} ({i.profitPct.toFixed(1)}%)
                       </span>
                     )}
                     <span className="text-[11px] text-muted-foreground">{pct.toFixed(1)}%</span>
@@ -1422,9 +1930,9 @@ function AddInvestmentDialog() {
   const { prices: tickerPrices, loading: tickerPricesLoading } = useDailyTickerPrices(
     selectedTicker ? [selectedTicker] : [],
   );
-  const currentTickerPrice = selectedTicker ? tickerPrices.byTicker[selectedTicker] ?? 0 : 0;
+  const currentTickerPrice = selectedTicker ? (tickerPrices.byTicker[selectedTicker] ?? 0) : 0;
   const currentTickerCurrency = selectedTicker
-    ? (getTickerCurrency(selectedTicker, tickerPrices) ?? draft.currency) as InvestmentCurrency
+    ? ((getTickerCurrency(selectedTicker, tickerPrices) ?? draft.currency) as InvestmentCurrency)
     : draft.currency;
   const enteredPrice = parseLocaleAmount(priceInput);
   const effectivePrice = enteredPrice > 0 ? enteredPrice : currentTickerPrice;
@@ -1463,7 +1971,11 @@ function AddInvestmentDialog() {
             if (!ticker || volume <= 0 || effectivePrice <= 0) return;
 
             // Use the effective price (manual or fetched)
-            const totalCostPLN = convertToPLN(volume * effectivePrice, currentTickerCurrency, rates);
+            const totalCostPLN = convertToPLN(
+              volume * effectivePrice,
+              currentTickerCurrency,
+              rates,
+            );
 
             actions.addInvestment({
               label: draft.name || ticker,
@@ -1606,8 +2118,8 @@ function AddInvestmentDialog() {
             {currentTickerPrice > 0 && !priceInput.trim()
               ? `Aktualna cena/szt: ${formatLocaleAmount(currentTickerPrice, 4)} ${currentTickerCurrency}`
               : enteredPrice > 0
-              ? `Wprowadzona cena: ${formatLocaleAmount(enteredPrice, 4)} ${draft.currency}`
-              : ""}
+                ? `Wprowadzona cena: ${formatLocaleAmount(enteredPrice, 4)} ${draft.currency}`
+                : ""}
           </div>
           <DialogFooter>
             <Button
@@ -1656,7 +2168,11 @@ function BuyMoreDialog({ investment, currentPrice }: { investment: any; currentP
             const newAvgPrice = (currentVol * currentAvg + additionalVol * newPrice) / newTotalVol;
 
             // Record cost in PLN
-            const purchaseCostPLN = convertToPLN(additionalVol * newPrice, investment.currency, rates);
+            const purchaseCostPLN = convertToPLN(
+              additionalVol * newPrice,
+              investment.currency,
+              rates,
+            );
             const newTotalCostPLN = (investment.totalCostPLN || 0) + purchaseCostPLN;
 
             actions.updateInvestment(investment.id, {
@@ -1780,7 +2296,14 @@ function LoanCard({
         loan.overpaymentType || "fixed",
         insurance,
       ),
-    [loan.principal, loan.annualRatePct, loan.monthsRemaining, overpay, loan.overpaymentType, insurance],
+    [
+      loan.principal,
+      loan.annualRatePct,
+      loan.monthsRemaining,
+      overpay,
+      loan.overpaymentType,
+      insurance,
+    ],
   );
 
   const totalMonthlyCost = pmt + overpay + insurance;
@@ -1800,7 +2323,6 @@ function LoanCard({
       .map((r) => ({ month: r.month, balance: r.balance }));
   }, [schedule]);
 
-
   return (
     <div className="bg-card rounded-2xl p-8 border border-border shadow-card group">
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -1811,7 +2333,11 @@ function LoanCard({
             className="font-display text-2xl h-10 bg-transparent border-0 px-0 focus-visible:ring-0 shadow-none truncate hover:bg-muted/30 rounded-lg px-2 -ml-2"
           />
           <p className="text-xs text-muted-foreground mt-1 px-0.5">
-            {paymentInfo.needsPayment ? `Termin: ${paymentInfo.nextDate}` : `Następna rata: ${paymentInfo.nextDate}`} · {loan.annualRatePct}% · {loan.monthsRemaining} m-cy · <span className="font-bold text-foreground">{formatPLN2(totalMonthlyCost)}/m-c · </span>
+            {paymentInfo.needsPayment
+              ? `Termin: ${paymentInfo.nextDate}`
+              : `Następna rata: ${paymentInfo.nextDate}`}{" "}
+            · {loan.annualRatePct}% · {loan.monthsRemaining} m-cy ·{" "}
+            <span className="font-bold text-foreground">{formatPLN2(totalMonthlyCost)}/m-c · </span>
           </p>
         </div>
         <button
@@ -1880,7 +2406,9 @@ function LoanCard({
                 value={loan.overpaymentType === "dynamic" ? totalMonthlyCost : overpay}
                 onChange={(v) => {
                   if (loan.overpaymentType === "dynamic") {
-                    actions.updateLoan(loan.id, { monthlyOverpayment: Math.max(0, v - pmt - insurance) });
+                    actions.updateLoan(loan.id, {
+                      monthlyOverpayment: Math.max(0, v - pmt - insurance),
+                    });
                   } else {
                     actions.updateLoan(loan.id, { monthlyOverpayment: v });
                   }
@@ -1946,8 +2474,12 @@ function LoanCard({
 
       <div className="bg-accent/5 rounded-xl p-3 grid grid-cols-2 lg:grid-cols-4 gap-2 text-center mb-3 border border-accent/20">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Rata + Ub.</p>
-          <p className="font-mono tabular-nums text-sm font-bold text-accent">{formatPLN2(pmt + insurance)}</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+            Rata + Ub.
+          </p>
+          <p className="font-mono tabular-nums text-sm font-bold text-accent">
+            {formatPLN2(pmt + insurance)}
+          </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
@@ -1958,7 +2490,9 @@ function LoanCard({
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Odsetki</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+            Odsetki
+          </p>
           <p className="font-mono tabular-nums text-sm font-semibold text-destructive">
             {formatPLN(interestWithOverpay)}
           </p>
@@ -2084,7 +2618,8 @@ function RentalsSection() {
         <div className="flex flex-col gap-1 text-muted-foreground text-sm">
           <span>Łączna wartość: {formatPLN(totalValue)}</span>
           <span>
-            {totalCashflow >= 0 ? "Zysk" : "Strata"} {formatPLN(totalCashflow)}/m-c · equity {formatPLN(totalEquity)}
+            {totalCashflow >= 0 ? "Zysk" : "Strata"} {formatPLN(totalCashflow)}/m-c · equity{" "}
+            {formatPLN(totalEquity)}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -2120,7 +2655,7 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
     if (linkedLoan) {
       return `Powiązany kredyt: ${linkedLoan.label}`;
     } else if (rental.mortgageMonthly && rental.mortgageMonthly > 0) {
-      return `Rata kredytu: ${formatPLN(rental.mortgageMonthly)}${rental.mortgageInsuranceMonthly ? ` + ubezp. ${formatPLN(rental.mortgageInsuranceMonthly)}` : ''}`;
+      return `Rata kredytu: ${formatPLN(rental.mortgageMonthly)}${rental.mortgageInsuranceMonthly ? ` + ubezp. ${formatPLN(rental.mortgageInsuranceMonthly)}` : ""}`;
     } else if (rental.monthlyMortgage && rental.monthlyMortgage > 0) {
       return `Rata kredytu: ${formatPLN(rental.monthlyMortgage)}`;
     } else {
@@ -2139,7 +2674,7 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
 
     return Array.from({ length: 11 }, (_, index) => {
       const year = index;
-      const value = rental.marketValue * Math.pow(1 + ((rental.appreciationPct ?? 4) / 100), year);
+      const value = rental.marketValue * Math.pow(1 + (rental.appreciationPct ?? 4) / 100, year);
       const balance = startLoan > 0 ? Math.max(0, startLoan - (startLoan / loanYears) * year) : 0;
       return {
         year: `${year}`,
@@ -2195,7 +2730,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="rounded-2xl border border-border bg-muted p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Cashflow / m-c</p>
-          <p className={`mt-2 font-mono text-lg font-semibold ${analysis.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}>
+          <p
+            className={`mt-2 font-mono text-lg font-semibold ${analysis.monthlyCashflow >= 0 ? "text-success" : "text-destructive"}`}
+          >
             {formatPLN2(analysis.monthlyCashflow)}
           </p>
         </div>
@@ -2205,7 +2742,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
         </div>
         <div className="rounded-2xl border border-border bg-muted p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Yield brutto</p>
-          <p className="mt-2 font-mono text-lg font-semibold">{analysis.grossYieldPct.toFixed(1)}%</p>
+          <p className="mt-2 font-mono text-lg font-semibold">
+            {analysis.grossYieldPct.toFixed(1)}%
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-muted p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Equity</p>
@@ -2215,7 +2754,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
 
       <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CollapsibleTrigger asChild>
-          <button type="button" className="sr-only">Toggle rental details</button>
+          <button type="button" className="sr-only">
+            Toggle rental details
+          </button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-6 pt-4 border-t border-border">
           <div className="grid gap-4">
@@ -2234,7 +2775,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                   <Input
                     type="date"
                     value={rental.purchaseDate ?? ""}
-                    onChange={(e) => actions.updateRental(rental.id, { purchaseDate: e.target.value })}
+                    onChange={(e) =>
+                      actions.updateRental(rental.id, { purchaseDate: e.target.value })
+                    }
                     className="h-10"
                   />
                 </Field>
@@ -2281,7 +2824,15 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                 <Field label="Rata kredytu / m-c">
                   <LocalNumInput
-                    value={linkedLoan ? monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0) : rental.mortgageMonthly ?? rental.monthlyMortgage}
+                    value={
+                      linkedLoan
+                        ? monthlyPayment(
+                            linkedLoan.principal,
+                            linkedLoan.annualRatePct,
+                            linkedLoan.monthsRemaining,
+                          ) + (linkedLoan.mortgageInsuranceMonthly ?? 0)
+                        : (rental.mortgageMonthly ?? rental.monthlyMortgage)
+                    }
                     onChange={(v) => actions.updateRental(rental.id, { mortgageMonthly: v })}
                     className="h-10 font-mono tabular-nums"
                     decimals={0}
@@ -2290,7 +2841,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                 <Field label="Ubezpieczenie / m-c">
                   <LocalNumInput
                     value={rental.mortgageInsuranceMonthly ?? 0}
-                    onChange={(v) => actions.updateRental(rental.id, { mortgageInsuranceMonthly: v })}
+                    onChange={(v) =>
+                      actions.updateRental(rental.id, { mortgageInsuranceMonthly: v })
+                    }
                     className="h-10 font-mono tabular-nums"
                     decimals={0}
                   />
@@ -2320,7 +2873,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                         actions.updateRental(rental.id, { vacancyMonthsPerYear: value[0] })
                       }
                     />
-                    <div className="text-xs text-muted-foreground">{rental.vacancyMonthsPerYear ?? 0} mies.</div>
+                    <div className="text-xs text-muted-foreground">
+                      {rental.vacancyMonthsPerYear ?? 0} mies.
+                    </div>
                   </div>
                 </Field>
                 <Field label="Koszty / m-c">
@@ -2367,7 +2922,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                         actions.updateRental(rental.id, { appreciationPct: value[0] })
                       }
                     />
-                    <div className="text-xs text-muted-foreground">{(rental.appreciationPct ?? 4).toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(rental.appreciationPct ?? 4).toFixed(1)}%
+                    </div>
                   </div>
                 </Field>
                 <Field label="Wzrost czynszu % rocznie">
@@ -2381,7 +2938,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                         actions.updateRental(rental.id, { rentGrowthPct: value[0] })
                       }
                     />
-                    <div className="text-xs text-muted-foreground">{(rental.rentGrowthPct ?? 3).toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(rental.rentGrowthPct ?? 3).toFixed(1)}%
+                    </div>
                   </div>
                 </Field>
               </div>
@@ -2392,7 +2951,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
               <div className="grid gap-3 mt-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Cashflow / m-c">
-                    <div className="text-sm font-semibold">{formatPLN2(analysis.monthlyCashflow)}</div>
+                    <div className="text-sm font-semibold">
+                      {formatPLN2(analysis.monthlyCashflow)}
+                    </div>
                   </Field>
                   <Field label="Podatek / m-c">
                     <div className="text-sm font-semibold">{formatPLN2(analysis.monthlyTax)}</div>
@@ -2407,7 +2968,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                 <div className="grid grid-cols-3 gap-3 text-sm">
                   <div className="rounded-xl bg-muted p-3">
                     <p className="text-xs text-muted-foreground">Wkład</p>
-                    <p className="mt-2 font-mono font-semibold">{formatPLN(analysis.totalInvestedCash)}</p>
+                    <p className="mt-2 font-mono font-semibold">
+                      {formatPLN(analysis.totalInvestedCash)}
+                    </p>
                   </div>
                   <div className="rounded-xl bg-muted p-3">
                     <p className="text-xs text-muted-foreground">Equity</p>
@@ -2415,7 +2978,9 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                   </div>
                   <div className="rounded-xl bg-muted p-3">
                     <p className="text-xs text-muted-foreground">CAGR (szac.)</p>
-                    <p className="mt-2 font-mono font-semibold">{analysis.irrEstimate.toFixed(1)}%</p>
+                    <p className="mt-2 font-mono font-semibold">
+                      {analysis.irrEstimate.toFixed(1)}%
+                    </p>
                   </div>
                 </div>
                 <div className="h-56">
@@ -2431,12 +2996,40 @@ function RentalCard({ rental, loans }: { rental: Rental; loans: Loan[] }) {
                           <stop offset="95%" stopColor="var(--foreground)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                      <XAxis dataKey="year" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--border)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="year"
+                        tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => `${Math.round(value / 1000)}k`}
+                        tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
                       <Tooltip formatter={(value: number) => formatPLN2(value)} />
-                      <Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#valueGradient)" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="equity" stroke="var(--foreground)" fill="url(#equityGradient)" strokeWidth={2} dot={false} />
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke="var(--accent)"
+                        fill="url(#valueGradient)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="equity"
+                        stroke="var(--foreground)"
+                        fill="url(#equityGradient)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -2523,11 +3116,7 @@ function AddLoanDialog() {
   });
   const [isInsuranceManual, setIsInsuranceManual] = useState(false);
 
-  const draftPmt = monthlyPayment(
-    draft.principal,
-    draft.annualRatePct,
-    draft.monthsRemaining,
-  );
+  const draftPmt = monthlyPayment(draft.principal, draft.annualRatePct, draft.monthsRemaining);
   const draftTotal = draftPmt + draft.mortgageInsuranceMonthly + draft.monthlyOverpayment;
 
   // Auto-calculate insurance: 0.04% of principal monthly
@@ -2550,8 +3139,8 @@ function AddLoanDialog() {
         <DialogHeader>
           <DialogTitle>Dodaj kredyt / zobowiązanie</DialogTitle>
           <DialogDescription>
-            Wprowadź dane kredytu. Ustaw dzień płatności, a system automatycznie będzie
-            rejestrować spłaty w wyznaczony dzień każdego miesiąca.
+            Wprowadź dane kredytu. Ustaw dzień płatności, a system automatycznie będzie rejestrować
+            spłaty w wyznaczony dzień każdego miesiąca.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -2614,9 +3203,7 @@ function AddLoanDialog() {
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">
-              Ubezpieczenie
-            </label>
+            <label className="text-right text-sm font-medium">Ubezpieczenie</label>
             <LocalNumInput
               value={draft.mortgageInsuranceMonthly}
               onChange={(v) => {
@@ -2640,7 +3227,10 @@ function AddLoanDialog() {
               value={draft.overpaymentType === "dynamic" ? draftTotal : draft.monthlyOverpayment}
               onChange={(v) => {
                 if (draft.overpaymentType === "dynamic") {
-                  setDraft({ ...draft, monthlyOverpayment: Math.max(0, v - draftPmt - draft.mortgageInsuranceMonthly) });
+                  setDraft({
+                    ...draft,
+                    monthlyOverpayment: Math.max(0, v - draftPmt - draft.mortgageInsuranceMonthly),
+                  });
                 } else {
                   setDraft({ ...draft, monthlyOverpayment: v });
                 }
@@ -2650,9 +3240,7 @@ function AddLoanDialog() {
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <label className="text-right text-sm font-medium">
-              Model nadpłaty
-            </label>
+            <label className="text-right text-sm font-medium">Model nadpłaty</label>
             <div className="col-span-3 grid grid-cols-2 gap-1 p-1 bg-muted/50 rounded-xl border border-border/50">
               <button
                 type="button"
@@ -2706,7 +3294,12 @@ function AddLoanDialog() {
             </Select>
           </div>
           <DialogFooter>
-            <Button type="submit" className="rounded-full bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">Dodaj kredyt</Button>
+            <Button
+              type="submit"
+              className="rounded-full bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0"
+            >
+              Dodaj kredyt
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -2723,7 +3316,17 @@ function AddRentalDialog() {
 
   type RentalDraft = Omit<Rental, "id"> & {
     loanMode: "none" | "link" | "manual";
-  } & Required<Pick<Rental, "purchasePrice" | "mortgageRatePct" | "mortgageYears" | "mortgageRemaining" | "mortgageMonthly" | "mortgageInsuranceMonthly">>;
+  } & Required<
+      Pick<
+        Rental,
+        | "purchasePrice"
+        | "mortgageRatePct"
+        | "mortgageYears"
+        | "mortgageRemaining"
+        | "mortgageMonthly"
+        | "mortgageInsuranceMonthly"
+      >
+    >;
 
   const [draft, setDraft] = useState<RentalDraft>({
     label: "",
@@ -2758,9 +3361,10 @@ function AddRentalDialog() {
       ? monthlyPayment(loanPrincipal, draft.mortgageRatePct, draft.mortgageRemaining)
       : 0;
   const displayMortgageMonthly = isMortgageMonthlyManual
-    ? draft.mortgageMonthly ?? calculatedMortgageMonthly
+    ? (draft.mortgageMonthly ?? calculatedMortgageMonthly)
     : calculatedMortgageMonthly;
-  const totalMortgageCost = Math.round((displayMortgageMonthly + (draft.mortgageInsuranceMonthly || 0)) * 100) / 100;
+  const totalMortgageCost =
+    Math.round((displayMortgageMonthly + (draft.mortgageInsuranceMonthly || 0)) * 100) / 100;
 
   useEffect(() => {
     if (!isInsuranceManual && loanPrincipal > 0) {
@@ -2779,9 +3383,17 @@ function AddRentalDialog() {
     ) {
       setDraft((prev) => ({ ...prev, mortgageMonthly: calculatedMortgageMonthly }));
     }
-  }, [calculatedMortgageMonthly, draft.loanMode, draft.mortgageRatePct, draft.mortgageRemaining, loanPrincipal, isMortgageMonthlyManual]);
+  }, [
+    calculatedMortgageMonthly,
+    draft.loanMode,
+    draft.mortgageRatePct,
+    draft.mortgageRemaining,
+    loanPrincipal,
+    isMortgageMonthlyManual,
+  ]);
 
-  const canProceedStep1 = draft.label.trim().length > 0 && (draft.purchasePrice > 0 || draft.marketValue > 0);
+  const canProceedStep1 =
+    draft.label.trim().length > 0 && (draft.purchasePrice > 0 || draft.marketValue > 0);
   const canProceedStep2 =
     draft.loanMode === "none" ||
     (draft.loanMode === "link" && !!draft.linkedLoanId) ||
@@ -2794,7 +3406,8 @@ function AddRentalDialog() {
       label: draft.label,
       monthlyRent: draft.monthlyRent,
       monthlyCosts: draft.monthlyCosts,
-      monthlyMortgage: draft.loanMode === "link" ? 0 : draft.mortgageMonthly ?? draft.monthlyMortgage,
+      monthlyMortgage:
+        draft.loanMode === "link" ? 0 : (draft.mortgageMonthly ?? draft.monthlyMortgage),
       taxRatePct: draft.taxRatePct,
       marketValue: draft.marketValue || draft.purchasePrice,
       purchasePrice: draft.purchasePrice,
@@ -2807,7 +3420,8 @@ function AddRentalDialog() {
       mortgageYears: draft.loanMode === "manual" ? draft.mortgageYears : undefined,
       mortgageRemaining: draft.loanMode === "manual" ? draft.mortgageRemaining : undefined,
       mortgageMonthly: draft.loanMode === "manual" ? draft.mortgageMonthly : undefined,
-      mortgageInsuranceMonthly: draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
+      mortgageInsuranceMonthly:
+        draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
       appreciationPct: draft.appreciationPct,
       rentGrowthPct: draft.rentGrowthPct,
       vacancyMonthsPerYear: draft.vacancyMonthsPerYear,
@@ -2847,10 +3461,13 @@ function AddRentalDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(value) => {
-      setOpen(value);
-      if (!value) resetDraft();
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        setOpen(value);
+        if (!value) resetDraft();
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="h-10 rounded-full px-5 bg-accent-gradient text-accent-foreground shadow-warm hover:opacity-90 font-bold border-0">
           <Plus className="w-4 h-4 mr-1.5" />
@@ -2860,7 +3477,9 @@ function AddRentalDialog() {
       <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>Dodaj nieruchomość</DialogTitle>
-          <DialogDescription>Wprowadź podstawowe dane, finansowanie i parametry wynajmu.</DialogDescription>
+          <DialogDescription>
+            Wprowadź podstawowe dane, finansowanie i parametry wynajmu.
+          </DialogDescription>
         </DialogHeader>
 
         <form
@@ -2872,7 +3491,8 @@ function AddRentalDialog() {
               label: draft.label.trim(),
               monthlyRent: draft.monthlyRent,
               monthlyCosts: draft.monthlyCosts,
-              monthlyMortgage: draft.loanMode === "link" ? 0 : draft.mortgageMonthly ?? draft.monthlyMortgage,
+              monthlyMortgage:
+                draft.loanMode === "link" ? 0 : (draft.mortgageMonthly ?? draft.monthlyMortgage),
               taxRatePct: draft.taxRatePct,
               marketValue: draft.marketValue || draft.purchasePrice,
               purchasePrice: draft.purchasePrice,
@@ -2885,7 +3505,8 @@ function AddRentalDialog() {
               mortgageYears: draft.loanMode === "manual" ? draft.mortgageYears : undefined,
               mortgageRemaining: draft.loanMode === "manual" ? draft.mortgageRemaining : undefined,
               mortgageMonthly: draft.loanMode === "manual" ? draft.mortgageMonthly : undefined,
-              mortgageInsuranceMonthly: draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
+              mortgageInsuranceMonthly:
+                draft.loanMode === "manual" ? draft.mortgageInsuranceMonthly : undefined,
               appreciationPct: draft.appreciationPct,
               rentGrowthPct: draft.rentGrowthPct,
               vacancyMonthsPerYear: draft.vacancyMonthsPerYear,
@@ -2956,7 +3577,11 @@ function AddRentalDialog() {
                           : "bg-muted/70 text-muted-foreground hover:bg-muted",
                       )}
                     >
-                      {mode === "none" ? "Brak kredytu" : mode === "link" ? "Powiąż istniejący" : "Wprowadź ręcznie"}
+                      {mode === "none"
+                        ? "Brak kredytu"
+                        : mode === "link"
+                          ? "Powiąż istniejący"
+                          : "Wprowadź ręcznie"}
                     </button>
                   ))}
                 </div>
@@ -2967,7 +3592,9 @@ function AddRentalDialog() {
                   <label className="text-right text-sm font-medium">Wybierz kredyt</label>
                   <Select
                     value={draft.linkedLoanId ?? ""}
-                    onValueChange={(value) => setDraft({ ...draft, linkedLoanId: value || undefined })}
+                    onValueChange={(value) =>
+                      setDraft({ ...draft, linkedLoanId: value || undefined })
+                    }
                   >
                     <SelectTrigger className="col-span-3 h-10">
                       <SelectValue placeholder="Wybierz kredyt" />
@@ -2999,12 +3626,16 @@ function AddRentalDialog() {
                     <Input
                       type="number"
                       value={draft.mortgageRemaining ?? 0}
-                      onChange={(e) => setDraft({ ...draft, mortgageRemaining: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setDraft({ ...draft, mortgageRemaining: parseInt(e.target.value) || 0 })
+                      }
                       className="col-span-3 font-mono tabular-nums h-10"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <label className="text-right text-sm font-medium">Rata kredytu (kapitał + odsetki)</label>
+                    <label className="text-right text-sm font-medium">
+                      Rata kredytu (kapitał + odsetki)
+                    </label>
                     <div className="col-span-3 space-y-2">
                       <LocalNumInput
                         value={displayMortgageMonthly}
@@ -3045,7 +3676,8 @@ function AddRentalDialog() {
                     />
                     {!isInsuranceManual && loanPrincipal > 0 && (
                       <p className="col-start-2 col-span-3 text-[10px] -mt-3 italic text-muted-foreground">
-                        Sugerowane: 0.04% kwoty kredytu ({formatPLN(Math.round(loanPrincipal * 0.0004))})
+                        Sugerowane: 0.04% kwoty kredytu (
+                        {formatPLN(Math.round(loanPrincipal * 0.0004))})
                       </p>
                     )}
                   </div>
@@ -3105,7 +3737,9 @@ function AddRentalDialog() {
                 <label className="text-right text-sm font-medium">Podatek</label>
                 <Select
                   value={(draft.taxRatePct ?? 8.5).toString()}
-                  onValueChange={(value) => setDraft({ ...draft, taxRatePct: parseLocaleAmount(value) })}
+                  onValueChange={(value) =>
+                    setDraft({ ...draft, taxRatePct: parseLocaleAmount(value) })
+                  }
                 >
                   <SelectTrigger className="col-span-3 h-10">
                     <SelectValue />
@@ -3127,9 +3761,13 @@ function AddRentalDialog() {
                     min={0}
                     max={3}
                     step={0.5}
-                    onValueChange={(value) => setDraft({ ...draft, vacancyMonthsPerYear: value[0] })}
+                    onValueChange={(value) =>
+                      setDraft({ ...draft, vacancyMonthsPerYear: value[0] })
+                    }
                   />
-                  <div className="text-xs text-muted-foreground">{draft.vacancyMonthsPerYear ?? 0} mies.</div>
+                  <div className="text-xs text-muted-foreground">
+                    {draft.vacancyMonthsPerYear ?? 0} mies.
+                  </div>
                 </div>
               </div>
             </div>
@@ -3319,8 +3957,8 @@ function SavingsSummaryView({
   const avgRate =
     accounts.filter((a) => a.ratePct > 0).length > 0
       ? accounts
-        .filter((a) => a.ratePct > 0)
-        .reduce((s, a) => s + (a.ratePct * a.balance) / totalBalance, 0)
+          .filter((a) => a.ratePct > 0)
+          .reduce((s, a) => s + (a.ratePct * a.balance) / totalBalance, 0)
       : 0;
 
   const maxRate = Math.max(...savings.map((a) => a.ratePct), 0);
@@ -3445,12 +4083,13 @@ function SavingsSummaryView({
                       <div className="space-y-1">
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${isExpired
-                              ? "bg-destructive"
-                              : isNearExpiry
-                                ? "bg-warning"
-                                : "bg-emerald-500"
-                              }`}
+                            className={`h-full rounded-full transition-all ${
+                              isExpired
+                                ? "bg-destructive"
+                                : isNearExpiry
+                                  ? "bg-warning"
+                                  : "bg-emerald-500"
+                            }`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -3603,12 +4242,13 @@ function SavingsSummaryView({
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${ratePct >= 90
-                              ? "bg-emerald-500"
-                              : ratePct >= 60
-                                ? "bg-amber-500"
-                                : "bg-muted-foreground/40"
-                              }`}
+                            className={`h-full rounded-full ${
+                              ratePct >= 90
+                                ? "bg-emerald-500"
+                                : ratePct >= 60
+                                  ? "bg-amber-500"
+                                  : "bg-muted-foreground/40"
+                            }`}
                             style={{ width: `${ratePct}%` }}
                           />
                         </div>
@@ -3687,12 +4327,13 @@ function SavingsSummaryView({
                 >
                   {/* Type badge */}
                   <span
-                    className={`text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${a.type === "lokata"
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                      : a.type === "oszczędnościowe"
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground"
-                      }`}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-full shrink-0 ${
+                      a.type === "lokata"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : a.type === "oszczędnościowe"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground"
+                    }`}
                   >
                     {a.type === "lokata" ? "LOK" : a.type === "oszczędnościowe" ? "OSZ" : "ZWY"}
                   </span>
@@ -3752,9 +4393,9 @@ function SavingsCard({ account }: { account: SavingsAccount }) {
   const isLokata = account.type === "lokata";
   const gross =
     isLokata &&
-      account.ratePct > 0 &&
-      account.balance > 0 &&
-      (account.lokataDurationMonths ?? 0) > 0
+    account.ratePct > 0 &&
+    account.balance > 0 &&
+    (account.lokataDurationMonths ?? 0) > 0
       ? lokataGrossInterest(account.balance, account.ratePct, account.lokataDurationMonths!)
       : null;
   const net =
@@ -3868,9 +4509,7 @@ function AddSavingsDialog() {
       ? lokataGrossInterest(numBalance, numRate, draft.lokataDurationMonths!)
       : null;
   const net =
-    gross !== null
-      ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!)
-      : null;
+    gross !== null ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!) : null;
 
   return (
     <Dialog
@@ -3913,7 +4552,7 @@ function AddSavingsDialog() {
             actions.addSavings({
               ...draft,
               balance: numBalance,
-              ratePct: numRate
+              ratePct: numRate,
             } as any);
             setDraft({
               bank: "",
@@ -4098,9 +4737,7 @@ function EditSavingsDialog({ account }: { account: SavingsAccount }) {
       ? lokataGrossInterest(numBalance, numRate, draft.lokataDurationMonths!)
       : null;
   const net =
-    gross !== null
-      ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!)
-      : null;
+    gross !== null ? lokataNetInterest(numBalance, numRate, draft.lokataDurationMonths!) : null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -4202,9 +4839,7 @@ function EditSavingsDialog({ account }: { account: SavingsAccount }) {
               </div>
               <div className="flex justify-between font-bold border-t border-emerald-500/20 pt-1.5 mt-1">
                 <span>Do wypłaty netto:</span>
-                <span className="font-mono text-emerald-600">
-                  {formatPLN(numBalance + net)}
-                </span>
+                <span className="font-mono text-emerald-600">{formatPLN(numBalance + net)}</span>
               </div>
             </div>
           )}

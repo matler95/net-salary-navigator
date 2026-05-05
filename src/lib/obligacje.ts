@@ -66,7 +66,7 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "3-miesięczne oszczędnościowe",
     tenorMonths: 3,
     category: "fixed",
-    annualRatePct: 2.00,
+    annualRatePct: 2.0,
     earlyRedemptionPenaltyPct: 100, // all interest lost
     minHoldMonths: 1,
     description: "Stałe oprocentowanie przez cały okres.",
@@ -79,9 +79,9 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "12-miesięczne (stopa NBP)",
     tenorMonths: 12,
     category: "nbp_indexed",
-    nbpMonth1Pct: 4.00,  // M1 fixed rate from emission letter
-    nbpMarginPct: 0.00,  // subsequent months = NBP + 0%
-    earlyRedemptionFixedFee: 0.50,
+    nbpMonth1Pct: 4.0, // M1 fixed rate from emission letter
+    nbpMarginPct: 0.0, // subsequent months = NBP + 0%
+    earlyRedemptionFixedFee: 0.5,
     minHoldMonths: 1,
     description: "Miesiąc 1: stałe 4,00%. Miesiące 2-12: stopa referencyjna NBP.",
     notes: "Odsetki wypłacane co miesiąc. Zmiana NBP wpływa od miesiąca 2.",
@@ -93,9 +93,9 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "2-letnie (stopa NBP)",
     tenorMonths: 24,
     category: "nbp_indexed",
-    nbpMonth1Pct: 4.15,  // M1 fixed rate from emission letter
-    nbpMarginPct: 0.15,  // subsequent months = NBP + 0.15%
-    earlyRedemptionFixedFee: 0.70,
+    nbpMonth1Pct: 4.15, // M1 fixed rate from emission letter
+    nbpMarginPct: 0.15, // subsequent months = NBP + 0.15%
+    earlyRedemptionFixedFee: 0.7,
     minHoldMonths: 1,
     description: "Miesiąc 1: stałe 4,15%. Miesiące 2-24: stopa NBP + 0,15 p.p.",
     notes: "Odsetki wypłacane co miesiąc. Lepsza marża niż ROR.",
@@ -107,10 +107,11 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "3-letnie stałoprocentowe",
     tenorMonths: 36,
     category: "fixed",
-    annualRatePct: 4.40,
-    earlyRedemptionFixedFee: 1.00,
+    annualRatePct: 4.4,
+    earlyRedemptionFixedFee: 1.0,
     minHoldMonths: 1,
-    description: "Stałe 4,40% przez 3 lata. Odsetki kapitalizowane rocznie, wypłacane w dniu wykupu.",
+    description:
+      "Stałe 4,40% przez 3 lata. Odsetki kapitalizowane rocznie, wypłacane w dniu wykupu.",
     notes: "Zysk znany z góry. Chroni przed obniżkami stóp NBP.",
     compounding: true,
   },
@@ -120,11 +121,12 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "4-letnie (inflacja CPI)",
     tenorMonths: 48,
     category: "cpi_indexed",
-    cpiYear1Pct: 4.75,   // Year 1 fixed rate from emission letter
-    cpiMarginPct: 1.50,  // subsequent years = CPI + 1.50%
-    earlyRedemptionFixedFee: 2.00, // new rate since Sep 2024 emissions
+    cpiYear1Pct: 4.75, // Year 1 fixed rate from emission letter
+    cpiMarginPct: 1.5, // subsequent years = CPI + 1.50%
+    earlyRedemptionFixedFee: 2.0, // new rate since Sep 2024 emissions
     minHoldMonths: 1,
-    description: "Rok 1: stałe 4,75%. Lata 2-4: inflacja CPI + 1,50 p.p. Odsetki wypłacane co roku.",
+    description:
+      "Rok 1: stałe 4,75%. Lata 2-4: inflacja CPI + 1,50 p.p. Odsetki wypłacane co roku.",
     notes: "Ochrona przed inflacją od roku 2. Brak kapitalizacji odsetek.",
     compounding: false,
   },
@@ -134,9 +136,9 @@ export const OBLIGACJE_CATALOG: ObligacjaBond[] = [
     name: "10-letnie (inflacja CPI)",
     tenorMonths: 120,
     category: "cpi_indexed",
-    cpiYear1Pct: 5.35,   // Year 1 fixed rate from emission letter
-    cpiMarginPct: 2.00,  // subsequent years = CPI + 2.00%
-    earlyRedemptionFixedFee: 3.00,
+    cpiYear1Pct: 5.35, // Year 1 fixed rate from emission letter
+    cpiMarginPct: 2.0, // subsequent years = CPI + 2.00%
+    earlyRedemptionFixedFee: 3.0,
     minHoldMonths: 1,
     description: "Rok 1: stałe 5,35%. Lata 2-10: inflacja CPI + 2,00 p.p. Odsetki kapitalizowane.",
     notes: "Najlepsza ochrona przed inflacją + procent składany.",
@@ -196,7 +198,7 @@ export function getBondAnnualRate(
       return bond.annualRatePct ?? 0;
     case "nbp_indexed": {
       const nominalRateBase = assumedNbpPct + (bond.nbpMarginPct ?? 0);
-      
+
       if (year === 1 && bond.nbpMonth1Pct !== undefined) {
         // Month 1 is fixed, months 2-12 are NBP + margin
         // Since interest is paid out monthly (no compounding), we use simple sum
@@ -204,7 +206,7 @@ export function getBondAnnualRate(
         const mBase = nominalRateBase / 12;
         return round2(m1 + 11 * mBase);
       }
-      
+
       return round2(nominalRateBase);
     }
     case "cpi_indexed":
@@ -409,7 +411,7 @@ export interface BondDataOverrides {
  */
 export async function fetchLatestBondData(): Promise<BondDataOverrides | null> {
   try {
-    const response = await fetch('/api/obligacje/latest');
+    const response = await fetch("/api/obligacje/latest");
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
     }
@@ -421,10 +423,10 @@ export async function fetchLatestBondData(): Promise<BondDataOverrides | null> {
       cpiEstimate: data.cpiEstimate,
       bonds: data.bonds,
       source: data.source,
-      isUserOverride: false
+      isUserOverride: false,
     };
   } catch (error) {
-    console.error('Failed to fetch bond data:', error);
+    console.error("Failed to fetch bond data:", error);
     return null;
   }
 }
@@ -434,16 +436,16 @@ export async function fetchLatestBondData(): Promise<BondDataOverrides | null> {
  */
 export function applyBondOverrides(
   baseCatalog: ObligacjaBond[],
-  overrides: BondDataOverrides
+  overrides: BondDataOverrides,
 ): ObligacjaBond[] {
-  const updatedCatalog = baseCatalog.map(bond => ({ ...bond }));
+  const updatedCatalog = baseCatalog.map((bond) => ({ ...bond }));
 
-  overrides.bonds.forEach(override => {
-    const bondIndex = updatedCatalog.findIndex(b => b.symbol === override.symbol);
+  overrides.bonds.forEach((override) => {
+    const bondIndex = updatedCatalog.findIndex((b) => b.symbol === override.symbol);
     if (bondIndex >= 0) {
       const bond = updatedCatalog[bondIndex];
       Object.entries(override).forEach(([key, value]) => {
-        if (key === 'symbol' || value === undefined || value === null) return;
+        if (key === "symbol" || value === undefined || value === null) return;
         (bond as any)[key] = value;
       });
     }
@@ -456,20 +458,20 @@ export function applyBondOverrides(
  * Get current bond catalog with any active overrides applied
  */
 export function getCurrentBondCatalog(overrides?: BondDataOverrides): ObligacjaBond[] {
-  const catalog = OBLIGACJE_CATALOG.map(bond => ({ ...bond }));
+  const catalog = OBLIGACJE_CATALOG.map((bond) => ({ ...bond }));
   if (!overrides) {
     return catalog;
   }
 
   const merged = applyBondOverrides(catalog, overrides);
 
-  overrides.bonds.forEach(override => {
-    const exists = merged.some(bond => bond.symbol === override.symbol);
+  overrides.bonds.forEach((override) => {
+    const exists = merged.some((bond) => bond.symbol === override.symbol);
     if (!exists) {
       merged.push({
         symbol: override.symbol,
         name: override.name ?? override.symbol,
-        category: override.category ?? 'fixed',
+        category: override.category ?? "fixed",
         tenorMonths: override.tenorMonths ?? 12,
         annualRatePct: override.annualRatePct,
         nbpMarginPct: override.nbpMarginPct,
@@ -478,7 +480,7 @@ export function getCurrentBondCatalog(overrides?: BondDataOverrides): ObligacjaB
         earlyRedemptionPenaltyPct: override.earlyRedemptionPenaltyPct,
         earlyRedemptionFixedFee: override.earlyRedemptionFixedFee,
         minHoldMonths: override.minHoldMonths,
-        description: override.description ?? '',
+        description: override.description ?? "",
         notes: override.notes,
       });
     }
@@ -506,7 +508,7 @@ export function getLastUpdatedText(lastUpdated: string, isUserOverride: boolean 
   const date = new Date(lastUpdated);
   const formatted = isNaN(date.getTime())
     ? lastUpdated
-    : date.toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' });
+    : date.toLocaleDateString("pl-PL", { year: "numeric", month: "long", day: "numeric" });
 
   if (isUserOverride) {
     return `Dane nadpisane przez użytkownika (${formatted})`;
@@ -522,24 +524,24 @@ export function getLastUpdatedText(lastUpdated: string, isUserOverride: boolean 
  */
 export async function loadBondDataFromSupabase(): Promise<BondDataOverrides | null> {
   try {
-    const { getSupabase } = await import('./supabase');
+    const { getSupabase } = await import("./supabase");
     const supabase = await getSupabase();
     if (!supabase) return null;
 
     const [{ data: bonds, error: bondsError }, { data: indicators, error: indicatorsError }] =
       await Promise.all([
-        supabase.from('bond_data').select('*').eq('is_active', true).order('symbol'),
-        supabase.from('economic_indicators').select('*').eq('is_active', true),
+        supabase.from("bond_data").select("*").eq("is_active", true).order("symbol"),
+        supabase.from("economic_indicators").select("*").eq("is_active", true),
       ]);
 
     if (bondsError || indicatorsError || !bonds || bonds.length === 0) return null;
 
-    const nbp = indicators?.find((i: any) => i.indicator_type === 'nbp_reference_rate')?.value;
-    const cpi = indicators?.find((i: any) => i.indicator_type === 'cpi_estimate')?.value;
+    const nbp = indicators?.find((i: any) => i.indicator_type === "nbp_reference_rate")?.value;
+    const cpi = indicators?.find((i: any) => i.indicator_type === "cpi_estimate")?.value;
     // Use the most recent fetched_at across all bonds
     const latestFetchedAt = bonds.reduce((latest: string, b: any) => {
       return !latest || b.fetched_at > latest ? b.fetched_at : latest;
-    }, '');
+    }, "");
 
     return {
       lastUpdated: latestFetchedAt || new Date().toISOString(),
@@ -551,22 +553,27 @@ export async function loadBondDataFromSupabase(): Promise<BondDataOverrides | nu
         category: b.category as BondCategory,
         tenorMonths: b.tenor_months,
         annualRatePct: b.annual_rate_pct !== null ? Number(b.annual_rate_pct) : undefined,
-        nbpMonth1Pct: b.nbp_month1_pct !== null && b.nbp_month1_pct !== undefined ? Number(b.nbp_month1_pct) : undefined,
+        nbpMonth1Pct:
+          b.nbp_month1_pct !== null && b.nbp_month1_pct !== undefined
+            ? Number(b.nbp_month1_pct)
+            : undefined,
         nbpMarginPct: b.nbp_margin_pct !== null ? Number(b.nbp_margin_pct) : undefined,
         cpiYear1Pct: b.cpi_year1_pct !== null ? Number(b.cpi_year1_pct) : undefined,
         cpiMarginPct: b.cpi_margin_pct !== null ? Number(b.cpi_margin_pct) : undefined,
-        earlyRedemptionPenaltyPct: b.early_redeem_penalty_pct !== null ? Number(b.early_redeem_penalty_pct) : undefined,
-        earlyRedemptionFixedFee: b.early_redeem_fixed_fee !== null ? Number(b.early_redeem_fixed_fee) : undefined,
+        earlyRedemptionPenaltyPct:
+          b.early_redeem_penalty_pct !== null ? Number(b.early_redeem_penalty_pct) : undefined,
+        earlyRedemptionFixedFee:
+          b.early_redeem_fixed_fee !== null ? Number(b.early_redeem_fixed_fee) : undefined,
         minHoldMonths: b.min_hold_months !== null ? Number(b.min_hold_months) : undefined,
-        description: b.description ?? '',
+        description: b.description ?? "",
         notes: b.notes ?? undefined,
-        compounding: b.symbol === 'EDO' || b.symbol === 'TOS', // fallback if not in DB
+        compounding: b.symbol === "EDO" || b.symbol === "TOS", // fallback if not in DB
       })),
-      source: 'https://www.obligacjeskarbowe.pl/',
+      source: "https://www.obligacjeskarbowe.pl/",
       isUserOverride: false,
     };
   } catch (error) {
-    console.error('Failed to load bond data from Supabase:', error);
+    console.error("Failed to load bond data from Supabase:", error);
     return null;
   }
 }

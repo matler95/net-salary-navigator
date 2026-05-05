@@ -11,7 +11,9 @@ function NotFoundComponent() {
         </div>
         <h1 className="text-7xl font-bold text-foreground font-display">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Nie znaleziono strony</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Ta strona nie istnieje lub została przeniesiona.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ta strona nie istnieje lub została przeniesiona.
+        </p>
         <div className="mt-6">
           <Link
             to="/"

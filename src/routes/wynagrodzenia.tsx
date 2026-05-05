@@ -5,7 +5,12 @@ import { SpousePanel } from "@/components/SpousePanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, RotateCcw, Users, UserPlus, PartyPopper, ReceiptText } from "lucide-react";
-import { calculateSalary, calculateAnnualAverageNet, computeJointFiling, formatPLN } from "@/lib/salary";
+import {
+  calculateSalary,
+  calculateAnnualAverageNet,
+  computeJointFiling,
+  formatPLN,
+} from "@/lib/salary";
 import { getActiveHouseholdId } from "@/lib/store";
 import {
   AlertDialog,
@@ -55,8 +60,14 @@ function SalariesPage() {
       }));
   }, []);
 
-  const totalHouseholdNet = spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0);
-  const joint = spouses.length === 2 ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings) : null;
+  const totalHouseholdNet = spouses.reduce(
+    (sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings),
+    0,
+  );
+  const joint =
+    spouses.length === 2
+      ? computeJointFiling(spouses[0].inputs, spouses[1].inputs, globalSettings)
+      : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-up">
@@ -69,13 +80,17 @@ function SalariesPage() {
             Ile zostaje <span className="italic text-accent">w kieszeni?</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Pełne wyliczenie UoP 2025 - ZUS, zdrowotna, PIT, PPK i benefity. Dodaj wszystkich pracujących domowników.
+            Pełne wyliczenie UoP 2025 - ZUS, zdrowotna, PIT, PPK i benefity. Dodaj wszystkich
+            pracujących domowników.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {spouses.length >= 2 && (
-            <div className="flex items-center gap-3 bg-accent-soft/30 border border-accent/20 rounded-xl px-4 py-2.5 shadow-sm transition-colors hover:bg-accent-soft/50 cursor-pointer" onClick={() => actions.setJointFiling(!jointFiling)}>
+            <div
+              className="flex items-center gap-3 bg-accent-soft/30 border border-accent/20 rounded-xl px-4 py-2.5 shadow-sm transition-colors hover:bg-accent-soft/50 cursor-pointer"
+              onClick={() => actions.setJointFiling(!jointFiling)}
+            >
               <div className="bg-accent/10 p-1.5 rounded-lg text-accent">
                 <Users className="w-4 h-4" />
               </div>
@@ -107,11 +122,15 @@ function SalariesPage() {
             <AlertDialogContent className="rounded-2xl sm:max-w-md">
               <AlertDialogTitle className="font-display text-xl">Zresetować dane?</AlertDialogTitle>
               <AlertDialogDescription>
-                Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki, aktywa). Tej operacji nie można cofnąć.
+                Spowoduje to wyczyszczenie wszystkich danych gospodarstwa (wynagrodzenia, wydatki,
+                aktywa). Tej operacji nie można cofnąć.
               </AlertDialogDescription>
               <AlertDialogFooter className="mt-6">
                 <AlertDialogCancel className="rounded-xl">Anuluj</AlertDialogCancel>
-                <AlertDialogAction onClick={() => actions.reset()} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none shadow-sm">
+                <AlertDialogAction
+                  onClick={() => actions.reset()}
+                  className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 border-none shadow-sm"
+                >
                   Wyczyść dane
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -130,7 +149,12 @@ function SalariesPage() {
       ) : (
         <div className="grid xl:grid-cols-2 gap-6 lg:gap-8 animate-fade-up">
           {spouses.map((s) => (
-            <SpousePanel key={s.id} spouse={s} canDelete={spouses.length > 1} memberOptions={members} />
+            <SpousePanel
+              key={s.id}
+              spouse={s}
+              canDelete={spouses.length > 1}
+              memberOptions={members}
+            />
           ))}
         </div>
       )}
@@ -142,7 +166,8 @@ function SalariesPage() {
               Razem na rękę
             </p>
             <p className="font-display text-5xl tabular-nums text-foreground">
-              {formatPLN(totalHouseholdNet)} <span className="text-xl text-foreground/50 font-sans">/ m-c</span>
+              {formatPLN(totalHouseholdNet)}{" "}
+              <span className="text-xl text-foreground/50 font-sans">/ m-c</span>
             </p>
           </div>
 
@@ -156,7 +181,8 @@ function SalariesPage() {
                   Zysk z rozliczenia wspólnego
                 </p>
                 <p className="font-mono text-xl font-bold text-success tabular-nums leading-none mt-1">
-                  +{formatPLN(joint.savings)} <span className="text-xs font-sans text-success/70">rocznie</span>
+                  +{formatPLN(joint.savings)}{" "}
+                  <span className="text-xs font-sans text-success/70">rocznie</span>
                 </p>
               </div>
             </div>

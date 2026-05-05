@@ -41,7 +41,7 @@ function estimateLoanPrincipal(rental: Rental): number {
   const payment = rental.mortgageMonthly - (rental.mortgageInsuranceMonthly ?? 0);
   if (payment <= 0) return 0;
   if (monthlyRate === 0) return payment * rental.mortgageRemaining;
-  return payment * (1 - Math.pow(1 + monthlyRate, -rental.mortgageRemaining)) / monthlyRate;
+  return (payment * (1 - Math.pow(1 + monthlyRate, -rental.mortgageRemaining))) / monthlyRate;
 }
 
 function estimateRemainingLoan(rental: Rental): number {
@@ -76,11 +76,7 @@ export interface RentalAnalysis {
   irrEstimate: number;
 }
 
-export function analyzeRental(
-  r: Rental,
-  loans: Loan[],
-  holdingYears = 10,
-): RentalAnalysis {
+export function analyzeRental(r: Rental, loans: Loan[], holdingYears = 10): RentalAnalysis {
   // Determine mortgage payment in priority order: linked loan -> manual fields -> legacy monthlyMortgage
   let monthlyMortgage = 0;
   let remainingLoan = 0;
@@ -89,15 +85,18 @@ export function analyzeRental(
   if (r.linkedLoanId) {
     linkedLoan = loans.find((l) => l.id === r.linkedLoanId) ?? null;
     if (linkedLoan) {
-      monthlyMortgage = monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) + (linkedLoan.mortgageInsuranceMonthly ?? 0);
+      monthlyMortgage =
+        monthlyPayment(linkedLoan.principal, linkedLoan.annualRatePct, linkedLoan.monthsRemaining) +
+        (linkedLoan.mortgageInsuranceMonthly ?? 0);
       remainingLoan = linkedLoan.principal;
     }
   } else if (r.mortgageMonthly && r.mortgageMonthly > 0) {
     // Manual mortgage entry
     monthlyMortgage = r.mortgageMonthly + (r.mortgageInsuranceMonthly ?? 0);
-    remainingLoan = r.mortgageRemaining && r.mortgageRatePct && r.mortgageRemaining > 0
-      ? remainingBalance(r.mortgageMonthly, r.mortgageRatePct, r.mortgageRemaining, 0)
-      : 0;
+    remainingLoan =
+      r.mortgageRemaining && r.mortgageRatePct && r.mortgageRemaining > 0
+        ? remainingBalance(r.mortgageMonthly, r.mortgageRatePct, r.mortgageRemaining, 0)
+        : 0;
   } else {
     // Fallback to legacy field
     monthlyMortgage = r.monthlyMortgage ?? 0;
@@ -106,7 +105,8 @@ export function analyzeRental(
 
   const effectiveRentMonthly = r.monthlyRent * (1 - (r.vacancyMonthsPerYear ?? 0) / 12);
   const monthlyTax = effectiveRentMonthly * ((r.taxRatePct ?? 8.5) / 100);
-  const monthlyCashflow = effectiveRentMonthly - (r.monthlyCosts ?? 0) - monthlyMortgage - monthlyTax;
+  const monthlyCashflow =
+    effectiveRentMonthly - (r.monthlyCosts ?? 0) - monthlyMortgage - monthlyTax;
 
   const purchasePrice = r.purchasePrice && r.purchasePrice > 0 ? r.purchasePrice : r.marketValue;
   const grossYieldPct = purchasePrice > 0 ? ((r.monthlyRent * 12) / purchasePrice) * 100 : 0;
@@ -119,19 +119,25 @@ export function analyzeRental(
   if (r.purchasePrice && r.purchasePrice > 0) {
     // If we have purchase price, calculate down payment + costs
     const downPayment = r.purchasePrice - remainingLoan;
-    totalInvestedCash = Math.max(0, downPayment) + (r.renovationCost ?? 0) + r.purchasePrice * ((r.closingCostsPct ?? 2.5) / 100);
+    totalInvestedCash =
+      Math.max(0, downPayment) +
+      (r.renovationCost ?? 0) +
+      r.purchasePrice * ((r.closingCostsPct ?? 2.5) / 100);
   } else {
     // Fallback: assume full market value invested (100% equity)
     totalInvestedCash = r.marketValue;
   }
 
-  const projectedValueIn10y = r.marketValue * Math.pow(1 + ((r.appreciationPct ?? 4) / 100), holdingYears);
+  const projectedValueIn10y =
+    r.marketValue * Math.pow(1 + (r.appreciationPct ?? 4) / 100, holdingYears);
   const projectedEquityIn10y = projectedValueIn10y - remainingLoan;
 
-  const totalReturn = (projectedValueIn10y - r.marketValue) + (monthlyCashflow * 12 * holdingYears);
-  const irrEstimate = totalInvestedCash > 0
-    ? (Math.pow((totalInvestedCash + totalReturn) / totalInvestedCash, 1 / holdingYears) - 1) * 100
-    : 0;
+  const totalReturn = projectedValueIn10y - r.marketValue + monthlyCashflow * 12 * holdingYears;
+  const irrEstimate =
+    totalInvestedCash > 0
+      ? (Math.pow((totalInvestedCash + totalReturn) / totalInvestedCash, 1 / holdingYears) - 1) *
+        100
+      : 0;
 
   return {
     monthlyCashflow: Math.round(monthlyCashflow * 100) / 100,
@@ -140,7 +146,10 @@ export function analyzeRental(
     netYieldPct: Math.round(netYieldPct * 100) / 100,
     equity: Math.round(equity * 100) / 100,
     totalInvestedCash: Math.round(totalInvestedCash * 100) / 100,
-    roi: totalInvestedCash > 0 ? Math.round(((equity - totalInvestedCash) / totalInvestedCash) * 10000) / 100 : 0,
+    roi:
+      totalInvestedCash > 0
+        ? Math.round(((equity - totalInvestedCash) / totalInvestedCash) * 10000) / 100
+        : 0,
     projectedValueIn10y: Math.round(projectedValueIn10y * 100) / 100,
     projectedEquityIn10y: Math.round(projectedEquityIn10y * 100) / 100,
     irrEstimate: Math.round(irrEstimate * 100) / 100,
@@ -281,7 +290,13 @@ export function calcRequiredOverpayment(s: RealEstateScenario): number {
 
   const balanceAfter = (monthlyOverpayment: number) => {
     if (s.mortgageType === "equal") {
-      const schedule = amortizationSchedule(loanAmount, s.mortgageRatePct, months, monthlyOverpayment, "fixed");
+      const schedule = amortizationSchedule(
+        loanAmount,
+        s.mortgageRatePct,
+        months,
+        monthlyOverpayment,
+        "fixed",
+      );
       if (schedule.length < targetMonths) return 0;
       return schedule[targetMonths - 1].balance;
     }
@@ -576,7 +591,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const renovationFinancedAmount = (s.renovationCost * renovationFinancedPct) / 100;
   const loanAmount = Math.max(0, s.purchasePrice - downPayment) + renovationFinancedAmount;
   const bankCommission = loanAmount * ((s.bankCommissionPct || 0) / 100);
-  const totalUpfront = downPayment + s.renovationCost - renovationFinancedAmount + closingCosts + bankCommission;
+  const totalUpfront =
+    downPayment + s.renovationCost - renovationFinancedAmount + closingCosts + bankCommission;
 
   const months = Math.max(1, s.mortgageYears * 12);
 
@@ -585,7 +601,8 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   if (s.mortgageType === "decreasing") {
     let sum = 0;
     for (let m = 1; m <= 12; m++) {
-      const interest = (loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
+      const interest =
+        (loanAmount - (loanAmount / months) * (m - 1)) * (s.mortgageRatePct / 100 / 12);
       sum += loanAmount / months + interest;
     }
     monthlyPmt = sum / 12;
@@ -597,7 +614,7 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   const rentedMonthsFirstYear = Math.max(0, 12 - initialVacancyMonths);
   const annualRentFirstYear = s.monthlyRent * rentedMonthsFirstYear;
   const effectiveRent = annualRentFirstYear / 12;
-  const monthlyTax = annualRentFirstYear * (s.taxRatePct / 100) / 12;
+  const monthlyTax = (annualRentFirstYear * (s.taxRatePct / 100)) / 12;
   const effectiveOverpayment = s.tsoverpaymentEnabled
     ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s))
     : 0;
@@ -616,15 +633,20 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
   // First-year actual average monthly pmt (includes overpayment amounts)
   const firstYearRows = loanSchedule.slice(0, 12);
-  const actualMonthlyPmtFirstYear = firstYearRows.length > 0
-    ? firstYearRows.reduce((sum, row) => sum + row.payment, 0) / 12
-    : 0;
+  const actualMonthlyPmtFirstYear =
+    firstYearRows.length > 0 ? firstYearRows.reduce((sum, row) => sum + row.payment, 0) / 12 : 0;
 
-  const monthlyCashflow = effectiveRent - s.monthlyCosts - actualMonthlyPmtFirstYear - (s.mortgageInsuranceMonthly || 0) - monthlyTax;
+  const monthlyCashflow =
+    effectiveRent -
+    s.monthlyCosts -
+    actualMonthlyPmtFirstYear -
+    (s.mortgageInsuranceMonthly || 0) -
+    monthlyTax;
   const annualCashflow = monthlyCashflow * 12;
 
   const grossYieldPct = s.purchasePrice > 0 ? (annualRentFirstYear / s.purchasePrice) * 100 : 0;
-  const noi = annualRentFirstYear - s.monthlyCosts * 12 - annualRentFirstYear * (s.taxRatePct / 100);
+  const noi =
+    annualRentFirstYear - s.monthlyCosts * 12 - annualRentFirstYear * (s.taxRatePct / 100);
   const netYieldPct = s.purchasePrice > 0 ? (noi / s.purchasePrice) * 100 : 0;
   const cashOnCashPct = totalUpfront > 0 ? (annualCashflow / totalUpfront) * 100 : 0;
   const capRate = s.purchasePrice > 0 ? (noi / s.purchasePrice) * 100 : 0;
@@ -637,9 +659,10 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
   let propertyValue = s.purchasePrice;
 
   for (let y = 1; y <= s.holdingYears; y++) {
-    const rentYear = y === 1
-      ? annualRentFirstYear
-      : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
+    const rentYear =
+      y === 1
+        ? annualRentFirstYear
+        : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
     const taxYear = rentYear * (s.taxRatePct / 100);
     const costsYear = s.monthlyCosts * 12;
     const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
@@ -655,9 +678,10 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     else cumulativeNegative += Math.abs(cf);
 
     propertyValue = s.purchasePrice * Math.pow(1 + s.appreciationPct / 100, y);
-    const loanBalance = yearRows.length > 0
-      ? yearRows[yearRows.length - 1].balance
-      : Math.max(0, loanSchedule[loanSchedule.length - 1]?.balance ?? 0);
+    const loanBalance =
+      yearRows.length > 0
+        ? yearRows[yearRows.length - 1].balance
+        : Math.max(0, loanSchedule[loanSchedule.length - 1]?.balance ?? 0);
     const equity = propertyValue - loanBalance;
 
     yearly.push({
@@ -693,8 +717,14 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const startIdx = (y - 1) * 12;
     const endIdx = y * 12;
     const baselineYearRows = baselineLoanSchedule.slice(startIdx, endIdx);
-    totalBaselineInterestOverHolding += baselineYearRows.reduce((sum: number, row: AmortRow) => sum + row.interest, 0);
-    totalBaselineMortgagePayments += baselineYearRows.reduce((sum: number, row: AmortRow) => sum + row.payment, 0);
+    totalBaselineInterestOverHolding += baselineYearRows.reduce(
+      (sum: number, row: AmortRow) => sum + row.interest,
+      0,
+    );
+    totalBaselineMortgagePayments += baselineYearRows.reduce(
+      (sum: number, row: AmortRow) => sum + row.payment,
+      0,
+    );
   }
 
   // Actual mortgage payments (holding period, with overpayments = capital + interest + overpayment)
@@ -717,10 +747,14 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
     const startIdx = (y - 1) * 12;
     const endIdx = y * 12;
     const baselineYearRows = baselineLoanSchedule.slice(startIdx, endIdx);
-    const baselinePmtYear = baselineYearRows.reduce((sum: number, row: AmortRow) => sum + row.payment, 0);
-    const rentYear = y === 1
-      ? annualRentFirstYear
-      : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
+    const baselinePmtYear = baselineYearRows.reduce(
+      (sum: number, row: AmortRow) => sum + row.payment,
+      0,
+    );
+    const rentYear =
+      y === 1
+        ? annualRentFirstYear
+        : s.monthlyRent * 12 * Math.pow(1 + s.rentGrowthPct / 100, y - 1);
     const taxYear = rentYear * (s.taxRatePct / 100);
     const costsYear = s.monthlyCosts * 12;
     const insuranceYear = (s.mortgageInsuranceMonthly || 0) * 12;
@@ -740,12 +774,15 @@ export function calculateRealEstate(s: RealEstateScenario): RealEstateResult {
 
   // IRR: use simple CAGR on cash invested (totalUpfront only — do NOT add negative cashflow months
   // as those are funded from rent shortfall, not new equity injections)
-  const irrAnnualPct = totalUpfront > 0 && s.holdingYears > 0
-    ? (Math.pow(
-        Math.max(0.0001, (totalUpfront + totalReturn) / totalUpfront),
-        1 / s.holdingYears,
-      ) - 1) * 100
-    : 0;
+  const irrAnnualPct =
+    totalUpfront > 0 && s.holdingYears > 0
+      ? (Math.pow(
+          Math.max(0.0001, (totalUpfront + totalReturn) / totalUpfront),
+          1 / s.holdingYears,
+        ) -
+          1) *
+        100
+      : 0;
 
   const totalReturnPct = totalUpfront > 0 ? (totalReturn / totalUpfront) * 100 : 0;
   const totalReturnNoSalePct = totalUpfront > 0 ? (totalReturnNoSale / totalUpfront) * 100 : 0;
@@ -795,7 +832,8 @@ export function minBreakEvenRent(s: RealEstateScenario, r: RealEstateResult): nu
   const effectiveOverpayment = s.tsoverpaymentEnabled
     ? (s.overpaymentMonthly ?? calcRequiredOverpayment(s))
     : 0;
-  const totalFixed = r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts + effectiveOverpayment;
+  const totalFixed =
+    r.monthlyPmt + (s.mortgageInsuranceMonthly || 0) + s.monthlyCosts + effectiveOverpayment;
   // Steady-state break-even: rent * (1 - tax) = totalFixed
   const taxFactor = 1 - s.taxRatePct / 100;
   return taxFactor > 0 ? round2(totalFixed / taxFactor) : 0;

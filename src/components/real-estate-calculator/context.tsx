@@ -27,7 +27,15 @@ export interface RealEstateContextValue {
   setS: React.Dispatch<React.SetStateAction<RealEstateScenario>>;
   updateS: (patch: Partial<RealEstateScenario>) => void;
   costs: { admin: number; media: number; management: number; insurance: number; reserve: number };
-  setCosts: React.Dispatch<React.SetStateAction<{ admin: number; media: number; management: number; insurance: number; reserve: number }>>;
+  setCosts: React.Dispatch<
+    React.SetStateAction<{
+      admin: number;
+      media: number;
+      management: number;
+      insurance: number;
+      reserve: number;
+    }>
+  >;
   r: RealEstateResult;
   minRent: number;
   /** Steady-state monthly cashflow at full occupancy (no vacancy dilution). */
@@ -142,7 +150,8 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
     if (typeof val === "function") {
       originalSetS((prev) => {
         const next = val(prev);
-        if (next.mortgageInsuranceMonthly !== prev.mortgageInsuranceMonthly) setIsInsuranceManual(true);
+        if (next.mortgageInsuranceMonthly !== prev.mortgageInsuranceMonthly)
+          setIsInsuranceManual(true);
         return next;
       });
     } else {
@@ -156,11 +165,16 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
 
   // Steady-state: a normal fully-rented month (no vacancy dilution)
   const steadyCashflow = useMemo(() => {
-    const overpayment = s.tsoverpaymentEnabled
-      ? (s.overpaymentMonthly ?? requiredOverpayment)
-      : 0;
+    const overpayment = s.tsoverpaymentEnabled ? (s.overpaymentMonthly ?? requiredOverpayment) : 0;
     const tax = s.monthlyRent * (s.taxRatePct / 100);
-    return s.monthlyRent - s.monthlyCosts - r.monthlyPmt - (s.mortgageInsuranceMonthly || 0) - overpayment - tax;
+    return (
+      s.monthlyRent -
+      s.monthlyCosts -
+      r.monthlyPmt -
+      (s.mortgageInsuranceMonthly || 0) -
+      overpayment -
+      tax
+    );
   }, [s, r.monthlyPmt, requiredOverpayment]);
 
   const cashflowPositive = steadyCashflow >= 0;
@@ -177,7 +191,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
   const budgetImpact = useMemo(() => {
     const totalNetIncome = spouses.reduce(
       (sum, sp) => sum + calculateAnnualAverageNet(sp.inputs, globalSettings),
-      0
+      0,
     );
     const totalExpenses = expenses.reduce((sum, e) => sum + getExpenseMonthlyAverage(e), 0);
     const existingLoanPayments = loans.reduce(
@@ -185,7 +199,7 @@ export function RealEstateProvider({ children }: { children: React.ReactNode }) 
         sum +
         monthlyPayment(l.principal, l.annualRatePct, l.monthsRemaining) +
         (l.mortgageInsuranceMonthly ?? 0),
-      0
+      0,
     );
 
     const currentDisposable = totalNetIncome - totalExpenses - existingLoanPayments;

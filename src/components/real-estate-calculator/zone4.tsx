@@ -102,64 +102,99 @@ function VerdictBadge({ proj, realIrr }: { proj: BondProjection; realIrr: number
   );
 }
 
-function VerdictCard({ reIrr, reTotalReturn, reUpfront, bestBond, holdingYears }: { reIrr: number, reTotalReturn: number, reUpfront: number, bestBond: BondProjection, holdingYears: number }) {
+function VerdictCard({
+  reIrr,
+  reTotalReturn,
+  reUpfront,
+  bestBond,
+  holdingYears,
+}: {
+  reIrr: number;
+  reTotalReturn: number;
+  reUpfront: number;
+  bestBond: BondProjection;
+  holdingYears: number;
+}) {
   if (!bestBond) return null;
 
   // Real estate total profit is r.totalReturnNominal (this is already normalized inside real estate context)
   // Bond total profit calculation:
   const bondTotalReturn = bestBond.finalValueNet - reUpfront;
-  
+
   const diffNominal = reTotalReturn - bondTotalReturn;
   const diffIrr = reIrr - bestBond.irrAnnualNetPct;
 
   const isReBetter = diffNominal > 0;
-  
+
   return (
-    <div className={cn(
-      "relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm space-y-4 mb-6",
-      isReBetter ? "bg-accent/5 border-accent/20" : "bg-warning/5 border-warning/20"
-    )}>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm space-y-4 mb-6",
+        isReBetter ? "bg-accent/5 border-accent/20" : "bg-warning/5 border-warning/20",
+      )}
+    >
       {/* Decorative background element */}
       <div className="absolute -right-12 -top-12 opacity-10 pointer-events-none">
         <Trophy className={cn("w-48 h-48", isReBetter ? "text-accent" : "text-warning")} />
       </div>
-      
+
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-2">
-          <span className={cn(
-            "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full",
-            isReBetter ? "bg-accent text-accent-foreground" : "bg-warning text-warning-foreground"
-          )}>
+          <span
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full",
+              isReBetter
+                ? "bg-accent text-accent-foreground"
+                : "bg-warning text-warning-foreground",
+            )}
+          >
             Werdykt {holdingYears} lat
           </span>
         </div>
-        
+
         <h3 className="font-display text-2xl mb-1">
           {isReBetter ? "Nieruchomość wygrywa" : "Obligacje wygrywają"}
         </h3>
         <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
-          Zainwestowanie <strong>{formatPLN(reUpfront)}</strong> (wkład własny + koszty startowe) 
-          {isReBetter ? " w wynajem przynosi wyższy zwrot niż najkorzystniejsze obligacje skarbowe." : " w bezpieczne obligacje skarbowe wygrywa z wynajmem nieruchomości."}
+          Zainwestowanie <strong>{formatPLN(reUpfront)}</strong> (wkład własny + koszty startowe)
+          {isReBetter
+            ? " w wynajem przynosi wyższy zwrot niż najkorzystniejsze obligacje skarbowe."
+            : " w bezpieczne obligacje skarbowe wygrywa z wynajmem nieruchomości."}
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-current/10">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Zysk z wynajmu</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+              Zysk z wynajmu
+            </p>
             <p className="font-mono font-bold text-lg">{formatPLN(reTotalReturn)}</p>
             <p className="text-[10px] text-muted-foreground">{reIrr.toFixed(1)}% IRR</p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Zysk z obligacji ({bestBond.bond.symbol})</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+              Zysk z obligacji ({bestBond.bond.symbol})
+            </p>
             <p className="font-mono font-bold text-lg">{formatPLN(bondTotalReturn)}</p>
-            <p className="text-[10px] text-muted-foreground">{bestBond.irrAnnualNetPct.toFixed(1)}% CAGR</p>
+            <p className="text-[10px] text-muted-foreground">
+              {bestBond.irrAnnualNetPct.toFixed(1)}% CAGR
+            </p>
           </div>
           <div className="col-span-2 sm:col-span-2 bg-background/50 rounded-xl p-3 border border-current/10">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Różnica nominalna</p>
-            <p className={cn("font-mono font-bold text-xl", isReBetter ? "text-accent" : "text-warning")}>
-              {diffNominal > 0 ? "+" : ""}{formatPLN(diffNominal)}
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+              Różnica nominalna
+            </p>
+            <p
+              className={cn(
+                "font-mono font-bold text-xl",
+                isReBetter ? "text-accent" : "text-warning",
+              )}
+            >
+              {diffNominal > 0 ? "+" : ""}
+              {formatPLN(diffNominal)}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Przewaga IRR: {diffIrr > 0 ? "+" : ""}{diffIrr.toFixed(1)} p.p.
+              Przewaga IRR: {diffIrr > 0 ? "+" : ""}
+              {diffIrr.toFixed(1)} p.p.
             </p>
           </div>
         </div>
@@ -168,14 +203,14 @@ function VerdictCard({ reIrr, reTotalReturn, reUpfront, bestBond, holdingYears }
   );
 }
 
-function OverrideDialog({ 
-  open, 
-  onOpenChange, 
-  catalog, 
-  manualOverrides, 
-  onSaveManualOverride, 
-  onSaveGlobalOverride, 
-  onClearAll 
+function OverrideDialog({
+  open,
+  onOpenChange,
+  catalog,
+  manualOverrides,
+  onSaveManualOverride,
+  onSaveGlobalOverride,
+  onClearAll,
 }: any) {
   const hasManualOverrides = Object.keys(manualOverrides).length > 0;
   const [editingBond, setEditingBond] = useState<string | null>(null);
@@ -221,13 +256,16 @@ function OverrideDialog({
                   value={manualOverrides.nbpReferenceRate ?? ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                    onSaveGlobalOverride('nbpReferenceRate', value);
+                    onSaveGlobalOverride("nbpReferenceRate", value);
                   }}
                   placeholder={`${NBP_REFERENCE_RATE_PCT}%`}
                   className="h-9 text-sm"
                 />
                 {manualOverrides.nbpReferenceRate !== undefined && (
-                  <button onClick={() => onSaveGlobalOverride('nbpReferenceRate', undefined)} className="text-muted-foreground hover:text-destructive p-1">
+                  <button
+                    onClick={() => onSaveGlobalOverride("nbpReferenceRate", undefined)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -246,13 +284,16 @@ function OverrideDialog({
                   value={manualOverrides.cpiEstimate ?? ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                    onSaveGlobalOverride('cpiEstimate', value);
+                    onSaveGlobalOverride("cpiEstimate", value);
                   }}
                   placeholder={`${CURRENT_CPI_ESTIMATE_PCT}%`}
                   className="h-9 text-sm"
                 />
                 {manualOverrides.cpiEstimate !== undefined && (
-                  <button onClick={() => onSaveGlobalOverride('cpiEstimate', undefined)} className="text-muted-foreground hover:text-destructive p-1">
+                  <button
+                    onClick={() => onSaveGlobalOverride("cpiEstimate", undefined)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -276,11 +317,16 @@ function OverrideDialog({
                     key={bond.symbol}
                     className={cn(
                       "p-3 rounded-2xl border text-left flex flex-col transition-all duration-200",
-                      hasOverride ? "bg-accent/5 border-accent/30 shadow-sm" : "bg-card border-border/50",
-                      isEditing ? "ring-2 ring-accent" : ""
+                      hasOverride
+                        ? "bg-accent/5 border-accent/30 shadow-sm"
+                        : "bg-card border-border/50",
+                      isEditing ? "ring-2 ring-accent" : "",
                     )}
                   >
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setEditingBond(isEditing ? null : bond.symbol)}>
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setEditingBond(isEditing ? null : bond.symbol)}
+                    >
                       <div className="flex items-center gap-2.5">
                         <span
                           className="w-2.5 h-2.5 rounded-full"
@@ -293,9 +339,7 @@ function OverrideDialog({
                           </span>
                         )}
                       </div>
-                      <button
-                        className="text-[11px] text-accent hover:text-accent/80 flex items-center gap-1 font-medium"
-                      >
+                      <button className="text-[11px] text-accent hover:text-accent/80 flex items-center gap-1 font-medium">
                         <Edit3 className="w-3.5 h-3.5" />
                         {isEditing ? "Zwiń" : "Edytuj"}
                       </button>
@@ -303,22 +347,41 @@ function OverrideDialog({
 
                     {!isEditing && hasOverride && (
                       <div className="text-[10px] text-accent mt-3 p-2.5 bg-accent/10 rounded-xl border border-accent/20">
-                        {bond.category === 'fixed' && currentOverrides.annualRatePct && (
-                          <div>Oprocentowanie: <strong>{currentOverrides.annualRatePct}%</strong> (domyślnie: {bond.annualRatePct}%)</div>
-                        )}
-                        {bond.category === 'nbp_indexed' && (
+                        {bond.category === "fixed" && currentOverrides.annualRatePct && (
                           <div>
-                            Miesiąc 1: <strong>{currentOverrides.nbpMonth1Pct ?? bond.nbpMonth1Pct}%</strong> 
+                            Oprocentowanie: <strong>{currentOverrides.annualRatePct}%</strong>{" "}
+                            (domyślnie: {bond.annualRatePct}%)
+                          </div>
+                        )}
+                        {bond.category === "nbp_indexed" && (
+                          <div>
+                            Miesiąc 1:{" "}
+                            <strong>{currentOverrides.nbpMonth1Pct ?? bond.nbpMonth1Pct}%</strong>
                             {currentOverrides.nbpMarginPct !== undefined && (
-                              <> · Marża NBP: <strong>{currentOverrides.nbpMarginPct > 0 ? '+' : ''}{currentOverrides.nbpMarginPct}%</strong></>
+                              <>
+                                {" "}
+                                · Marża NBP:{" "}
+                                <strong>
+                                  {currentOverrides.nbpMarginPct > 0 ? "+" : ""}
+                                  {currentOverrides.nbpMarginPct}%
+                                </strong>
+                              </>
                             )}
                           </div>
                         )}
-                        {bond.category === 'cpi_indexed' && (
+                        {bond.category === "cpi_indexed" && (
                           <div>
-                            Rok 1: <strong>{currentOverrides.cpiYear1Pct ?? bond.cpiYear1Pct}%</strong> 
+                            Rok 1:{" "}
+                            <strong>{currentOverrides.cpiYear1Pct ?? bond.cpiYear1Pct}%</strong>
                             {currentOverrides.cpiMarginPct !== undefined && (
-                              <> · Marża CPI: <strong>{currentOverrides.cpiMarginPct > 0 ? '+' : ''}{currentOverrides.cpiMarginPct}%</strong></>
+                              <>
+                                {" "}
+                                · Marża CPI:{" "}
+                                <strong>
+                                  {currentOverrides.cpiMarginPct > 0 ? "+" : ""}
+                                  {currentOverrides.cpiMarginPct}%
+                                </strong>
+                              </>
                             )}
                           </div>
                         )}
@@ -327,74 +390,135 @@ function OverrideDialog({
 
                     {isEditing && (
                       <div className="space-y-3 pt-4 border-t border-border/50 mt-3">
-                        {bond.category === 'fixed' && (
+                        {bond.category === "fixed" && (
                           <div className="flex items-center gap-3">
                             <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">
                               Stałe %
                             </Label>
                             <Input
-                              type="number" step="0.1" min="0" max="20"
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="20"
                               value={currentOverrides.annualRatePct ?? ""}
-                              onChange={(e) => onSaveManualOverride(bond.symbol, 'annualRatePct', e.target.value ? parseFloat(e.target.value) : undefined)}
-                              placeholder={`${bond.annualRatePct ?? ''}%`}
+                              onChange={(e) =>
+                                onSaveManualOverride(
+                                  bond.symbol,
+                                  "annualRatePct",
+                                  e.target.value ? parseFloat(e.target.value) : undefined,
+                                )
+                              }
+                              placeholder={`${bond.annualRatePct ?? ""}%`}
                               className="h-8 text-xs flex-1"
                             />
-                            <span className="text-[10px] text-muted-foreground w-24">Domyślnie: {bond.annualRatePct ?? '—'}%</span>
+                            <span className="text-[10px] text-muted-foreground w-24">
+                              Domyślnie: {bond.annualRatePct ?? "—"}%
+                            </span>
                           </div>
                         )}
 
-                        {bond.category === 'nbp_indexed' && (
+                        {bond.category === "nbp_indexed" && (
                           <div className="space-y-2">
                             <div className="flex items-center gap-3">
-                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">Miesiąc 1 %</Label>
+                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">
+                                Miesiąc 1 %
+                              </Label>
                               <Input
-                                type="number" step="0.1" min="0" max="20"
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="20"
                                 value={currentOverrides.nbpMonth1Pct ?? ""}
-                                onChange={(e) => onSaveManualOverride(bond.symbol, 'nbpMonth1Pct', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                placeholder={`${bond.nbpMonth1Pct ?? ''}%`}
+                                onChange={(e) =>
+                                  onSaveManualOverride(
+                                    bond.symbol,
+                                    "nbpMonth1Pct",
+                                    e.target.value ? parseFloat(e.target.value) : undefined,
+                                  )
+                                }
+                                placeholder={`${bond.nbpMonth1Pct ?? ""}%`}
                                 className="h-8 text-xs flex-1"
                               />
-                              <span className="text-[10px] text-muted-foreground w-24">Domyślnie: {bond.nbpMonth1Pct ?? '—'}%</span>
+                              <span className="text-[10px] text-muted-foreground w-24">
+                                Domyślnie: {bond.nbpMonth1Pct ?? "—"}%
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
                               <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">
                                 Marża NBP
                               </Label>
                               <Input
-                                type="number" step="0.1" min="-5" max="10"
+                                type="number"
+                                step="0.1"
+                                min="-5"
+                                max="10"
                                 value={currentOverrides.nbpMarginPct ?? ""}
-                                onChange={(e) => onSaveManualOverride(bond.symbol, 'nbpMarginPct', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                onChange={(e) =>
+                                  onSaveManualOverride(
+                                    bond.symbol,
+                                    "nbpMarginPct",
+                                    e.target.value ? parseFloat(e.target.value) : undefined,
+                                  )
+                                }
                                 placeholder={`${bond.nbpMarginPct ?? 0}%`}
                                 className="h-8 text-xs flex-1"
                               />
-                              <span className="text-[10px] text-muted-foreground w-24">Domyślnie: {bond.nbpMarginPct ?? 0}%</span>
+                              <span className="text-[10px] text-muted-foreground w-24">
+                                Domyślnie: {bond.nbpMarginPct ?? 0}%
+                              </span>
                             </div>
                           </div>
                         )}
 
-                        {bond.category === 'cpi_indexed' && (
+                        {bond.category === "cpi_indexed" && (
                           <div className="space-y-2">
                             <div className="flex items-center gap-3">
-                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">Rok 1 %</Label>
+                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">
+                                Rok 1 %
+                              </Label>
                               <Input
-                                type="number" step="0.1" min="0" max="20"
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="20"
                                 value={currentOverrides.cpiYear1Pct ?? ""}
-                                onChange={(e) => onSaveManualOverride(bond.symbol, 'cpiYear1Pct', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                placeholder={`${bond.cpiYear1Pct ?? ''}%`}
+                                onChange={(e) =>
+                                  onSaveManualOverride(
+                                    bond.symbol,
+                                    "cpiYear1Pct",
+                                    e.target.value ? parseFloat(e.target.value) : undefined,
+                                  )
+                                }
+                                placeholder={`${bond.cpiYear1Pct ?? ""}%`}
                                 className="h-8 text-xs flex-1"
                               />
-                              <span className="text-[10px] text-muted-foreground w-24">Domyślnie: {bond.cpiYear1Pct ?? '—'}%</span>
+                              <span className="text-[10px] text-muted-foreground w-24">
+                                Domyślnie: {bond.cpiYear1Pct ?? "—"}%
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">Marża CPI</Label>
+                              <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0">
+                                Marża CPI
+                              </Label>
                               <Input
-                                type="number" step="0.1" min="-5" max="10"
+                                type="number"
+                                step="0.1"
+                                min="-5"
+                                max="10"
                                 value={currentOverrides.cpiMarginPct ?? ""}
-                                onChange={(e) => onSaveManualOverride(bond.symbol, 'cpiMarginPct', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                onChange={(e) =>
+                                  onSaveManualOverride(
+                                    bond.symbol,
+                                    "cpiMarginPct",
+                                    e.target.value ? parseFloat(e.target.value) : undefined,
+                                  )
+                                }
                                 placeholder={`${bond.cpiMarginPct ?? 0}%`}
                                 className="h-8 text-xs flex-1"
                               />
-                              <span className="text-[10px] text-muted-foreground w-24">Domyślnie: {bond.cpiMarginPct ?? 0}%</span>
+                              <span className="text-[10px] text-muted-foreground w-24">
+                                Domyślnie: {bond.cpiMarginPct ?? 0}%
+                              </span>
                             </div>
                           </div>
                         )}
@@ -437,31 +561,36 @@ export function ObligacjeTab() {
   const [bondOverrides, setBondOverrides] = useState<BondDataOverrides | undefined>(undefined);
 
   // Manual override state
-  const [manualOverrides, setManualOverrides] = useState<Partial<{
-    nbpReferenceRate: number;
-    cpiEstimate: number;
-    bonds: Record<string, {
-      annualRatePct?: number;
-      nbpMonth1Pct?: number;
-      nbpMarginPct?: number;
-      cpiYear1Pct?: number;
-      cpiMarginPct?: number;
-      earlyRedemptionPenaltyPct?: number;
-      earlyRedemptionFixedFee?: number;
-      minHoldMonths?: number;
-    }>;
-  }>>({});
+  const [manualOverrides, setManualOverrides] = useState<
+    Partial<{
+      nbpReferenceRate: number;
+      cpiEstimate: number;
+      bonds: Record<
+        string,
+        {
+          annualRatePct?: number;
+          nbpMonth1Pct?: number;
+          nbpMarginPct?: number;
+          cpiYear1Pct?: number;
+          cpiMarginPct?: number;
+          earlyRedemptionPenaltyPct?: number;
+          earlyRedemptionFixedFee?: number;
+          minHoldMonths?: number;
+        }
+      >;
+    }>
+  >({});
   const [showManualOverride, setShowManualOverride] = useState(false);
   const [editingBond, setEditingBond] = useState<string | null>(null);
 
   // Load manual overrides from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('bondManualOverrides');
+    const saved = localStorage.getItem("bondManualOverrides");
     if (saved) {
       try {
         setManualOverrides(JSON.parse(saved));
       } catch (error) {
-        console.error('Failed to parse saved manual overrides:', error);
+        console.error("Failed to parse saved manual overrides:", error);
       }
     }
   }, []);
@@ -469,9 +598,9 @@ export function ObligacjeTab() {
   // Save manual overrides to localStorage whenever they change
   useEffect(() => {
     if (Object.keys(manualOverrides).length > 0) {
-      localStorage.setItem('bondManualOverrides', JSON.stringify(manualOverrides));
+      localStorage.setItem("bondManualOverrides", JSON.stringify(manualOverrides));
     } else {
-      localStorage.removeItem('bondManualOverrides');
+      localStorage.removeItem("bondManualOverrides");
     }
   }, [manualOverrides]);
 
@@ -495,18 +624,23 @@ export function ObligacjeTab() {
           setLastUpdatedDate(OBLIGACJE_LAST_UPDATED);
         }
       } catch {
-        if (!cancelled) { setDataStatus("error"); setLastUpdatedDate(OBLIGACJE_LAST_UPDATED); }
+        if (!cancelled) {
+          setDataStatus("error");
+          setLastUpdatedDate(OBLIGACJE_LAST_UPDATED);
+        }
       }
     };
     loadData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Manual refresh via API route
   const handleFetchLatestData = useCallback(async () => {
     setIsFetchingData(true);
     try {
-      const res = await fetch('/api/obligacje/latest?forceRefresh=true');
+      const res = await fetch("/api/obligacje/latest?forceRefresh=true");
       if (res.ok) {
         const data = await res.json();
         const overrides: BondDataOverrides = {
@@ -523,8 +657,11 @@ export function ObligacjeTab() {
         if (data.nbpReferenceRate) setAssumedNbp(data.nbpReferenceRate);
         if (data.cpiEstimate) setAssumedCpi(data.cpiEstimate);
       }
-    } catch (e) { console.error(e); }
-    finally { setIsFetchingData(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsFetchingData(false);
+    }
   }, []);
 
   // Get current bond catalog with overrides applied
@@ -533,7 +670,7 @@ export function ObligacjeTab() {
 
     // Apply manual overrides
     if (Object.keys(manualOverrides).length > 0) {
-      catalog = catalog.map(bond => {
+      catalog = catalog.map((bond) => {
         const manualBondOverride = manualOverrides.bonds?.[bond.symbol];
         if (manualBondOverride) {
           return {
@@ -543,8 +680,10 @@ export function ObligacjeTab() {
             nbpMarginPct: manualBondOverride.nbpMarginPct ?? bond.nbpMarginPct,
             cpiYear1Pct: manualBondOverride.cpiYear1Pct ?? bond.cpiYear1Pct,
             cpiMarginPct: manualBondOverride.cpiMarginPct ?? bond.cpiMarginPct,
-            earlyRedemptionPenaltyPct: manualBondOverride.earlyRedemptionPenaltyPct ?? bond.earlyRedemptionPenaltyPct,
-            earlyRedemptionFixedFee: manualBondOverride.earlyRedemptionFixedFee ?? bond.earlyRedemptionFixedFee,
+            earlyRedemptionPenaltyPct:
+              manualBondOverride.earlyRedemptionPenaltyPct ?? bond.earlyRedemptionPenaltyPct,
+            earlyRedemptionFixedFee:
+              manualBondOverride.earlyRedemptionFixedFee ?? bond.earlyRedemptionFixedFee,
             minHoldMonths: manualBondOverride.minHoldMonths ?? bond.minHoldMonths,
           };
         }
@@ -560,10 +699,17 @@ export function ObligacjeTab() {
   const effectiveCpi = manualOverrides.cpiEstimate ?? assumedCpi;
 
   const projections = useMemo(() => {
-    return currentBondCatalog.filter((b) => selectedBonds.includes(b.symbol)).map((bond) =>
-      projectBond(bond, investmentAmount, holdingYears, effectiveCpi, effectiveNbp),
-    );
-  }, [currentBondCatalog, selectedBonds, investmentAmount, holdingYears, effectiveCpi, effectiveNbp]);
+    return currentBondCatalog
+      .filter((b) => selectedBonds.includes(b.symbol))
+      .map((bond) => projectBond(bond, investmentAmount, holdingYears, effectiveCpi, effectiveNbp));
+  }, [
+    currentBondCatalog,
+    selectedBonds,
+    investmentAmount,
+    holdingYears,
+    effectiveCpi,
+    effectiveNbp,
+  ]);
 
   // All projections for chart (to compare lines)
   const allProjections = useMemo(
@@ -608,14 +754,13 @@ export function ObligacjeTab() {
     });
   }, [allProjections, realEstateByYear, holdingYears, investmentAmount]);
 
-  const bestBond = projections.length > 0
-    ? projections.reduce((best, p) => (p.irrAnnualNetPct > best.irrAnnualNetPct ? p : best))
-    : allProjections[0];
+  const bestBond =
+    projections.length > 0
+      ? projections.reduce((best, p) => (p.irrAnnualNetPct > best.irrAnnualNetPct ? p : best))
+      : allProjections[0];
 
   // Sort projections by net IRR descending
-  const sortedProjections = [...projections].sort(
-    (a, b) => b.irrAnnualNetPct - a.irrAnnualNetPct,
-  );
+  const sortedProjections = [...projections].sort((a, b) => b.irrAnnualNetPct - a.irrAnnualNetPct);
 
   const toggleBond = (symbol: string) => {
     setSelectedBonds((prev) =>
@@ -630,14 +775,14 @@ export function ObligacjeTab() {
 
   // Manual override functions
   const handleSaveManualOverride = (symbol: string, field: string, value: number | undefined) => {
-    setManualOverrides(prev => {
+    setManualOverrides((prev) => {
       const newOverrides = { ...prev };
       if (!newOverrides.bonds) newOverrides.bonds = {};
 
       if (value === undefined) {
         // Remove the override
         if (newOverrides.bonds[symbol]) {
-          delete newOverrides.bonds[symbol][field as keyof typeof newOverrides.bonds[string]];
+          delete newOverrides.bonds[symbol][field as keyof (typeof newOverrides.bonds)[string]];
           if (Object.keys(newOverrides.bonds[symbol]).length === 0) {
             delete newOverrides.bonds[symbol];
           }
@@ -653,10 +798,13 @@ export function ObligacjeTab() {
     });
   };
 
-  const handleSaveGlobalOverride = (field: 'nbpReferenceRate' | 'cpiEstimate', value: number | undefined) => {
-    setManualOverrides(prev => ({
+  const handleSaveGlobalOverride = (
+    field: "nbpReferenceRate" | "cpiEstimate",
+    value: number | undefined,
+  ) => {
+    setManualOverrides((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -665,8 +813,6 @@ export function ObligacjeTab() {
   };
 
   const hasManualOverrides = Object.keys(manualOverrides).length > 0;
-
-
 
   if (investmentAmount <= 0) {
     return (
@@ -685,15 +831,12 @@ export function ObligacjeTab() {
       <div className="bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl mb-1">
-              Obligacje jako alternatywa
-            </h3>
+            <h3 className="font-display text-xl mb-1">Obligacje jako alternatywa</h3>
             <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
-              Zakładamy, że zamiast kupić nieruchomość, inwestujesz ten sam kapitał
-              zaangażowany w nieruchomość (wkład własny + koszty transakcyjne) –
-              <strong className="text-foreground">{formatPLN(investmentAmount)}</strong> w
-              Obligacje Skarbu Państwa przez{" "}
-              <strong className="text-foreground">{holdingYears} lat</strong>.{" "}
+              Zakładamy, że zamiast kupić nieruchomość, inwestujesz ten sam kapitał zaangażowany w
+              nieruchomość (wkład własny + koszty transakcyjne) –
+              <strong className="text-foreground">{formatPLN(investmentAmount)}</strong> w Obligacje
+              Skarbu Państwa przez <strong className="text-foreground">{holdingYears} lat</strong>.{" "}
               {hasManualOverrides ? (
                 <>Dane obligacji zostały ręcznie nadpisane przez użytkownika.</>
               ) : (
@@ -701,7 +844,8 @@ export function ObligacjeTab() {
               )}
               {isDataOutdated && !hasManualOverrides && (
                 <span className="text-warning-foreground font-medium">
-                  {" "}Dane mogą być nieaktualne.
+                  {" "}
+                  Dane mogą być nieaktualne.
                 </span>
               )}
             </p>
@@ -722,7 +866,11 @@ export function ObligacjeTab() {
         {/* Data Status Bar */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50 mt-4">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[10px] text-muted-foreground border border-border/50">
-            {isFetchingData ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {isFetchingData ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
             {dataStatus === "loading" ? "Ładowanie..." : getLastUpdatedText(currentLastUpdated)}
           </div>
           {dataStatus === "stale" && !hasManualOverrides && (
@@ -738,16 +886,27 @@ export function ObligacjeTab() {
             </div>
           )}
           <div className="flex-1" />
-          <Button variant="outline" size="sm" onClick={handleFetchLatestData} disabled={isFetchingData} className="h-7 text-[10px] px-2.5 rounded-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFetchLatestData}
+            disabled={isFetchingData}
+            className="h-7 text-[10px] px-2.5 rounded-full"
+          >
             Odśwież z MF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowOverrideDialog(true)} className="h-7 text-[10px] px-2.5 rounded-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverrideDialog(true)}
+            className="h-7 text-[10px] px-2.5 rounded-full"
+          >
             Ręczna edycja
           </Button>
         </div>
       </div>
 
-      <VerdictCard 
+      <VerdictCard
         reIrr={realEstateIrrNet}
         reTotalReturn={r.totalReturn}
         reUpfront={investmentAmount}
@@ -828,11 +987,7 @@ export function ObligacjeTab() {
           <div className="h-80">
             <ResponsiveContainer>
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="oklch(0.9 0.015 85)"
-                  vertical={true}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={true} />
                 <XAxis
                   dataKey="year"
                   tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
@@ -887,7 +1042,12 @@ export function ObligacjeTab() {
                   const color = BOND_COLORS[proj.bond.symbol] ?? "var(--muted-foreground)";
                   const tenorYears = proj.bond.tenorMonths / 12;
                   return (
-                    <Bar key={proj.bond.symbol} dataKey={proj.bond.symbol} fill={color} radius={[4, 4, 0, 0]}>
+                    <Bar
+                      key={proj.bond.symbol}
+                      dataKey={proj.bond.symbol}
+                      fill={color}
+                      radius={[4, 4, 0, 0]}
+                    >
                       {chartData.map((_, index) => {
                         const year = index + 1;
                         const isMatured = year > tenorYears;
@@ -906,7 +1066,8 @@ export function ObligacjeTab() {
             </ResponsiveContainer>
           </div>
           <p className="text-[9px] text-muted-foreground text-center mt-2 italic">
-            Słabsza przezroczystość = okres po zapadalności obligacji (bez rolowania, środki w gotówce).
+            Słabsza przezroczystość = okres po zapadalności obligacji (bez rolowania, środki w
+            gotówce).
           </p>
         </div>
       )}
@@ -918,9 +1079,7 @@ export function ObligacjeTab() {
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Szczegóły per obligacja
             </p>
-            <p className="text-[10px] text-muted-foreground">
-              Posortowane wg. CAGR netto malejąco
-            </p>
+            <p className="text-[10px] text-muted-foreground">Posortowane wg. CAGR netto malejąco</p>
           </div>
 
           {sortedProjections.map((proj) => {
@@ -969,9 +1128,7 @@ export function ObligacjeTab() {
                           </div>
                           <p className="text-[11px] text-muted-foreground">
                             {getBondAssumptionLabel(proj.bond)} ·{" "}
-                            {tenorYears < 1
-                              ? `${proj.bond.tenorMonths} m-ce`
-                              : `${tenorYears} lat`}{" "}
+                            {tenorYears < 1 ? `${proj.bond.tenorMonths} m-ce` : `${tenorYears} lat`}{" "}
                             · Belka {BELKA_TAX_PCT}%
                           </p>
                         </div>
@@ -1073,15 +1230,19 @@ export function ObligacjeTab() {
                               Obowiązuje zakończenie obligacji
                             </p>
                             <p>
-                              Ta obligacja kończy się po {tenorYears} latach. W dalszych latach do {holdingYears} lat wartość jest pokazana jako kwota po wykupie, bez rolowania.
+                              Ta obligacja kończy się po {tenorYears} latach. W dalszych latach do{" "}
+                              {holdingYears} lat wartość jest pokazana jako kwota po wykupie, bez
+                              rolowania.
                             </p>
                             {propertyAtBondMaturity ? (
                               <p>
-                                Przy skróconym horyzoncie do {tenorYears} lat nieruchomość miałaby wartość netto {formatPLN(propertyAtBondMaturity.value)}.
+                                Przy skróconym horyzoncie do {tenorYears} lat nieruchomość miałaby
+                                wartość netto {formatPLN(propertyAtBondMaturity.value)}.
                               </p>
                             ) : (
                               <p>
-                                Jeśli analizę nieruchomości skrócić do {tenorYears} lat, wartość byłaby odpowiednio niższa niż dłuższy horyzont.
+                                Jeśli analizę nieruchomości skrócić do {tenorYears} lat, wartość
+                                byłaby odpowiednio niższa niż dłuższy horyzont.
                               </p>
                             )}
                           </div>
@@ -1173,7 +1334,9 @@ export function ObligacjeTab() {
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                           <div>
-                            <p className="text-muted-foreground text-[10px]">Obligacje CAGR netto</p>
+                            <p className="text-muted-foreground text-[10px]">
+                              Obligacje CAGR netto
+                            </p>
                             <p className="font-bold font-mono" style={{ color }}>
                               {proj.irrAnnualNetPct.toFixed(2)}%
                             </p>
@@ -1193,14 +1356,14 @@ export function ObligacjeTab() {
                               )}
                             >
                               {isBetter ? "+" : ""}
-                              {formatPLN(proj.totalNetInterest - (r.totalReturn > 0 ? r.totalReturn : 0))}
+                              {formatPLN(
+                                proj.totalNetInterest - (r.totalReturn > 0 ? r.totalReturn : 0),
+                              )}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground text-[10px]">Ryzyko</p>
-                            <p className="font-bold text-success text-[11px]">
-                              Gwarantowane
-                            </p>
+                            <p className="font-bold text-success text-[11px]">Gwarantowane</p>
                           </div>
                         </div>
                       </div>
@@ -1265,14 +1428,21 @@ export function ObligacjeTab() {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground italic border-t border-border/50 pt-3">
-          ⚠ Porównanie uproszczone. Nieruchomość uwzględnia dźwignię kredytową, ryzyko płynności i zarządzania.
-          Obligacje zakładają reinwestycję odsetek w tym samym instrumencie lub rolowanie.
+          ⚠ Porównanie uproszczone. Nieruchomość uwzględnia dźwignię kredytową, ryzyko płynności i
+          zarządzania. Obligacje zakładają reinwestycję odsetek w tym samym instrumencie lub
+          rolowanie.
           {hasManualOverrides ? (
             <>Dane obligacji zostały ręcznie nadpisane przez użytkownika.</>
           ) : isUsingOverrides ? (
-            <>Dane obligacji zostały nadpisane przez użytkownika ({getLastUpdatedText(currentLastUpdated, true)}).</>
+            <>
+              Dane obligacji zostały nadpisane przez użytkownika (
+              {getLastUpdatedText(currentLastUpdated, true)}).
+            </>
           ) : (
-            <>Oprocentowanie obligacji na podstawie aktualnej oferty Ministerstwa Finansów ({getLastUpdatedText(currentLastUpdated)}).</>
+            <>
+              Oprocentowanie obligacji na podstawie aktualnej oferty Ministerstwa Finansów (
+              {getLastUpdatedText(currentLastUpdated)}).
+            </>
           )}
         </p>
       </div>

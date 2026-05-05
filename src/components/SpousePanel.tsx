@@ -20,7 +20,18 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { actions, type Spouse, useAppState } from "@/lib/store";
-import { Trash2, X, ChevronDown, User, Zap, Landmark, BadgePercent, Gift, PiggyBank, Search } from "lucide-react";
+import {
+  Trash2,
+  X,
+  ChevronDown,
+  User,
+  Zap,
+  Landmark,
+  BadgePercent,
+  Gift,
+  PiggyBank,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import React, { useMemo, useState, useEffect, useId, useRef } from "react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -108,7 +119,7 @@ function Row({
       className={cn(
         "flex items-baseline justify-between gap-4 py-2",
         bold ? "text-base font-bold" : "text-sm",
-        muted && "text-muted-foreground"
+        muted && "text-muted-foreground",
       )}
     >
       <span className="leading-snug">{label}</span>
@@ -117,7 +128,7 @@ function Row({
           "font-mono tabular-nums whitespace-nowrap",
           negative && "text-destructive",
           positive && "text-success",
-          bold && !negative && !positive && "text-accent"
+          bold && !negative && !positive && "text-accent",
         )}
       >
         {`${negative ? "−" : ""}${formatPLN2(Math.abs(value))}`}
@@ -141,10 +152,7 @@ function ToggleRow({
   return (
     <div className="flex items-start justify-between gap-4 py-1">
       <div className="flex flex-col">
-        <Label
-          htmlFor={id}
-          className="text-sm font-semibold cursor-pointer leading-tight mb-0.5"
-        >
+        <Label htmlFor={id} className="text-sm font-semibold cursor-pointer leading-tight mb-0.5">
           {label}
         </Label>
         {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
@@ -177,7 +185,7 @@ function SectionGroup({
         <button
           className={cn(
             "flex w-full items-center justify-between rounded-xl px-4 py-3 transition-colors",
-            open ? "bg-accent-soft/40" : "bg-muted/30 hover:bg-muted/50"
+            open ? "bg-accent-soft/40" : "bg-muted/30 hover:bg-muted/50",
           )}
         >
           <div className="flex items-center justify-between flex-1 pr-2">
@@ -192,7 +200,10 @@ function SectionGroup({
             )}
           </div>
           <ChevronDown
-            className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")}
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
           />
         </button>
       </CollapsibleTrigger>
@@ -216,7 +227,7 @@ export function SpousePanel({
   const globalSettings = useAppState((s) => s.globalSettings);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -233,7 +244,10 @@ export function SpousePanel({
     }
   }, [spouse.name, memberOptions]);
 
-  const r = useMemo(() => calculateSalary(spouse.inputs, 0, globalSettings), [spouse.inputs, globalSettings]);
+  const r = useMemo(
+    () => calculateSalary(spouse.inputs, 0, globalSettings),
+    [spouse.inputs, globalSettings],
+  );
   const set = <K extends keyof SalaryInputs>(k: K, v: SalaryInputs[K]) =>
     actions.updateSpouseInputs(spouse.id, { [k]: v } as Partial<SalaryInputs>);
 
@@ -252,19 +266,37 @@ export function SpousePanel({
     actions.updateSpouse(spouse.id, { assignedUserId: undefined });
   };
 
-  const annualBreakdown = useMemo(() => calculateAnnualBreakdown(spouse.inputs, globalSettings), [spouse.inputs, globalSettings]);
-  const totalAnnualTaxBase = useMemo(() => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0), [annualBreakdown]);
+  const annualBreakdown = useMemo(
+    () => calculateAnnualBreakdown(spouse.inputs, globalSettings),
+    [spouse.inputs, globalSettings],
+  );
+  const totalAnnualTaxBase = useMemo(
+    () => annualBreakdown.reduce((sum, m) => sum + m.taxBase, 0),
+    [annualBreakdown],
+  );
 
-  const thresholdPct = Math.min((totalAnnualTaxBase / globalSettings.pitThresholdAnnual) * 100, 100);
+  const thresholdPct = Math.min(
+    (totalAnnualTaxBase / globalSettings.pitThresholdAnnual) * 100,
+    100,
+  );
 
   const [isAnnual, setIsAnnual] = useState(false);
   const displayGross = isAnnual ? spouse.inputs.gross * 12 : spouse.inputs.gross;
   const setGross = (v: number) => set("gross", isAnnual ? v / 12 : v);
 
-  const getInitial = (name: string) => name ? name.charAt(0).toUpperCase() : "?";
+  const getInitial = (name: string) => (name ? name.charAt(0).toUpperCase() : "?");
 
-  const hasBenefits = spouse.inputs.benefitsTaxable > 0 || spouse.inputs.lunchAllowance > 0 || spouse.inputs.remoteAllowance > 0 || spouse.inputs.companyCarEnabled;
-  const hasTaxOverrides = spouse.inputs.pit2 || spouse.inputs.outsideFirstThreshold || spouse.inputs.age26Exempt || spouse.inputs.kupType !== "standard" || spouse.inputs.autorskiSharePct > 0;
+  const hasBenefits =
+    spouse.inputs.benefitsTaxable > 0 ||
+    spouse.inputs.lunchAllowance > 0 ||
+    spouse.inputs.remoteAllowance > 0 ||
+    spouse.inputs.companyCarEnabled;
+  const hasTaxOverrides =
+    spouse.inputs.pit2 ||
+    spouse.inputs.outsideFirstThreshold ||
+    spouse.inputs.age26Exempt ||
+    spouse.inputs.kupType !== "standard" ||
+    spouse.inputs.autorskiSharePct > 0;
   const hasPpk = spouse.inputs.ppkEmployeeRate > 0 || spouse.inputs.ppkEmployerRate > 0;
   const hasBonus = spouse.inputs.bonusMonth > 0;
 
@@ -292,14 +324,23 @@ export function SpousePanel({
                 actions.updateSpouse(spouse.id, { name: e.target.value });
                 setShowMemberDropdown(true);
               }}
-              onFocus={() => memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)}
-              placeholder={!spouse.name && memberOptions && memberOptions.length > 0 ? "Wybierz osobę..." : "Imię osoby"}
+              onFocus={() =>
+                memberOptions && memberOptions.length > 0 && setShowMemberDropdown(true)
+              }
+              placeholder={
+                !spouse.name && memberOptions && memberOptions.length > 0
+                  ? "Wybierz osobę..."
+                  : "Imię osoby"
+              }
               className="font-display text-3xl font-bold h-12 px-0 bg-transparent border-none rounded-none focus-visible:ring-0 focus-visible:border-none shadow-none text-foreground placeholder:text-muted-foreground/50 w-full"
             />
             {spouse.assignedUserId && (
               <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold uppercase tracking-wider bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                <User className="w-3 h-3" /> połączono: {memberOptions?.find(m => m.user_id === spouse.assignedUserId)?.label}
-                <button onClick={handleClearAssignment} className="ml-1 hover:text-foreground"><X className="w-3 h-3" /></button>
+                <User className="w-3 h-3" /> połączono:{" "}
+                {memberOptions?.find((m) => m.user_id === spouse.assignedUserId)?.label}
+                <button onClick={handleClearAssignment} className="ml-1 hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
               </span>
             )}
             {!spouse.name && memberOptions && memberOptions.length > 0 && (
@@ -307,20 +348,26 @@ export function SpousePanel({
                 <Search className="w-3 h-3" /> Wybierz z listy poniżej
               </div>
             )}
-            {showMemberDropdown && memberOptions && memberOptions.length > 0 && filteredMembers.length > 0 && (
-              <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1">
-                {filteredMembers.map((member) => (
-                  <button
-                    key={member.user_id}
-                    type="button"
-                    onClick={() => handleMemberSelect(member.user_id, member.label)}
-                    className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
-                  >
-                    {member.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            {showMemberDropdown &&
+              memberOptions &&
+              memberOptions.length > 0 &&
+              filteredMembers.length > 0 && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-xl shadow-lg z-50 p-1"
+                >
+                  {filteredMembers.map((member) => (
+                    <button
+                      key={member.user_id}
+                      type="button"
+                      onClick={() => handleMemberSelect(member.user_id, member.label)}
+                      className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
+                    >
+                      {member.label}
+                    </button>
+                  ))}
+                </div>
+              )}
           </div>
         </div>
         {canDelete && (
@@ -347,9 +394,13 @@ export function SpousePanel({
               Wynagrodzenie brutto
             </Label>
             <div className="flex items-center gap-2">
-              <span className={cn("text-[10px] font-bold uppercase", !isAnnual && "text-accent")}>M-c</span>
+              <span className={cn("text-[10px] font-bold uppercase", !isAnnual && "text-accent")}>
+                M-c
+              </span>
               <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-              <span className={cn("text-[10px] font-bold uppercase", isAnnual && "text-accent")}>Rok</span>
+              <span className={cn("text-[10px] font-bold uppercase", isAnnual && "text-accent")}>
+                Rok
+              </span>
             </div>
           </div>
           <div className="relative">
@@ -388,11 +439,15 @@ export function SpousePanel({
             </p>
             <div className="grid grid-cols-2 gap-3 border-t border-primary-foreground/15 pt-5">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Brutto</p>
+                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">
+                  Brutto
+                </p>
                 <p className="font-mono text-sm tabular-nums">{formatPLN(r.gross)}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">Koszt pracodawcy</p>
+                <p className="text-[10px] uppercase tracking-wider text-primary-foreground/60 mb-1">
+                  Koszt pracodawcy
+                </p>
                 <p className="font-mono text-sm tabular-nums">{formatPLN(r.totalEmployerCost)}</p>
               </div>
             </div>
@@ -403,7 +458,9 @@ export function SpousePanel({
         <div className="order-3 space-y-4">
           <div className="flex items-center gap-4 mb-2">
             <Separator className="flex-1" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Szczegóły</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+              Szczegóły
+            </span>
             <Separator className="flex-1" />
           </div>
 
@@ -411,7 +468,20 @@ export function SpousePanel({
             title="Benefity i dodatki"
             icon={Gift}
             activeIndicator={hasBenefits}
-            summary={hasBenefits ? formatPLN(spouse.inputs.benefitsTaxable + spouse.inputs.lunchAllowance + spouse.inputs.remoteAllowance + (spouse.inputs.companyCarEnabled ? (spouse.inputs.companyCarMode === "statutory" ? parseInt(spouse.inputs.companyCarStatutoryValue) : spouse.inputs.companyCarManualAmount) : 0)) : null}
+            summary={
+              hasBenefits
+                ? formatPLN(
+                    spouse.inputs.benefitsTaxable +
+                      spouse.inputs.lunchAllowance +
+                      spouse.inputs.remoteAllowance +
+                      (spouse.inputs.companyCarEnabled
+                        ? spouse.inputs.companyCarMode === "statutory"
+                          ? parseInt(spouse.inputs.companyCarStatutoryValue)
+                          : spouse.inputs.companyCarManualAmount
+                        : 0),
+                  )
+                : null
+            }
           >
             <div className="grid grid-cols-2 gap-4">
               <NumberField
@@ -423,14 +493,22 @@ export function SpousePanel({
                 label="Bony żywieniowe"
                 value={spouse.inputs.lunchAllowance}
                 onChange={(n) => set("lunchAllowance", n)}
-                hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success" /> ZUS-free do 450 zł</span>}
+                hint={
+                  <span className="text-success inline-flex items-center gap-1 mt-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-success" /> ZUS-free do 450 zł
+                  </span>
+                }
               />
             </div>
             <NumberField
               label="Praca zdalna (razem)"
               value={spouse.inputs.remoteAllowance}
               onChange={(n) => set("remoteAllowance", n)}
-              hint={<span className="text-success inline-flex items-center gap-1 mt-1"><div className="w-1.5 h-1.5 rounded-full bg-success" /> PIT/ZUS-free</span>}
+              hint={
+                <span className="text-success inline-flex items-center gap-1 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-success" /> PIT/ZUS-free
+                </span>
+              }
             />
             <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
               <ToggleRow
@@ -447,7 +525,9 @@ export function SpousePanel({
                     </Label>
                     <Select
                       value={spouse.inputs.companyCarMode}
-                      onValueChange={(v) => set("companyCarMode", v as SalaryInputs["companyCarMode"])}
+                      onValueChange={(v) =>
+                        set("companyCarMode", v as SalaryInputs["companyCarMode"])
+                      }
                     >
                       <SelectTrigger className="h-11 mt-1.5">
                         <SelectValue />
@@ -465,7 +545,12 @@ export function SpousePanel({
                       </Label>
                       <Select
                         value={spouse.inputs.companyCarStatutoryValue}
-                        onValueChange={(v) => set("companyCarStatutoryValue", v as SalaryInputs["companyCarStatutoryValue"])}
+                        onValueChange={(v) =>
+                          set(
+                            "companyCarStatutoryValue",
+                            v as SalaryInputs["companyCarStatutoryValue"],
+                          )
+                        }
                       >
                         <SelectTrigger className="h-11 mt-1.5">
                           <SelectValue />
@@ -488,7 +573,11 @@ export function SpousePanel({
             </div>
           </SectionGroup>
 
-          <SectionGroup title="Ustawienia podatkowe" icon={Landmark} activeIndicator={hasTaxOverrides}>
+          <SectionGroup
+            title="Ustawienia podatkowe"
+            icon={Landmark}
+            activeIndicator={hasTaxOverrides}
+          >
             <ToggleRow
               label="PIT-2 złożone"
               hint="Kwota wolna 300 zł / m-c"
@@ -567,7 +656,11 @@ export function SpousePanel({
             title="PPK"
             icon={PiggyBank}
             activeIndicator={hasPpk}
-            summary={hasPpk ? `${spouse.inputs.ppkEmployeeRate}% / ${spouse.inputs.ppkEmployerRate}%` : null}
+            summary={
+              hasPpk
+                ? `${spouse.inputs.ppkEmployeeRate}% / ${spouse.inputs.ppkEmployerRate}%`
+                : null
+            }
           >
             <div className="grid grid-cols-2 gap-6">
               <div>
@@ -575,7 +668,9 @@ export function SpousePanel({
                   <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Pracownik
                   </Label>
-                  <span className="text-sm font-mono font-bold">{spouse.inputs.ppkEmployeeRate.toFixed(1)}%</span>
+                  <span className="text-sm font-mono font-bold">
+                    {spouse.inputs.ppkEmployeeRate.toFixed(1)}%
+                  </span>
                 </div>
                 <Slider
                   value={[spouse.inputs.ppkEmployeeRate]}
@@ -590,7 +685,9 @@ export function SpousePanel({
                   <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Pracodawca
                   </Label>
-                  <span className="text-sm font-mono font-bold">{spouse.inputs.ppkEmployerRate.toFixed(1)}%</span>
+                  <span className="text-sm font-mono font-bold">
+                    {spouse.inputs.ppkEmployerRate.toFixed(1)}%
+                  </span>
                 </div>
                 <Slider
                   value={[spouse.inputs.ppkEmployerRate]}
@@ -607,7 +704,14 @@ export function SpousePanel({
             title="Premia i Bonusy"
             icon={Zap}
             activeIndicator={hasBonus}
-            summary={hasBonus ? formatPLN(spouse.inputs.bonusOverrideGross ?? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100))) : null}
+            summary={
+              hasBonus
+                ? formatPLN(
+                    spouse.inputs.bonusOverrideGross ??
+                      spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100),
+                  )
+                : null
+            }
           >
             <ToggleRow
               label="Dodaj premię roczną"
@@ -619,7 +723,9 @@ export function SpousePanel({
               <div className="space-y-5 pt-4 mt-2 border-t border-border">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Miesiąc wypłaty</Label>
+                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Miesiąc wypłaty
+                    </Label>
                     <Select
                       value={String(spouse.inputs.bonusMonth)}
                       onValueChange={(v) => set("bonusMonth", parseInt(v))}
@@ -630,7 +736,22 @@ export function SpousePanel({
                       <SelectContent>
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                           <SelectItem key={m} value={String(m)}>
-                            {["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"][m - 1]}
+                            {
+                              [
+                                "Styczeń",
+                                "Luty",
+                                "Marzec",
+                                "Kwiecień",
+                                "Maj",
+                                "Czerwiec",
+                                "Lipiec",
+                                "Sierpień",
+                                "Wrzesień",
+                                "Październik",
+                                "Listopad",
+                                "Grudzień",
+                              ][m - 1]
+                            }
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -647,7 +768,17 @@ export function SpousePanel({
 
                 <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
                   <div className="space-y-1 pr-4">
-                    <Label className="text-sm font-semibold cursor-pointer" onClick={() => set("bonusOverrideGross", spouse.inputs.bonusOverrideGross === null ? (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)) : null)}>
+                    <Label
+                      className="text-sm font-semibold cursor-pointer"
+                      onClick={() =>
+                        set(
+                          "bonusOverrideGross",
+                          spouse.inputs.bonusOverrideGross === null
+                            ? spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)
+                            : null,
+                        )
+                      }
+                    >
                       Oblicz z rocznej podstawy
                     </Label>
                     <p className="text-[11px] text-muted-foreground font-medium">
@@ -658,7 +789,12 @@ export function SpousePanel({
                   </div>
                   <Switch
                     checked={spouse.inputs.bonusOverrideGross === null}
-                    onCheckedChange={(v) => set("bonusOverrideGross", v ? null : (spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100)))}
+                    onCheckedChange={(v) =>
+                      set(
+                        "bonusOverrideGross",
+                        v ? null : spouse.inputs.gross * 12 * (spouse.inputs.bonusPct / 100),
+                      )
+                    }
                   />
                 </div>
 
@@ -672,9 +808,17 @@ export function SpousePanel({
 
                 <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl border border-success/20">
                   <div className="flex items-start gap-3">
-                    <div className={cn("mt-0.5 w-2 h-2 rounded-full", spouse.inputs.bonusPaid ? "bg-success" : "bg-muted-foreground")} />
+                    <div
+                      className={cn(
+                        "mt-0.5 w-2 h-2 rounded-full",
+                        spouse.inputs.bonusPaid ? "bg-success" : "bg-muted-foreground",
+                      )}
+                    />
                     <div>
-                      <Label className="text-sm font-semibold cursor-pointer" onClick={() => set("bonusPaid", !spouse.inputs.bonusPaid)}>
+                      <Label
+                        className="text-sm font-semibold cursor-pointer"
+                        onClick={() => set("bonusPaid", !spouse.inputs.bonusPaid)}
+                      >
                         Uwzględniaj w skali rocznej
                       </Label>
                       <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
@@ -682,7 +826,10 @@ export function SpousePanel({
                       </p>
                     </div>
                   </div>
-                  <Switch checked={spouse.inputs.bonusPaid} onCheckedChange={(v) => set("bonusPaid", v)} />
+                  <Switch
+                    checked={spouse.inputs.bonusPaid}
+                    onCheckedChange={(v) => set("bonusPaid", v)}
+                  />
                 </div>
               </div>
             )}
@@ -693,10 +840,7 @@ export function SpousePanel({
         <div className="order-4 space-y-6">
           {/* Breakdown Visualization */}
           <div className="bg-muted/40 rounded-2xl p-5 border border-border">
-            <Collapsible
-              defaultOpen={false}
-              className="space-y-3"
-            >
+            <Collapsible defaultOpen={false} className="space-y-3">
               <CollapsibleTrigger className="w-full text-left group/trigger">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover/trigger:text-foreground transition-colors">
@@ -705,31 +849,73 @@ export function SpousePanel({
                   <ChevronDown className="h-4 w-4 text-muted-foreground group-hover/trigger:text-foreground transition-transform duration-200 group-data-[state=open]/trigger:rotate-180" />
                 </div>
                 <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted border border-border shadow-inner">
-                  <div style={{ width: `${pctNet}%` }} className="bg-success transition-all duration-500" title="Netto" />
-                  <div style={{ width: `${pctZus}%` }} className="bg-[var(--zus)] transition-all duration-500" title="ZUS" />
-                  <div style={{ width: `${pctHealth}%` }} className="bg-[var(--health)] transition-all duration-500" title="Zdrowotna" />
-                  <div style={{ width: `${pctPit}%` }} className="bg-destructive transition-all duration-500" title="PIT" />
-                  {pctPpk > 0 && <div style={{ width: `${pctPpk}%` }} className="bg-[var(--ppk)] transition-all duration-500" title="PPK" />}
+                  <div
+                    style={{ width: `${pctNet}%` }}
+                    className="bg-success transition-all duration-500"
+                    title="Netto"
+                  />
+                  <div
+                    style={{ width: `${pctZus}%` }}
+                    className="bg-[var(--zus)] transition-all duration-500"
+                    title="ZUS"
+                  />
+                  <div
+                    style={{ width: `${pctHealth}%` }}
+                    className="bg-[var(--health)] transition-all duration-500"
+                    title="Zdrowotna"
+                  />
+                  <div
+                    style={{ width: `${pctPit}%` }}
+                    className="bg-destructive transition-all duration-500"
+                    title="PIT"
+                  />
+                  {pctPpk > 0 && (
+                    <div
+                      style={{ width: `${pctPpk}%` }}
+                      className="bg-[var(--ppk)] transition-all duration-500"
+                      title="PPK"
+                    />
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] uppercase font-semibold text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--zus)]" /> ZUS ({pctZus.toFixed(1)}%)</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--health)]" /> Zdrow. ({pctHealth.toFixed(1)}%)</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}%)</span>
-                  {pctPpk > 0 && <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[var(--ppk)]" /> PPK</span>}
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-success" /> Netto ({pctNet.toFixed(1)}%)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[var(--zus)]" /> ZUS (
+                    {pctZus.toFixed(1)}%)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[var(--health)]" /> Zdrow. (
+                    {pctHealth.toFixed(1)}%)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-destructive" /> PIT ({pctPit.toFixed(1)}
+                    %)
+                  </span>
+                  {pctPpk > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--ppk)]" /> PPK
+                    </span>
+                  )}
                 </div>
-
               </CollapsibleTrigger>
 
               <CollapsibleContent className="space-y-4 pt-2 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2">
                 <div className="space-y-1">
                   <Row label="Brutto" value={r.gross} muted />
-                  {r.companyCarTaxable > 0 && <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />}
+                  {r.companyCarTaxable > 0 && (
+                    <Row label="Samochód służbowy (przychód)" value={r.companyCarTaxable} muted />
+                  )}
                   <Row label="ZUS (suma)" value={-r.zusTotal} negative />
                   <Row label="Zdrowotna 9%" value={-r.health} negative />
-                  {r.ppkEmployee > 0 && <Row label="PPK pracownik" value={-r.ppkEmployee} negative />}
+                  {r.ppkEmployee > 0 && (
+                    <Row label="PPK pracownik" value={-r.ppkEmployee} negative />
+                  )}
                   <Row label="KUP (standardowe)" value={r.kupStandard} muted />
-                  {r.kupAutorski > 0 && <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />}
+                  {r.kupAutorski > 0 && (
+                    <Row label="KUP autorskie 50%" value={r.kupAutorski} positive />
+                  )}
                   <Row label="Zaliczka PIT" value={-r.pit} negative />
                   <Separator className="my-2 opacity-60" />
                   <div className="rounded-xl bg-accent-soft p-3 mt-2 border border-accent/20">
@@ -747,15 +933,17 @@ export function SpousePanel({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   Limit II progu (120k zł)
                 </span>
-                <span className="text-xs font-bold font-mono">
-                  {thresholdPct.toFixed(1)}%
-                </span>
+                <span className="text-xs font-bold font-mono">{thresholdPct.toFixed(1)}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className={cn(
                     "h-full transition-all duration-1000",
-                    thresholdPct < 70 ? "bg-success" : thresholdPct < 95 ? "bg-warning" : "bg-destructive"
+                    thresholdPct < 70
+                      ? "bg-success"
+                      : thresholdPct < 95
+                        ? "bg-warning"
+                        : "bg-destructive",
                   )}
                   style={{ width: `${thresholdPct}%` }}
                 />
@@ -763,8 +951,7 @@ export function SpousePanel({
               <p className="text-[11px] text-muted-foreground mt-3 text-center font-medium">
                 {thresholdPct >= 100
                   ? "Przekroczono II próg podatkowy!"
-                  : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`
-                }
+                  : `Pozostało ${formatPLN(120000 - totalAnnualTaxBase)} do limitu w tym roku.`}
               </p>
             </div>
           )}

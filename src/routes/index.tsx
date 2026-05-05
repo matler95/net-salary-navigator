@@ -97,14 +97,18 @@ function Dashboard() {
     [spouses, globalSettings],
   );
 
-  const totalAnnualAvgNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
-    [spouses, globalSettings]
+  const totalAnnualAvgNet = useMemo(
+    () => spouses.reduce((sum, s) => sum + calculateAnnualAverageNet(s.inputs, globalSettings), 0),
+    [spouses, globalSettings],
   );
 
-  const totalSelectedMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net, 0),
-    [spouses, selectedMonthIdx, globalSettings]
+  const totalSelectedMonthNet = useMemo(
+    () =>
+      spouses.reduce(
+        (sum, s) => sum + calculateSalaryForMonth(s.inputs, selectedMonthIdx, globalSettings).net,
+        0,
+      ),
+    [spouses, selectedMonthIdx, globalSettings],
   );
 
   const totalExpenses = expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0);
@@ -129,6 +133,10 @@ function Dashboard() {
   const rentalAssets = rentals.reduce((s, r) => s + r.marketValue, 0);
   const totalRentalEquity = rentalAnalyses.reduce((s, a) => s + a.equity, 0);
   const totalSavings = savings.reduce((s, a) => s + a.balance, 0);
+  const totalRetirementAssets = spouses.reduce(
+    (sum, sp) => sum + (sp.existingIkeBalance ?? 0) + (sp.existingIkzeBalance ?? 0),
+    0,
+  );
   const averageRentalAppreciation = rentals.length
     ? rentals.reduce((s, r) => s + (r.appreciationPct ?? 4), 0) / rentals.length
     : 4;
@@ -141,15 +149,21 @@ function Dashboard() {
   };
   const selectedMonthExpenses = getExpensesForMonth(selectedMonthIdx);
 
-  const selectedMonthCashflow = totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
+  const selectedMonthCashflow =
+    totalSelectedMonthNet + rentalNet - selectedMonthExpenses - monthlyLoanPmt;
 
   const nextMonthIdx = selectedMonthIdx === 12 ? 1 : selectedMonthIdx + 1;
-  const nextMonthNet = useMemo(() =>
-    spouses.reduce((sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net, 0),
-    [spouses, nextMonthIdx, globalSettings]
+  const nextMonthNet = useMemo(
+    () =>
+      spouses.reduce(
+        (sum, s) => sum + calculateSalaryForMonth(s.inputs, nextMonthIdx, globalSettings).net,
+        0,
+      ),
+    [spouses, nextMonthIdx, globalSettings],
   );
-  const nextMonthCashflow = nextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
-  const totalAssets = totalInvestments + rentalAssets + totalSavings;
+  const nextMonthCashflow =
+    nextMonthNet + rentalNet - getExpensesForMonth(nextMonthIdx) - monthlyLoanPmt;
+  const totalAssets = totalInvestments + rentalAssets + totalSavings + totalRetirementAssets;
   const netWorth = totalAssets - totalLoans;
   const emergencyFundMonths = totalExpenses > 0 ? totalSavings / totalExpenses : 0;
 
@@ -207,21 +221,26 @@ function Dashboard() {
     return Array.from({ length: 12 }, (_, idx) => {
       const month = idx + 1;
       const monthlyNet = annualBreakdowns.reduce((sum, b) => sum + b[idx].net, 0);
-      const mExpenses = expenses.reduce((sum, e) => (isExpenseInMonth(e, month) ? sum + e.amount : sum), 0);
+      const mExpenses = expenses.reduce(
+        (sum, e) => (isExpenseInMonth(e, month) ? sum + e.amount : sum),
+        0,
+      );
       const mCashflow = monthlyNet + rentalNet - mExpenses - monthlyLoanPmt;
       cumulativeSurplus += mCashflow;
       const growthFactor = includeInvestments ? Math.pow(1.005, idx) : 1;
       const rentalGrowthFactor = includeRentalGrowth
         ? Math.pow(1 + averageRentalAppreciation / 100, idx)
         : 1;
-      const rentalProjection = includeRentalGrowth ? Math.round(totalRentalEquity * rentalGrowthFactor) : 0;
+      const rentalProjection = includeRentalGrowth
+        ? Math.round(totalRentalEquity * rentalGrowthFactor)
+        : 0;
       return {
         month: monthLabel(month),
         "Suma nadwyżek": Math.round(cumulativeSurplus),
         "Konta bankowe": includeSavings ? totalSavings : 0,
-        "Inwestycje": includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
-        "Nieruchomości": rentalProjection,
-        "Wartość": Math.round(
+        Inwestycje: includeInvestments ? Math.round(totalInvestments * growthFactor) : 0,
+        Nieruchomości: rentalProjection,
+        Wartość: Math.round(
           cumulativeSurplus +
             (includeSavings ? totalSavings : 0) +
             (includeInvestments ? totalInvestments * growthFactor : 0) +
@@ -229,7 +248,17 @@ function Dashboard() {
         ),
       };
     });
-  }, [spouses, expenses, rentalNet, monthlyLoanPmt, includeSavings, includeInvestments, totalSavings, totalInvestments, globalSettings]);
+  }, [
+    spouses,
+    expenses,
+    rentalNet,
+    monthlyLoanPmt,
+    includeSavings,
+    includeInvestments,
+    totalSavings,
+    totalInvestments,
+    globalSettings,
+  ]);
 
   // -- 7-month sparkline for cashflow
   const cashflowSparkline = useMemo(() => {
@@ -275,22 +304,29 @@ function Dashboard() {
             Zacznij od zarobków
           </h1>
           <p className="text-muted-foreground md:text-lg mb-10 max-w-lg mx-auto leading-relaxed">
-            Wpisz swoje wynagrodzenie brutto, a Saldeo wyliczy co zostaje w kieszeni i pomoże zaplanować domowy budżet.
+            Wpisz swoje wynagrodzenie brutto, a Saldeo wyliczy co zostaje w kieszeni i pomoże
+            zaplanować domowy budżet.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
             <div className="flex items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-sm font-semibold text-accent">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] text-accent-foreground">1</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] text-accent-foreground">
+                1
+              </span>
               Zarobki
             </div>
             <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground/50" />
             <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">2</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">
+                2
+              </span>
               Wydatki
             </div>
             <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground/50" />
             <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">3</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px]">
+                3
+              </span>
               Majątek
             </div>
           </div>
@@ -351,19 +387,34 @@ function Dashboard() {
             <div className="space-y-6">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                  {selectedMonthCashflow >= 0 ? "Zysk miesiąca - na inne wydatki i oszczędności" : "Strata miesiąca"}
+                  {selectedMonthCashflow >= 0
+                    ? "Zysk miesiąca - na inne wydatki i oszczędności"
+                    : "Strata miesiąca"}
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-6">
                   <div className="flex flex-col">
                     <div className="flex items-baseline gap-2">
-                      <p className={cn("font-display text-5xl tracking-tight animate-count-up tabular-nums", selectedMonthCashflow >= 0 ? "text-income" : "text-expense")}>
-                        {selectedMonthCashflow > 0 ? "+" : ""}{formatPLN(selectedMonthCashflow).replace(" zł", "")}
+                      <p
+                        className={cn(
+                          "font-display text-5xl tracking-tight animate-count-up tabular-nums",
+                          selectedMonthCashflow >= 0 ? "text-income" : "text-expense",
+                        )}
+                      >
+                        {selectedMonthCashflow > 0 ? "+" : ""}
+                        {formatPLN(selectedMonthCashflow).replace(" zł", "")}
                         <span className="text-xl ml-1">zł</span>
                       </p>
                     </div>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1.5 opacity-80">
-                      W przyszłym miesiącu: <span className={cn("font-mono", nextMonthCashflow >= 0 ? "text-success" : "text-destructive")}>
-                        {nextMonthCashflow > 0 ? "+" : ""}{formatPLN(nextMonthCashflow)}
+                      W przyszłym miesiącu:{" "}
+                      <span
+                        className={cn(
+                          "font-mono",
+                          nextMonthCashflow >= 0 ? "text-success" : "text-destructive",
+                        )}
+                      >
+                        {nextMonthCashflow > 0 ? "+" : ""}
+                        {formatPLN(nextMonthCashflow)}
                       </span>
                     </p>
                   </div>
@@ -389,9 +440,17 @@ function Dashboard() {
                             backgroundColor: "var(--background)",
                             padding: "4px 8px",
                           }}
-                          labelStyle={{ fontWeight: "bold", color: "var(--foreground)", marginBottom: "2px" }}
+                          labelStyle={{
+                            fontWeight: "bold",
+                            color: "var(--foreground)",
+                            marginBottom: "2px",
+                          }}
                           itemStyle={{ padding: 0 }}
-                          cursor={{ stroke: "var(--accent)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                          cursor={{
+                            stroke: "var(--accent)",
+                            strokeWidth: 1,
+                            strokeDasharray: "3 3",
+                          }}
                         />
                         <Line
                           type="monotone"
@@ -399,7 +458,12 @@ function Dashboard() {
                           stroke="var(--accent)"
                           strokeWidth={2}
                           dot={false}
-                          activeDot={{ r: 4, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
+                          activeDot={{
+                            r: 4,
+                            fill: "var(--accent)",
+                            stroke: "var(--background)",
+                            strokeWidth: 2,
+                          }}
                         />
                         <YAxis hide domain={["auto", "auto"]} />
                         <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
@@ -412,54 +476,89 @@ function Dashboard() {
               {/* Consolidated Monthly Stats - LAYOUT PRESERVED */}
               <div className="grid grid-cols-3 gap-4 border-t border-border pt-6">
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Dochody</p>
-                  <p className="font-mono text-sm font-bold text-income">{formatPLN(totalSelectedMonthNet + rentalNet)}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    Dochody
+                  </p>
+                  <p className="font-mono text-sm font-bold text-income">
+                    {formatPLN(totalSelectedMonthNet + rentalNet)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stałe wydatki</p>
-                  <p className="font-mono text-sm font-bold text-expense">{formatPLN(selectedMonthExpenses)}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    Stałe wydatki
+                  </p>
+                  <p className="font-mono text-sm font-bold text-expense">
+                    {formatPLN(selectedMonthExpenses)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Raty kredytów</p>
-                  <p className="font-mono text-sm font-bold text-debt">{formatPLN(monthlyLoanPmt)}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    Raty kredytów
+                  </p>
+                  <p className="font-mono text-sm font-bold text-debt">
+                    {formatPLN(monthlyLoanPmt)}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Right: Wealth Status */}
             <div className="space-y-6">
-
               {/* Integrated Wealth Metrics */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                     <Landmark className="h-3.5 w-3.5 text-accent" />
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Aktywa razem</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Aktywa razem
+                    </p>
                   </div>
-                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalAssets)}</p>
+                  <p className="font-mono text-sm font-bold text-foreground">
+                    {formatPLN(totalAssets)}
+                  </p>
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                     <CreditCard className="h-3.5 w-3.5 text-debt" />
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Zadłużenie</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Zadłużenie
+                    </p>
                   </div>
-                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalLoans)}</p>
+                  <p className="font-mono text-sm font-bold text-foreground">
+                    {formatPLN(totalLoans)}
+                  </p>
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
-                    <ShieldPlus className={cn("h-3.5 w-3.5", emergencyFundMonths >= globalSettings.targetEmergencyFundMonths ? "text-success" : "text-orange-500")} />
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Poduszka</p>
+                    <ShieldPlus
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        emergencyFundMonths >= globalSettings.targetEmergencyFundMonths
+                          ? "text-success"
+                          : "text-orange-500",
+                      )}
+                    />
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Poduszka
+                    </p>
                   </div>
                   <p className="font-mono text-sm font-bold text-foreground">
-                    {emergencyFundMonths.toFixed(1)} / {globalSettings.targetEmergencyFundMonths} <span className="text-[10px] font-normal text-muted-foreground ml-0.5">m-cy</span>
+                    {emergencyFundMonths.toFixed(1)} / {globalSettings.targetEmergencyFundMonths}{" "}
+                    <span className="text-[10px] font-normal text-muted-foreground ml-0.5">
+                      m-cy
+                    </span>
                   </p>
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border group hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp className="h-3.5 w-3.5 text-income" />
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Średni dochód</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Średni dochód
+                    </p>
                   </div>
-                  <p className="font-mono text-sm font-bold text-foreground">{formatPLN(totalAnnualAvgNet)}</p>
+                  <p className="font-mono text-sm font-bold text-foreground">
+                    {formatPLN(totalAnnualAvgNet)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -481,17 +580,27 @@ function Dashboard() {
                     <p className="text-sm font-medium text-foreground">
                       Wypłata {member.name} pokrywa wydatki bieżącego miesiąca w
                     </p>
-                    <p className={cn("font-display text-lg font-bold tabular-nums", isOverCovered ? "text-success" : "text-foreground")}>
+                    <p
+                      className={cn(
+                        "font-display text-lg font-bold tabular-nums",
+                        isOverCovered ? "text-success" : "text-foreground",
+                      )}
+                    >
                       {member.coveragePercentage.toFixed(0)}%
                     </p>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
                     <div
-                      className={cn("h-full rounded-full transition-all duration-500", isOverCovered ? "bg-success" : "bg-accent")}
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isOverCovered ? "bg-success" : "bg-accent",
+                      )}
                       style={{ width: `${displayPercentage}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">{formatPLN(member.net)} / {formatPLN(selectedMonthExpenses)}</p>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {formatPLN(member.net)} / {formatPLN(selectedMonthExpenses)}
+                  </p>
                 </div>
               );
             })}
@@ -503,8 +612,12 @@ function Dashboard() {
       <section className="grid lg:grid-cols-2 gap-6">
         {/* Tax threshold chart */}
         <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
-          <h2 className="font-display text-xl mb-1 gradient-text font-bold">Zarobki vs II próg podatkowy</h2>
-          <p className="text-sm text-muted-foreground mb-6">Skumulowana roczna podstawa (120k zł)</p>
+          <h2 className="font-display text-xl mb-1 gradient-text font-bold">
+            Zarobki vs II próg podatkowy
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Skumulowana roczna podstawa (120k zł)
+          </p>
           <div className="h-64">
             <ResponsiveContainer>
               <BarChart data={projection}>
@@ -514,12 +627,33 @@ function Dashboard() {
                     <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dy={8} />
-                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dx={-8} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.9 0.015 85)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={8}
+                />
+                <YAxis
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  dx={-8}
+                />
                 <Tooltip
                   formatter={(v: number) => formatPLN(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 12,
+                    border: "1px solid var(--border)",
+                    boxShadow: "var(--shadow-warm)",
+                  }}
                   cursor={{ fill: "var(--muted)", opacity: 0.4 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} iconType="circle" />
@@ -527,7 +661,12 @@ function Dashboard() {
                   y={120000}
                   stroke="var(--destructive)"
                   strokeDasharray="4 4"
-                  label={{ value: "II próg (120k)", fontSize: 10, fill: "var(--destructive)", position: "insideTopLeft" }}
+                  label={{
+                    value: "II próg (120k)",
+                    fontSize: 10,
+                    fill: "var(--destructive)",
+                    position: "insideTopLeft",
+                  }}
                 />
                 {breakdowns.map(({ spouse }, idx) => (
                   <Bar
@@ -549,8 +688,7 @@ function Dashboard() {
                   <span className="font-bold text-foreground">{td.name}</span>:{" "}
                   {td.monthIndex === -1
                     ? "pozostaje w I progu"
-                    : `wpada w II próg w ${monthLabel(td.monthIndex + 1).split(" ")[0]}`
-                  }
+                    : `wpada w II próg w ${monthLabel(td.monthIndex + 1).split(" ")[0]}`}
                 </p>
               </div>
             ))}
@@ -560,7 +698,9 @@ function Dashboard() {
         {/* Expense breakdown pie */}
         <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <h2 className="font-display text-xl mb-1 gradient-text font-bold">Struktura wydatków</h2>
-          <p className="text-sm text-muted-foreground mb-6">Miesięcznie: {formatPLN2(selectedMonthExpenses)}</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Miesięcznie: {formatPLN2(selectedMonthExpenses)}
+          </p>
           {byCategory.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
               <ShoppingBag className="h-8 w-8 mb-2 opacity-20" />
@@ -585,7 +725,12 @@ function Dashboard() {
                   </Pie>
                   <Tooltip
                     formatter={(v: number) => formatPLN(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 12,
+                      border: "1px solid var(--border)",
+                      boxShadow: "var(--shadow-warm)",
+                    }}
                     itemStyle={{ color: "var(--foreground)" }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
@@ -608,7 +753,9 @@ function Dashboard() {
               onClick={() => setIncludeSavings(!includeSavings)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                includeSavings ? "bg-success/15 text-success" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                includeSavings
+                  ? "bg-success/15 text-success"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80",
               )}
             >
               <Landmark className="h-3.5 w-3.5" /> Gotówka
@@ -617,7 +764,9 @@ function Dashboard() {
               onClick={() => setIncludeInvestments(!includeInvestments)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                includeInvestments ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                includeInvestments
+                  ? "bg-accent/15 text-accent"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80",
               )}
             >
               <TrendingUp className="h-3.5 w-3.5" /> Giełda
@@ -626,7 +775,9 @@ function Dashboard() {
               onClick={() => setIncludeRentalGrowth(!includeRentalGrowth)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                includeRentalGrowth ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                includeRentalGrowth
+                  ? "bg-foreground/10 text-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80",
               )}
             >
               <Building2 className="h-3.5 w-3.5" /> Nieruchomości
@@ -643,11 +794,28 @@ function Dashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 85)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dy={8} />
-              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} dx={-8} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                dy={8}
+              />
+              <YAxis
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                dx={-8}
+              />
               <Tooltip
                 formatter={(v: number) => formatPLN(v)}
-                contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-warm)" }}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 12,
+                  border: "1px solid var(--border)",
+                  boxShadow: "var(--shadow-warm)",
+                }}
               />
               <Area
                 type="monotone"
@@ -656,7 +824,12 @@ function Dashboard() {
                 fillOpacity={1}
                 fill="url(#colorValue)"
                 strokeWidth={3}
-                activeDot={{ r: 6, fill: "var(--accent)", stroke: "var(--background)", strokeWidth: 2 }}
+                activeDot={{
+                  r: 6,
+                  fill: "var(--accent)",
+                  stroke: "var(--background)",
+                  strokeWidth: 2,
+                }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -674,7 +847,8 @@ function Dashboard() {
           </div>
           <div className="relative z-10">
             <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-accent flex items-center gap-2">
-              Zarobki <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+              Zarobki{" "}
+              <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Dodaj domowników i sprawdź dokładnie, co wchodzi w skład Waszych pensji netto.
@@ -690,7 +864,8 @@ function Dashboard() {
           </div>
           <div className="relative z-10">
             <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-destructive flex items-center gap-2">
-              Wydatki <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+              Wydatki{" "}
+              <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Kategoryzuj koszty życia i miej pełną kontrolę nad tym, gdzie uciekają pieniądze.
@@ -706,7 +881,8 @@ function Dashboard() {
           </div>
           <div className="relative z-10">
             <p className="font-display text-lg font-bold mb-1 transition-colors group-hover:text-success flex items-center gap-2">
-              Majątek <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+              Majątek{" "}
+              <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Zarządzaj kontami, kredytami hipotecznymi, mieszkaniami i portfelem ETF.
@@ -719,7 +895,20 @@ function Dashboard() {
 }
 
 function monthLabel(m: number, full = false) {
-  const short = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
+  const short = [
+    "Sty",
+    "Lut",
+    "Mar",
+    "Kwi",
+    "Maj",
+    "Cze",
+    "Lip",
+    "Sie",
+    "Wrz",
+    "Paź",
+    "Lis",
+    "Gru",
+  ];
   const long = [
     "Styczeń",
     "Luty",

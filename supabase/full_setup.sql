@@ -42,6 +42,12 @@ create table if not exists public.spouses (
   name text not null,
   inputs jsonb not null default '{}'::jsonb,
   assigned_user_id uuid references auth.users(id) on delete set null,
+  age integer,
+  gender text,
+  existing_ike_balance numeric,
+  existing_ikze_balance numeric,
+  ikze_limit_type text,
+  prior_retirement_contribution_years integer,
   created_at timestamptz not null default now()
 );
 
@@ -115,6 +121,46 @@ create table if not exists public.savings (
 alter table public.households add column if not exists joint_filing boolean not null default false;
 alter table public.households add column if not exists global_settings jsonb not null default '{}'::jsonb;
 alter table public.household_members add column if not exists role text not null default 'member';
+alter table public.spouses add column if not exists age integer;
+alter table public.spouses add column if not exists gender text;
+alter table public.spouses add column if not exists existing_ike_balance numeric;
+alter table public.spouses add column if not exists existing_ikze_balance numeric;
+alter table public.spouses add column if not exists ikze_limit_type text;
+alter table public.spouses add column if not exists prior_retirement_contribution_years integer;
+update public.spouses
+set ikze_limit_type = 'standard'
+where ikze_limit_type is null;
+alter table public.spouses alter column ikze_limit_type set default 'standard';
+update public.spouses
+set prior_retirement_contribution_years = 0
+where prior_retirement_contribution_years is null;
+alter table public.spouses alter column prior_retirement_contribution_years set default 0;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'spouses_ikze_limit_type_check'
+  ) then
+    alter table public.spouses
+      add constraint spouses_ikze_limit_type_check
+      check (ikze_limit_type in ('standard', 'b2b'));
+  end if;
+end
+$$;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'spouses_prior_retirement_years_check'
+  ) then
+    alter table public.spouses
+      add constraint spouses_prior_retirement_years_check
+      check (prior_retirement_contribution_years >= 0);
+  end if;
+end
+$$;
 alter table public.expenses add column if not exists month integer;
 alter table public.loans add column if not exists payment_day_of_month integer;
 alter table public.loans add column if not exists last_payment_date text;

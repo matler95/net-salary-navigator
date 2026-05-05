@@ -6,8 +6,7 @@ export const Route = createFileRoute("/kalkulatory")({
       { title: "Kalkulatory - Saldeo" },
       {
         name: "description",
-        content:
-          "Scenariusz mieszkania pod wynajem z hipoteką, ROI i wykresami.",
+        content: "Scenariusz mieszkania pod wynajem z hipoteką, ROI i wykresami.",
       },
     ],
   }),
@@ -26,7 +25,8 @@ function CalculatorsPage() {
             Symuluj <span className="italic text-accent">scenariusze</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Sprawdź czy kupno mieszkania na wynajem faktycznie Ci się opłaci. Policz zyski, raty kredytu i koszty.
+            Sprawdź czy kupno mieszkania na wynajem faktycznie Ci się opłaci. Policz zyski, raty
+            kredytu i koszty.
           </p>
         </div>
       </header>

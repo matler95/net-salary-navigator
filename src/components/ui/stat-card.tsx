@@ -6,7 +6,17 @@ export interface StatCardProps {
   label: string;
   value: string;
   sub?: React.ReactNode;
-  tone?: "default" | "success" | "destructive" | "warning" | "accent" | "income" | "expense" | "savings" | "debt" | "investment";
+  tone?:
+    | "default"
+    | "success"
+    | "destructive"
+    | "warning"
+    | "accent"
+    | "income"
+    | "expense"
+    | "savings"
+    | "debt"
+    | "investment";
   icon?: React.ComponentType<{ className?: string }>;
   trend?: { value: number; label?: string };
   gradient?: boolean;
@@ -16,50 +26,49 @@ export interface StatCardProps {
 }
 
 const TONE_VALUE: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default:     "text-foreground",
-  success:     "text-success",
+  default: "text-foreground",
+  success: "text-success",
   destructive: "text-destructive",
-  warning:     "text-warning-foreground",
-  accent:      "text-accent",
-  income:      "text-income",
-  expense:     "text-expense",
-  savings:     "text-savings",
-  debt:        "text-debt",
-  investment:  "text-investment",
+  warning: "text-warning-foreground",
+  accent: "text-accent",
+  income: "text-income",
+  expense: "text-expense",
+  savings: "text-savings",
+  debt: "text-debt",
+  investment: "text-investment",
 };
 
 const TONE_ICON_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default:     "bg-foreground/10 text-foreground/50",
-  success:     "bg-success/12 text-success/70",
+  default: "bg-foreground/10 text-foreground/50",
+  success: "bg-success/12 text-success/70",
   destructive: "bg-destructive/12 text-destructive/70",
-  warning:     "bg-warning/12 text-warning-foreground/70",
-  accent:      "bg-accent/12 text-accent/70",
-  income:      "bg-income/12 text-income/70",
-  expense:     "bg-expense/12 text-expense/70",
-  savings:     "bg-savings/12 text-savings/70",
-  debt:        "bg-debt/12 text-debt/70",
-  investment:  "bg-investment/12 text-investment/70",
+  warning: "bg-warning/12 text-warning-foreground/70",
+  accent: "bg-accent/12 text-accent/70",
+  income: "bg-income/12 text-income/70",
+  expense: "bg-expense/12 text-expense/70",
+  savings: "bg-savings/12 text-savings/70",
+  debt: "bg-debt/12 text-debt/70",
+  investment: "bg-investment/12 text-investment/70",
 };
 
 const TONE_GRADIENT_BG: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default:     "",
-  success:     "from-[oklch(0.56_0.14_148/0.06)] to-transparent",
+  default: "",
+  success: "from-[oklch(0.56_0.14_148/0.06)] to-transparent",
   destructive: "from-[oklch(0.58_0.19_25/0.06)] to-transparent",
-  warning:     "from-[oklch(0.74_0.13_75/0.07)] to-transparent",
-  accent:      "from-[oklch(0.56_0.13_175/0.07)] to-transparent",
-  income:      "from-[oklch(0.65_0.15_150/0.07)] to-transparent",
-  expense:     "from-[oklch(0.60_0.12_30/0.07)] to-transparent",
-  savings:     "from-[oklch(0.60_0.15_210/0.07)] to-transparent",
-  debt:        "from-[oklch(0.55_0.10_270/0.07)] to-transparent",
-  investment:  "from-[oklch(0.70_0.15_180/0.07)] to-transparent",
+  warning: "from-[oklch(0.74_0.13_75/0.07)] to-transparent",
+  accent: "from-[oklch(0.56_0.13_175/0.07)] to-transparent",
+  income: "from-[oklch(0.65_0.15_150/0.07)] to-transparent",
+  expense: "from-[oklch(0.60_0.12_30/0.07)] to-transparent",
+  savings: "from-[oklch(0.60_0.15_210/0.07)] to-transparent",
+  debt: "from-[oklch(0.55_0.10_270/0.07)] to-transparent",
+  investment: "from-[oklch(0.70_0.15_180/0.07)] to-transparent",
 };
 
 function useCountUp(active: boolean, rawValue: string): string {
   const [displayed, setDisplayed] = useState(rawValue);
   const rafRef = useRef<number | null>(null);
   const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     if (!active || prefersReduced) {
@@ -172,9 +181,7 @@ export function StatCard({
           <span
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-              trendPositive
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive",
+              trendPositive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
             {trendPositive ? (

@@ -18,7 +18,6 @@ export const Route = createFileRoute("/login")({
   }),
 });
 
-
 type InviteContext = {
   household_id: string;
   household_name: string;
@@ -60,7 +59,10 @@ function LoginPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [detectedInvite, setDetectedInvite] = useState<PendingInvite | null>(null);
-  const hasInvite = useMemo(() => !!search.invite || !!detectedInvite, [search.invite, detectedInvite]);
+  const hasInvite = useMemo(
+    () => !!search.invite || !!detectedInvite,
+    [search.invite, detectedInvite],
+  );
   const inviteEmail = inviteContext?.email ?? detectedInvite?.email ?? "";
 
   useEffect(() => {
@@ -97,7 +99,11 @@ function LoginPage() {
 
     const run = async () => {
       // 1. Check for invitation by token or email
-      let inviteToken = search.invite ?? (typeof window !== "undefined" ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined : undefined);
+      let inviteToken =
+        search.invite ??
+        (typeof window !== "undefined"
+          ? (window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined)
+          : undefined);
 
       if (!inviteToken) {
         const pending = await getPendingInviteForUser();
@@ -110,7 +116,8 @@ function LoginPage() {
       if (inviteToken) {
         const result = await acceptInvite(inviteToken, session);
         if (!cancelled && result.success) {
-          if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+          if (typeof window !== "undefined")
+            window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           toast.success("Dołączono do gospodarstwa!");
           await router.navigate({ to: "/" });
           return;
@@ -137,14 +144,18 @@ function LoginPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) return "Nieprawidłowy format email.";
     if (!password) return "Podaj hasło.";
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków.";
-    if (mode === "register" && !hasInvite && !householdName.trim()) return "Podaj nazwę gospodarstwa.";
+    if (mode === "register" && !hasInvite && !householdName.trim())
+      return "Podaj nazwę gospodarstwa.";
     return null;
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (cooldownSeconds > 0) {
-      setStatus({ msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`, type: "error" });
+      setStatus({
+        msg: `Zbyt wiele prób. Spróbuj ponownie za ${cooldownSeconds} sek.`,
+        type: "error",
+      });
       return;
     }
 
@@ -169,7 +180,7 @@ function LoginPage() {
     const pendingInvite =
       search.invite ??
       (typeof window !== "undefined"
-        ? window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined
+        ? (window.localStorage.getItem(PENDING_INVITE_TOKEN_KEY) ?? undefined)
         : undefined);
 
     try {
@@ -181,7 +192,12 @@ function LoginPage() {
         if (error) {
           console.log("Auth error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
+          if (
+            message.includes("too many requests") ||
+            message.includes("429") ||
+            message.includes("rate limit") ||
+            message.includes("exceeded")
+          ) {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
@@ -200,7 +216,8 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+            if (typeof window !== "undefined")
+              window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             // Auto-detect invite for the logged in email if not provided
             const pending = await getPendingInviteForUser();
@@ -213,9 +230,7 @@ function LoginPage() {
           }
         }
         setStatus({
-          msg: hasInvite
-            ? "Zalogowano i dołączono do gospodarstwa."
-            : "Zalogowano pomyślnie.",
+          msg: hasInvite ? "Zalogowano i dołączono do gospodarstwa." : "Zalogowano pomyślnie.",
           type: "success",
         });
         await router.navigate({ to: "/" });
@@ -226,7 +241,9 @@ function LoginPage() {
           options: {
             data: nickname ? { nickname } : undefined,
             ...(hasInvite && search.invite
-              ? { emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}` }
+              ? {
+                  emailRedirectTo: `${window.location.origin}/login?invite=${encodeURIComponent(search.invite)}`,
+                }
               : {}),
           },
         };
@@ -234,7 +251,11 @@ function LoginPage() {
         if (error) {
           console.log("Signup error:", error.message, error.status);
           const message = error.message.toLowerCase();
-          if (message.includes("already registered") || message.includes("duplicate") || message.includes("email already in use")) {
+          if (
+            message.includes("already registered") ||
+            message.includes("duplicate") ||
+            message.includes("email already in use")
+          ) {
             setMode("login");
             setStatus({
               msg: "Konto już istnieje. Zaloguj się, aby dokończyć dołączenie do gospodarstwa.",
@@ -242,7 +263,12 @@ function LoginPage() {
             });
             return;
           }
-          if (message.includes("too many requests") || message.includes("429") || message.includes("rate limit") || message.includes("exceeded")) {
+          if (
+            message.includes("too many requests") ||
+            message.includes("429") ||
+            message.includes("rate limit") ||
+            message.includes("exceeded")
+          ) {
             setCooldownSeconds(60);
           }
           setStatus({ msg: translateAuthError(error.message), type: "error" });
@@ -260,7 +286,8 @@ function LoginPage() {
               });
               return;
             }
-            if (typeof window !== "undefined") window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
+            if (typeof window !== "undefined")
+              window.localStorage.removeItem(PENDING_INVITE_TOKEN_KEY);
           } else {
             const pending = await getPendingInviteForUser();
             if (pending) {
@@ -357,7 +384,10 @@ function LoginPage() {
         noValidate
       >
         <div className="space-y-1">
-          <Label htmlFor={`${baseId}-email`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
+          <Label
+            htmlFor={`${baseId}-email`}
+            className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block"
+          >
             Email
           </Label>
           <Input
@@ -372,11 +402,15 @@ function LoginPage() {
         </div>
         {hasInvite && inviteEmail && (
           <p className="text-xs text-muted-foreground">
-            Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego adresu.
+            Wykryto zaproszenie dla adresu <strong>{inviteEmail}</strong>. Nie można używać innego
+            adresu.
           </p>
         )}
         <div className="space-y-1">
-          <Label htmlFor={`${baseId}-password`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
+          <Label
+            htmlFor={`${baseId}-password`}
+            className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block"
+          >
             Hasło
           </Label>
           <Input
@@ -391,7 +425,10 @@ function LoginPage() {
         </div>
         {mode === "register" && !hasInvite ? (
           <div className="space-y-1">
-            <Label htmlFor={`${baseId}-household`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
+            <Label
+              htmlFor={`${baseId}-household`}
+              className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block"
+            >
               Nazwa gospodarstwa
             </Label>
             <Input
@@ -406,7 +443,10 @@ function LoginPage() {
         ) : null}
         {mode === "register" ? (
           <div className="space-y-1">
-            <Label htmlFor={`${baseId}-nickname`} className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block">
+            <Label
+              htmlFor={`${baseId}-nickname`}
+              className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 block"
+            >
               Twoja ksywka
             </Label>
             <Input
@@ -459,12 +499,13 @@ function LoginPage() {
         )}
         {status && (
           <p
-            className={`text-xs ${status.type === "error"
+            className={`text-xs ${
+              status.type === "error"
                 ? "text-destructive"
                 : status.type === "success"
                   ? "text-success"
                   : "text-muted-foreground"
-              }`}
+            }`}
           >
             {status.msg}
           </p>
@@ -489,7 +530,12 @@ function translateAuthError(msg: string): string {
   if (m.includes("password should be at least")) {
     return "Hasło jest za krótkie (minimum 6 znaków).";
   }
-  if (m.includes("too many requests") || m.includes("429") || m.includes("rate limit") || m.includes("exceeded")) {
+  if (
+    m.includes("too many requests") ||
+    m.includes("429") ||
+    m.includes("rate limit") ||
+    m.includes("exceeded")
+  ) {
     return "Zbyt wiele prób. Serwer Supabase tymczasowo blokuje rejestrację z tego adresu IP. Spróbuj ponownie za kilka minut lub użyj innego adresu email.";
   }
   if (m.includes("network") || m.includes("fetch")) {

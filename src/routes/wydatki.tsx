@@ -27,7 +27,26 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, RotateCcw, Home, UtensilsCrossed, Car, ShieldPlus, HeartPulse, Baby, MonitorPlay, Repeat, Wallet, ListPlus, ShoppingBag, Pencil, ChevronDown, Plane, User } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  RotateCcw,
+  Home,
+  UtensilsCrossed,
+  Car,
+  ShieldPlus,
+  HeartPulse,
+  Baby,
+  MonitorPlay,
+  Repeat,
+  Wallet,
+  ListPlus,
+  ShoppingBag,
+  Pencil,
+  ChevronDown,
+  Plane,
+  User,
+} from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -74,12 +93,20 @@ import { getCategoryColor, CATEGORY_COLORS } from "@/lib/utils";
 function getCategoryIcon(name: string) {
   const n = name.toLowerCase();
   if (n.includes("mieszkanie") || n.includes("dom") || n.includes("czynsz")) return Home;
-  if (n.includes("jedzenie") || n.includes("zakupy") || n.includes("restauracja")) return UtensilsCrossed;
-  if (n.includes("transport") || n.includes("auto") || n.includes("paliwo") || n.includes("bilet")) return Car;
+  if (n.includes("jedzenie") || n.includes("zakupy") || n.includes("restauracja"))
+    return UtensilsCrossed;
+  if (n.includes("transport") || n.includes("auto") || n.includes("paliwo") || n.includes("bilet"))
+    return Car;
   if (n.includes("ubezpieczeni") || n.includes("oc") || n.includes("ac")) return ShieldPlus;
   if (n.includes("zdrowie") || n.includes("lekarz") || n.includes("leki")) return HeartPulse;
   if (n.includes("dzieci") || n.includes("szkoła") || n.includes("przedszkole")) return Baby;
-  if (n.includes("rozrywka") || n.includes("kino") || n.includes("wyjścia") || n.includes("wakacje")) return MonitorPlay;
+  if (
+    n.includes("rozrywka") ||
+    n.includes("kino") ||
+    n.includes("wyjścia") ||
+    n.includes("wakacje")
+  )
+    return MonitorPlay;
   if (n.includes("podróże") || n.includes("wakacje")) return Plane;
   if (n.includes("subskrypcj") || n.includes("netflix") || n.includes("spotify")) return Repeat;
   if (n.includes("osobiste") || n.includes("prywatne")) return User;
@@ -100,9 +127,18 @@ function ExpensesPage() {
     setExpandedCategories(newExpanded);
   };
 
-  const monthlyTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0), [expenses]);
-  const annualTotal = useMemo(() => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0), [expenses]);
-  const oneoffTotal = useMemo(() => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0), [expenses]);
+  const monthlyTotal = useMemo(
+    () => expenses.reduce((s, e) => s + getExpenseMonthlyAverage(e), 0),
+    [expenses],
+  );
+  const annualTotal = useMemo(
+    () => expenses.reduce((s, e) => s + getExpenseAnnualTotal(e), 0),
+    [expenses],
+  );
+  const oneoffTotal = useMemo(
+    () => expenses.filter((e) => e.frequency === "oneoff").reduce((s, e) => s + e.amount, 0),
+    [expenses],
+  );
 
   const grouped = useMemo(() => {
     const m = new Map<string, Expense[]>();
@@ -129,22 +165,33 @@ function ExpensesPage() {
             Gdzie uciekają <span className="italic text-accent">pieniądze?</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-            Śledź swoje stałe koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej projekcji budżetu i znalezienie potencjalnych oszczędności.
+            Śledź swoje stałe koszty życia. Kategoryzacja pozwala Saldeo na stworzenie lepszej
+            projekcji budżetu i znalezienie potencjalnych oszczędności.
           </p>
           <div className="flex items-baseline gap-4 mt-6">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display text-4xl tabular-nums animate-count-up">
                 {formatPLN(monthlyTotal).replace("zł", "")}
               </span>
-              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">zł / m-c</span>
+              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">
+                zł / m-c
+              </span>
             </div>
             <div className="h-8 w-px bg-border mx-2" />
             <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-              Rocznie: <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md text-foreground">{formatPLN(annualTotal)}</span>
+              Rocznie:{" "}
+              <span className="font-mono tabular-nums bg-muted px-2 py-0.5 rounded-md text-foreground">
+                {formatPLN(annualTotal)}
+              </span>
               {oneoffTotal > 0 && (
                 <>
                   <span className="opacity-50">•</span>
-                  <span>Jednorazowe: <span className="font-mono tabular-nums text-foreground">{formatPLN(oneoffTotal)}</span></span>
+                  <span>
+                    Jednorazowe:{" "}
+                    <span className="font-mono tabular-nums text-foreground">
+                      {formatPLN(oneoffTotal)}
+                    </span>
+                  </span>
                 </>
               )}
             </p>
@@ -167,7 +214,7 @@ function ExpensesPage() {
           {grouped.map((g) => {
             const Icon = getCategoryIcon(g.category);
             const color = getCategoryColor(g.category);
-            const pct = monthlyTotal > 0 ? ((g.monthly / monthlyTotal) * 100) : 0;
+            const pct = monthlyTotal > 0 ? (g.monthly / monthlyTotal) * 100 : 0;
             const isExpanded = expandedCategories.has(g.category);
 
             return (
@@ -176,9 +223,7 @@ function ExpensesPage() {
                 open={isExpanded}
                 onOpenChange={() => toggleCategory(g.category)}
               >
-                <div
-                  className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden"
-                >
+                <div className="bg-card rounded-2xl p-5 sm:p-6 border border-border shadow-card relative overflow-hidden">
                   {/* Accent border left */}
                   <div
                     className="absolute left-0 top-0 bottom-0 w-1.5 opacity-80"
@@ -191,20 +236,29 @@ function ExpensesPage() {
                         <div className="flex items-center gap-3 flex-1">
                           <div
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl relative"
-                            style={{ 
-                              backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, 
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
                               color,
                             }}
                           >
                             <Icon className="h-5 w-5" />
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full flex items-center justify-center opacity-80">
-                              <ChevronDown className="h-1.5 w-1.5 text-accent-foreground transition-transform" style={{ transform: isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+                              <ChevronDown
+                                className="h-1.5 w-1.5 text-accent-foreground transition-transform"
+                                style={{
+                                  transform: isExpanded ? "rotate(-90deg)" : "rotate(0deg)",
+                                }}
+                              />
                             </div>
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-display text-xl font-bold leading-none">{g.category}</h3>
+                            <h3 className="font-display text-xl font-bold leading-none">
+                              {g.category}
+                            </h3>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs text-muted-foreground font-medium">{formatPLN(g.annual)} / rok</span>
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {formatPLN(g.annual)} / rok
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -214,7 +268,10 @@ function ExpensesPage() {
                           </p>
                           <span
                             className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                            style={{ backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
+                              color,
+                            }}
                           >
                             {pct.toFixed(0)}% sumy
                           </span>
@@ -254,10 +311,18 @@ function MonthSelector({
   frequency: Frequency;
 }) {
   const months = [
-    { id: 1, label: "Sty" }, { id: 2, label: "Lut" }, { id: 3, label: "Mar" },
-    { id: 4, label: "Kwi" }, { id: 5, label: "Maj" }, { id: 6, label: "Cze" },
-    { id: 7, label: "Lip" }, { id: 8, label: "Sie" }, { id: 9, label: "Wrz" },
-    { id: 10, label: "Paź" }, { id: 11, label: "Lis" }, { id: 12, label: "Gru" },
+    { id: 1, label: "Sty" },
+    { id: 2, label: "Lut" },
+    { id: 3, label: "Mar" },
+    { id: 4, label: "Kwi" },
+    { id: 5, label: "Maj" },
+    { id: 6, label: "Cze" },
+    { id: 7, label: "Lip" },
+    { id: 8, label: "Sie" },
+    { id: 9, label: "Wrz" },
+    { id: 10, label: "Paź" },
+    { id: 11, label: "Lis" },
+    { id: 12, label: "Gru" },
   ];
 
   const toggleMonth = (id: number) => {
@@ -280,11 +345,19 @@ function MonthSelector({
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-1">
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {frequency === "oneoff" || frequency === "annual" ? "Wybierz miesiąc" : "Zaznacz miesiące"}
+          {frequency === "oneoff" || frequency === "annual"
+            ? "Wybierz miesiąc"
+            : "Zaznacz miesiące"}
         </span>
         {frequency !== "oneoff" && frequency !== "annual" && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => setPreset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])} className="text-[10px] text-accent hover:underline font-semibold">Wszystkie</button>
+            <button
+              type="button"
+              onClick={() => setPreset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])}
+              className="text-[10px] text-accent hover:underline font-semibold"
+            >
+              Wszystkie
+            </button>
           </div>
         )}
       </div>
@@ -301,7 +374,7 @@ function MonthSelector({
                 "h-11 rounded-xl text-xs font-bold transition-all flex items-center justify-center border",
                 isSelected
                   ? "bg-accent-gradient text-accent-foreground border-transparent shadow-card"
-                  : "bg-card text-foreground border-border hover:border-accent/40"
+                  : "bg-card text-foreground border-border hover:border-accent/40",
               )}
             >
               {m.label}
@@ -314,21 +387,77 @@ function MonthSelector({
         <div className="flex flex-wrap gap-2 pt-2">
           {frequency === "bimonthly" && (
             <>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 3, 5, 7, 9, 11])} className="h-7 text-[10px] rounded-full px-3">Nieparzyste</Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([2, 4, 6, 8, 10, 12])} className="h-7 text-[10px] rounded-full px-3">Parzyste</Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([1, 3, 5, 7, 9, 11])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                Nieparzyste
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([2, 4, 6, 8, 10, 12])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                Parzyste
+              </Button>
             </>
           )}
           {frequency === "quarterly" && (
             <>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 4, 7, 10])} className="h-7 text-[10px] rounded-full px-3">I-IV-VII-X</Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([2, 5, 8, 11])} className="h-7 text-[10px] rounded-full px-3">II-V-VIII-XI</Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([3, 6, 9, 12])} className="h-7 text-[10px] rounded-full px-3">III-VI-IX-XII</Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([1, 4, 7, 10])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                I-IV-VII-X
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([2, 5, 8, 11])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                II-V-VIII-XI
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([3, 6, 9, 12])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                III-VI-IX-XII
+              </Button>
             </>
           )}
           {frequency === "semiannual" && (
             <>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([1, 7])} className="h-7 text-[10px] rounded-full px-3">Sty-Lip</Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setPreset([6, 12])} className="h-7 text-[10px] rounded-full px-3">Cze-Gru</Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([1, 7])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                Sty-Lip
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPreset([6, 12])}
+                className="h-7 text-[10px] rounded-full px-3"
+              >
+                Cze-Gru
+              </Button>
             </>
           )}
         </div>
@@ -343,25 +472,27 @@ function ExpenseForm({
   onCancel,
   submitLabel = "Zapisz wydatek",
   title = "Nowy wydatek",
-  description = "Kategoryzacja wydatków pozwala Saldeo na stworzenie lepszej projekcji rocznej."
+  description = "Kategoryzacja wydatków pozwala Saldeo na stworzenie lepszej projekcji rocznej.",
 }: {
-  initialData?: Partial<Expense>,
-  onSave: (data: any) => void,
-  onCancel: () => void,
-  submitLabel?: string,
-  title?: string,
-  description?: string
+  initialData?: Partial<Expense>;
+  onSave: (data: any) => void;
+  onCancel: () => void;
+  submitLabel?: string;
+  title?: string;
+  description?: string;
 }) {
   const [category, setCategory] = useState(initialData?.category || "Mieszkanie");
   const [isCustomCategory, setIsCustomCategory] = useState(
-    initialData?.category ? !SUGGESTED_CATEGORIES.includes(initialData.category) : false
+    initialData?.category ? !SUGGESTED_CATEGORIES.includes(initialData.category) : false,
   );
   const [label, setLabel] = useState(initialData?.label || "");
   const [amount, setAmount] = useState(initialData?.amount || 0);
-  const [amountInput, setAmountInput] = useState(initialData?.amount ? formatLocaleAmount(initialData.amount) : "");
+  const [amountInput, setAmountInput] = useState(
+    initialData?.amount ? formatLocaleAmount(initialData.amount) : "",
+  );
   const [frequency, setFrequency] = useState<Frequency>(initialData?.frequency || "monthly");
   const [selectedMonths, setSelectedMonths] = useState<number[]>(
-    initialData?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    initialData?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   );
 
   const handleFrequencyChange = (f: Frequency) => {
@@ -387,9 +518,8 @@ function ExpenseForm({
     }
   };
 
-  const currentPreview = amount > 0
-    ? (frequency === "monthly" ? amount : (amount * selectedMonths.length / 12))
-    : 0;
+  const currentPreview =
+    amount > 0 ? (frequency === "monthly" ? amount : (amount * selectedMonths.length) / 12) : 0;
 
   return (
     <div className="p-6 sm:p-8">
@@ -431,7 +561,10 @@ function ExpenseForm({
                   />
                   <button
                     type="button"
-                    onClick={() => { setIsCustomCategory(false); setCategory("Mieszkanie"); }}
+                    onClick={() => {
+                      setIsCustomCategory(false);
+                      setCategory("Mieszkanie");
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -441,8 +574,12 @@ function ExpenseForm({
                 <Select
                   value={category}
                   onValueChange={(v) => {
-                    if (v === "__custom__") { setIsCustomCategory(true); setCategory(""); }
-                    else { setCategory(v); }
+                    if (v === "__custom__") {
+                      setIsCustomCategory(true);
+                      setCategory("");
+                    } else {
+                      setCategory(v);
+                    }
                   }}
                 >
                   <SelectTrigger className="h-11 bg-card">
@@ -450,9 +587,13 @@ function ExpenseForm({
                   </SelectTrigger>
                   <SelectContent>
                     {SUGGESTED_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
                     ))}
-                    <SelectItem value="__custom__" className="font-medium text-accent">+ Własna kategoria</SelectItem>
+                    <SelectItem value="__custom__" className="font-medium text-accent">
+                      + Własna kategoria
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -491,7 +632,9 @@ function ExpenseForm({
                 placeholder="0"
                 className="h-12 font-mono tabular-nums text-lg font-bold pr-12 bg-card border-accent/20 focus-visible:ring-accent"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">zł</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                zł
+              </span>
             </div>
           </div>
 
@@ -505,7 +648,9 @@ function ExpenseForm({
               </SelectTrigger>
               <SelectContent>
                 {FREQUENCIES.map((f) => (
-                  <SelectItem key={f} value={f}>{FREQUENCY_LABELS[f]}</SelectItem>
+                  <SelectItem key={f} value={f}>
+                    {FREQUENCY_LABELS[f]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -529,11 +674,17 @@ function ExpenseForm({
               Średnie obciążenie
             </p>
             <p className="font-display text-xl font-bold tabular-nums text-foreground">
-              {formatPLN(currentPreview)} <span className="text-sm font-sans font-normal text-muted-foreground">/ m-c</span>
+              {formatPLN(currentPreview)}{" "}
+              <span className="text-sm font-sans font-normal text-muted-foreground">/ m-c</span>
             </p>
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <Button type="button" variant="ghost" onClick={onCancel} className="flex-1 sm:flex-none h-12 rounded-full px-6 font-bold">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancel}
+              className="flex-1 sm:flex-none h-12 rounded-full px-6 font-bold"
+            >
               Anuluj
             </Button>
             <Button
@@ -550,7 +701,13 @@ function ExpenseForm({
   );
 }
 
-function AddExpenseDialog({ defaultCategory, variant = "default" }: { defaultCategory?: string; variant?: "default" | "ghost" }) {
+function AddExpenseDialog({
+  defaultCategory,
+  variant = "default",
+}: {
+  defaultCategory?: string;
+  variant?: "default" | "ghost";
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -641,10 +798,8 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
           className="h-10 w-full bg-transparent border-0 px-1 font-semibold hover:bg-muted focus-visible:ring-1 shadow-none truncate"
         />
         {expense.frequency !== "monthly" && (
-          <span
-            className="shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border border-border bg-card text-muted-foreground"
-          >
-            {FREQUENCY_LABELS[expense.frequency].replace('Co ', '')}
+          <span className="shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border border-border bg-card text-muted-foreground">
+            {FREQUENCY_LABELS[expense.frequency].replace("Co ", "")}
           </span>
         )}
       </div>
@@ -659,9 +814,27 @@ function ExpenseRow({ expense, color }: { expense: Expense; color: string }) {
               return (
                 <div
                   key={m}
-                  className={cn("w-1.5 h-1.5 rounded-full", isActive ? "opacity-100" : "bg-muted-foreground/20")}
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    isActive ? "opacity-100" : "bg-muted-foreground/20",
+                  )}
                   style={{ backgroundColor: isActive ? color : undefined }}
-                  title={["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"][i]}
+                  title={
+                    [
+                      "Sty",
+                      "Lut",
+                      "Mar",
+                      "Kwi",
+                      "Maj",
+                      "Cze",
+                      "Lip",
+                      "Sie",
+                      "Wrz",
+                      "Paź",
+                      "Lis",
+                      "Gru",
+                    ][i]
+                  }
                 />
               );
             })}

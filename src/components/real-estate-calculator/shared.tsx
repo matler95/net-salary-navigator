@@ -32,7 +32,11 @@ export function NumField({
           <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
             {label}
           </label>
-          {hint && <span className="text-[10px] text-muted-foreground italic mt-0.5 block leading-tight">{hint}</span>}
+          {hint && (
+            <span className="text-[10px] text-muted-foreground italic mt-0.5 block leading-tight">
+              {hint}
+            </span>
+          )}
         </div>
         <Input
           type="text"
@@ -80,7 +84,9 @@ export function SliderField({
         <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
           {label}
         </label>
-        <span className="font-mono tabular-nums text-xs bg-muted/40 px-2 py-1 rounded-md">{format(value)}</span>
+        <span className="font-mono tabular-nums text-xs bg-muted/40 px-2 py-1 rounded-md">
+          {format(value)}
+        </span>
       </div>
       <Slider
         min={min}

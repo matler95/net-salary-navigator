@@ -5,7 +5,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { DEFAULT_SALARY_INPUTS, type SalaryInputs } from "./salary";
+import { DEFAULT_SALARY_INPUTS, type SalaryInputs, type RetirementLimits } from "./salary";
 import type { Frequency } from "./finance";
 import type { InvestmentCurrency } from "./fx";
 import {
@@ -40,6 +40,12 @@ export type Spouse = {
   gender?: "M" | "K";
   existingIkeBalance?: number;
   existingIkzeBalance?: number;
+  ikzeTaxpayerType?: "standard" | "b2b";
+  priorRetirementContributionYears?: number;
+  retirementMonthlyContribution?: number;
+  retirementExpectedReturn?: number;
+  retirementReinvestRelief?: boolean;
+  retirementPlannedCashoutAge?: number;
 };
 
 export type Expense = {
@@ -124,6 +130,7 @@ export type GlobalSettings = {
   pitFirstRate: number; // in %
   pitSecondRate: number; // in %
   taxFreeAmountAnnual: number;
+  regulatoryYear: number;
   targetEmergencyFundMonths: number;
 };
 
@@ -136,6 +143,7 @@ export type AppState = {
   rentals: Rental[];
   savings: SavingsAccount[];
   globalSettings: GlobalSettings;
+  retirementLimits?: RetirementLimits[];
 };
 
 export const STORAGE_KEY = "placa-netto-state-v1";
@@ -161,6 +169,7 @@ const DEFAULT_STATE: AppState = {
     pitFirstRate: 12,
     pitSecondRate: 32,
     taxFreeAmountAnnual: 30000,
+    regulatoryYear: 2025,
     targetEmergencyFundMonths: 6,
   },
 };
@@ -170,8 +179,8 @@ const listeners = new Set<() => void>();
 let cloudSyncEnabled = false;
 let activeHouseholdId: string | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-let syncInProgress = false;   // guards syncFromCloud
-let initInProgress = false;   // guards initCloudSync (separate to avoid blocking acceptInvite)
+let syncInProgress = false; // guards syncFromCloud
+let initInProgress = false; // guards initCloudSync (separate to avoid blocking acceptInvite)
 let cloudSyncInitialized = false;
 let cloudRealtimeUnsubscribe: (() => void) | null = null;
 let cachedMembers: MemberProfile[] = [];
@@ -180,7 +189,7 @@ let memberCacheUnsubscribe: (() => void) | null = null;
 
 // Build a Set of user IDs from cached members for FK validation
 function buildMemberIdSet(members: MemberProfile[]): Set<string> {
-  return new Set(members.map(m => m.user_id));
+  return new Set(members.map((m) => m.user_id));
 }
 
 export function getCachedMembers(): MemberProfile[] {
@@ -221,32 +230,41 @@ function loadInitial(): AppState {
       ...parsed,
       spouses: parsed.spouses?.length
         ? parsed.spouses.map((s) => ({
-          ...s,
-          inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
-          assignedUserId: s.assignedUserId,
-        }))
+            ...s,
+            inputs: { ...DEFAULT_SALARY_INPUTS, ...s.inputs },
+            assignedUserId: s.assignedUserId,
+            ikzeTaxpayerType: s.ikzeTaxpayerType === "b2b" ? "b2b" : "standard",
+            priorRetirementContributionYears: Math.max(
+              0,
+              Number(s.priorRetirementContributionYears ?? 0),
+            ),
+            retirementMonthlyContribution: s.retirementMonthlyContribution ?? 500,
+            retirementExpectedReturn: s.retirementExpectedReturn ?? 7,
+            retirementReinvestRelief: s.retirementReinvestRelief ?? false,
+            retirementPlannedCashoutAge: s.retirementPlannedCashoutAge ?? ((s.gender === "K" ? 60 : 65) || 65),
+          }))
         : DEFAULT_STATE.spouses,
       expenses: parsed.expenses
         ? parsed.expenses.map((e) => ({ ...e, frequency: e.frequency ?? "monthly" }))
         : DEFAULT_STATE.expenses,
       investments: parsed.investments
         ? parsed.investments.map((i) => ({
-          ...i,
-          currency: i.currency ?? "PLN",
-          ticker: i.ticker ?? "",
-          volume: i.volume ?? 0,
-          tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
-          tickerPriceDate: i.tickerPriceDate ?? "",
-          totalCostPLN: i.totalCostPLN ?? 0,
-        }))
+            ...i,
+            currency: i.currency ?? "PLN",
+            ticker: i.ticker ?? "",
+            volume: i.volume ?? 0,
+            tickerPriceAtAdd: i.tickerPriceAtAdd ?? 0,
+            tickerPriceDate: i.tickerPriceDate ?? "",
+            totalCostPLN: i.totalCostPLN ?? 0,
+          }))
         : DEFAULT_STATE.investments,
       loans: parsed.loans
         ? parsed.loans.map((l) => ({
-          ...l,
-          monthlyOverpayment: l.monthlyOverpayment ?? 0,
-          mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
-          overpaymentType: l.overpaymentType ?? "fixed",
-        }))
+            ...l,
+            monthlyOverpayment: l.monthlyOverpayment ?? 0,
+            mortgageInsuranceMonthly: l.mortgageInsuranceMonthly ?? 0,
+            overpaymentType: l.overpaymentType ?? "fixed",
+          }))
         : DEFAULT_STATE.loans,
       rentals: parsed.rentals
         ? parsed.rentals.map((r) => ({
@@ -278,6 +296,7 @@ function loadInitial(): AppState {
       globalSettings: parsed.globalSettings
         ? { ...DEFAULT_STATE.globalSettings, ...parsed.globalSettings }
         : DEFAULT_STATE.globalSettings,
+      retirementLimits: parsed.retirementLimits ?? [],
     };
   } catch {
     return DEFAULT_STATE;
@@ -388,7 +407,11 @@ export async function initCloudSync(
     // Verify user is still a member of this household before proceeding
     const isMember = await verifyHouseholdMembership(household.householdId, session.user.id);
     if (!isMember) {
-      console.warn("User is no longer a member of household", household.householdId, "- clearing local state");
+      console.warn(
+        "User is no longer a member of household",
+        household.householdId,
+        "- clearing local state",
+      );
       activeHouseholdId = null;
       cloudSyncEnabled = false;
       if (typeof window !== "undefined") {
@@ -413,10 +436,13 @@ export async function initCloudSync(
         if (!activeHouseholdId) return;
         try {
           cachedMembers = await loadHouseholdMemberProfiles(activeHouseholdId);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       };
       window.addEventListener("household:meta-change", onMetaChange);
-      memberCacheUnsubscribe = () => window.removeEventListener("household:meta-change", onMetaChange);
+      memberCacheUnsubscribe = () =>
+        window.removeEventListener("household:meta-change", onMetaChange);
     }
 
     // Only migrate local→cloud when the user is initialising their OWN new household.
@@ -424,7 +450,11 @@ export async function initCloudSync(
     // invite - never overwrite their data with the invitee's local state.
     if (!preferredHouseholdId) {
       try {
-        await migrateLocalToCloudOnce(household.householdId, state, buildMemberIdSet(cachedMembers));
+        await migrateLocalToCloudOnce(
+          household.householdId,
+          state,
+          buildMemberIdSet(cachedMembers),
+        );
       } catch (err) {
         console.error("initCloudSync: migration failed, continuing to load cloud state:", err);
       }
@@ -548,7 +578,10 @@ export async function createInvite(email: string): Promise<string | null> {
   return inviteLink;
 }
 
-export async function acceptInvite(token: string, session: Session): Promise<{ success: boolean; error?: string }> {
+export async function acceptInvite(
+  token: string,
+  session: Session,
+): Promise<{ success: boolean; error?: string }> {
   const { householdId, error } = await acceptHouseholdInvite(token, session);
   if (!householdId) {
     return { success: false, error };
@@ -785,6 +818,11 @@ export const actions = {
           id: uid(),
           name: "",
           inputs: { ...DEFAULT_SALARY_INPUTS, gross: 8000 },
+          ikzeTaxpayerType: "standard",
+          priorRetirementContributionYears: 0,
+          retirementMonthlyContribution: 500,
+          retirementExpectedReturn: 7,
+          retirementReinvestRelief: false,
         },
       ],
     }));
@@ -809,6 +847,29 @@ export const actions = {
         sp.id === id ? { ...sp, inputs: { ...sp.inputs, ...patch } } : sp,
       ),
     }));
+  },
+  async fetchRetirementLimits() {
+    const supabase = await getSupabase();
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from("retirement_limits")
+      .select("year, ike_limit, ikze_limit, ikze_b2b_limit")
+      .order("year", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching retirement limits:", error);
+      return;
+    }
+
+    if (data) {
+      const limits: RetirementLimits[] = data.map((d) => ({
+        year: d.year,
+        ikeAnnualLimit: Number(d.ike_limit),
+        ikzeAnnualLimit: Number(d.ikze_limit),
+        ikzeB2bAnnualLimit: Number(d.ikze_b2b_limit),
+      }));
+      setState((s) => ({ ...s, retirementLimits: limits }));
+    }
   },
   setJointFiling(v: boolean) {
     setState((s) => ({ ...s, jointFiling: v }));
@@ -904,7 +965,7 @@ export const actions = {
   clearAllData() {
     setState(() => ({
       ...DEFAULT_STATE,
-      spouses: state.spouses.map(s => ({ ...s, inputs: { ...DEFAULT_SALARY_INPUTS } })),
+      spouses: state.spouses.map((s) => ({ ...s, inputs: { ...DEFAULT_SALARY_INPUTS } })),
     }));
-  }
+  },
 };

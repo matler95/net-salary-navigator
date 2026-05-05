@@ -47,6 +47,7 @@ export type GlobalSettings = {
   pitFirstRate: number; // in % (e.g. 12)
   pitSecondRate: number; // in % (e.g. 32)
   taxFreeAmountAnnual: number;
+  regulatoryYear: number;
 };
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
@@ -55,6 +56,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   pitFirstRate: 12,
   pitSecondRate: 32,
   taxFreeAmountAnnual: 30000,
+  regulatoryYear: 2025,
 };
 
 export interface SalaryBreakdown {
@@ -127,9 +129,66 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   bonusOverrideGross: null,
 };
 
-export const IKE_LIMIT_ANNUAL = 23472; // 2024
-export const IKZE_LIMIT_ANNUAL = 9388; // 2024 standard
-export const IKZE_LIMIT_B2B_ANNUAL = 14083.20; // 2024 B2B
+export type IkzeTaxpayerType = "standard" | "b2b";
+export type RetirementLimits = {
+  year: number;
+  ikeAnnualLimit: number;
+  ikzeAnnualLimit: number;
+  ikzeB2bAnnualLimit: number;
+};
+
+const RETIREMENT_LIMITS_BY_YEAR: Record<number, RetirementLimits> = {
+  2024: { year: 2024, ikeAnnualLimit: 23472, ikzeAnnualLimit: 9388, ikzeB2bAnnualLimit: 14083.2 },
+  2025: {
+    year: 2025,
+    ikeAnnualLimit: 26019,
+    ikzeAnnualLimit: 10407.6,
+    ikzeB2bAnnualLimit: 15611.4,
+  },
+};
+
+export const RETIREMENT_LIMITS_DEFAULT_YEAR = 2025;
+
+export function getRetirementLimits(
+  requestedYear: number,
+  ikzeTaxpayerType: IkzeTaxpayerType = "standard",
+  customLimits?: RetirementLimits[],
+): { year: number; ikeAnnualLimit: number; ikzeAnnualLimit: number } {
+  // Use custom limits if provided (e.g. from DB)
+  const limitsMap: Record<number, RetirementLimits> =
+    customLimits && customLimits.length > 0
+      ? Object.fromEntries(customLimits.map((l) => [l.year, l]))
+      : RETIREMENT_LIMITS_BY_YEAR;
+
+  const availableYears = Object.keys(limitsMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  if (availableYears.length === 0) {
+    // Fallback if absolutely nothing is found
+    return { year: requestedYear, ikeAnnualLimit: 26019, ikzeAnnualLimit: 10407.6 };
+  }
+
+  const fallbackYear = availableYears[availableYears.length - 1];
+  const selectedYear = limitsMap[requestedYear] ? requestedYear : fallbackYear;
+  const selected = limitsMap[selectedYear];
+
+  return {
+    year: selectedYear,
+    ikeAnnualLimit: selected.ikeAnnualLimit,
+    ikzeAnnualLimit:
+      ikzeTaxpayerType === "b2b" ? selected.ikzeB2bAnnualLimit : selected.ikzeAnnualLimit,
+  };
+}
+
+// Backward-compatible exports used in older call sites.
+const DEFAULT_LIMITS = getRetirementLimits(RETIREMENT_LIMITS_DEFAULT_YEAR, "standard");
+export const IKE_LIMIT_ANNUAL = DEFAULT_LIMITS.ikeAnnualLimit;
+export const IKZE_LIMIT_ANNUAL = DEFAULT_LIMITS.ikzeAnnualLimit;
+export const IKZE_LIMIT_B2B_ANNUAL = getRetirementLimits(
+  RETIREMENT_LIMITS_DEFAULT_YEAR,
+  "b2b",
+).ikzeAnnualLimit;
 
 export function calculateSalary(
   i: SalaryInputs,
@@ -209,12 +268,12 @@ export function calculateSalary(
 
   const totalEmployerCost = round2(
     gross +
-    benefitsTaxable +
-    companyCarTaxable +
-    lunchAllowance +
-    remoteAllowance +
-    employerZus +
-    ppkEmployer,
+      benefitsTaxable +
+      companyCarTaxable +
+      lunchAllowance +
+      remoteAllowance +
+      employerZus +
+      ppkEmployer,
   );
 
   return {
@@ -244,8 +303,8 @@ export function calculateSalary(
   };
 }
 
-/** 
- * Returns the full 12-month breakdown, 
+/**
+ * Returns the full 12-month breakdown,
  * accounting for threshold crossing and bonuses.
  */
 export function calculateAnnualBreakdown(
@@ -293,12 +352,12 @@ export function calculateAnnualBreakdown(
       const pit = Math.max(0, Math.round(pitGross - taxFreeAllowance));
       const net = round2(
         baseCalc.gross -
-        baseCalc.zusTotal -
-        baseCalc.health -
-        baseCalc.ppkEmployee -
-        pit +
-        baseCalc.lunchAllowance +
-        baseCalc.remoteAllowance,
+          baseCalc.zusTotal -
+          baseCalc.health -
+          baseCalc.ppkEmployee -
+          pit +
+          baseCalc.lunchAllowance +
+          baseCalc.remoteAllowance,
       );
 
       const crossingMonth = { ...baseCalc, pit, net };
@@ -310,7 +369,7 @@ export function calculateAnnualBreakdown(
   return months;
 }
 
-/** 
+/**
  * Returns the breakdown for a specific month (1-12).
  */
 /** Returns the arithmetic average of monthly net salaries over 12 months. */
@@ -323,7 +382,7 @@ export function calculateAnnualAverageNet(
   return round2(totalNet / 12);
 }
 
-/** 
+/**
  * Returns the breakdown for a specific month (1-12).
  */
 export function calculateSalaryForMonth(
@@ -428,7 +487,7 @@ export function parseLocaleAmount(raw: string): number {
 export function formatLocaleAmount(value: number, decimals: number = 2): string {
   if (value === undefined || value === null || !Number.isFinite(value)) return "";
   if (value === 0) return "0";
-  // Return the number formatted with up to 'decimals' fractional digits, 
+  // Return the number formatted with up to 'decimals' fractional digits,
   // but removing trailing zeros and the decimal point if it's an integer.
   const s = value.toFixed(decimals);
   if (s.indexOf(".") === -1) return s;
@@ -450,6 +509,8 @@ export function calculateIkzeTaxReturn(
   inputs: SalaryInputs,
   annualContribution: number,
   settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+  ikzeTaxpayerType: IkzeTaxpayerType = "standard",
+  retirementLimits?: RetirementLimits[],
 ): IkzeTaxReturn {
   const FIRST_RATE = settings.pitFirstRate / 100;
   const SECOND_RATE = settings.pitSecondRate / 100;
@@ -459,9 +520,9 @@ export function calculateIkzeTaxReturn(
   const breakdown = calculateAnnualBreakdown(inputs, settings);
   const annualBase = breakdown.reduce((s, m) => s + m.taxBase, 0);
 
-  // Cap deduction at IKZE limit
-  const cappedContribution = Math.min(annualContribution, IKZE_LIMIT_ANNUAL);
-  const remainingContribution = annualContribution; // Original for display if needed, but we use capped for tax
+  const limits = getRetirementLimits(settings.regulatoryYear, ikzeTaxpayerType, retirementLimits);
+  // Cap deduction at IKZE limit for selected year/type.
+  const cappedContribution = Math.min(annualContribution, limits.ikzeAnnualLimit);
 
   const calculateAnnualPit = (base: number) => {
     const taxable = Math.max(0, base);
@@ -475,7 +536,7 @@ export function calculateIkzeTaxReturn(
 
   const currentPit = calculateAnnualPit(annualBase);
   const newPit = calculateAnnualPit(Math.max(0, annualBase - cappedContribution));
-  const taxReturn = currentPit - newPit;
+  const taxReturn = Math.max(0, currentPit - newPit);
 
   let marginalRate = FIRST_RATE;
   if (annualBase <= settings.taxFreeAmountAnnual) {
@@ -530,20 +591,57 @@ export interface IkeIkzeComparisonResult {
     totalContributions: number;
     taxPaid: number;
     netPayout: number;
+    annualContributionCapped: number;
+    annualLimit: number;
+    isCapped: boolean;
   };
   ikze: {
     finalPot: number;
     totalContributions: number;
     taxPaid: number;
     netPayout: number;
-    reinvestedReliefPot: number; // Value of reinvested tax returns after 19% tax
-    reinvestedReliefTotalTax: number; // Belka tax paid on the reinvestment
+    reinvestedReliefPot: number;
+    reinvestedReliefTotalTax: number;
     totalNet: number;
+    annualContributionCapped: number;
+    annualLimit: number;
+    isCapped: boolean;
   };
   winner: "IKE" | "IKZE" | "REMIS";
   difference: number;
   isEarlyWithdrawalIke: boolean;
   isEarlyWithdrawalIkze: boolean;
+}
+
+export type RetirementWithdrawalEligibility = {
+  contributionYearsAtWithdrawal: number;
+  qualifiesIkeTaxExemption: boolean;
+  qualifiesIkzeFlatTax: boolean;
+  isEarlyWithdrawalIke: boolean;
+  isEarlyWithdrawalIkze: boolean;
+};
+
+/**
+ * Simplified legal qualification model for withdrawal tax treatment.
+ * - IKE: tax exemption when withdrawal age >= 60 and 5+ contribution years.
+ * - IKZE: 10% flat tax when withdrawal age >= 65 and 5+ contribution years.
+ */
+export function evaluateRetirementWithdrawalEligibility(
+  withdrawalAge: number,
+  contributionYearsAtWithdrawal: number,
+): RetirementWithdrawalEligibility {
+  const years = Math.max(0, contributionYearsAtWithdrawal);
+  const meetsFiveYearRule = years >= 5;
+  const qualifiesIkeTaxExemption = withdrawalAge >= 60 && meetsFiveYearRule;
+  const qualifiesIkzeFlatTax = withdrawalAge >= 65 && meetsFiveYearRule;
+
+  return {
+    contributionYearsAtWithdrawal: years,
+    qualifiesIkeTaxExemption,
+    qualifiesIkzeFlatTax,
+    isEarlyWithdrawalIke: !qualifiesIkeTaxExemption,
+    isEarlyWithdrawalIkze: !qualifiesIkzeFlatTax,
+  };
 }
 
 export function compareIkeVsIkze(
@@ -556,16 +654,18 @@ export function compareIkeVsIkze(
   annualBase: number, // Their current yearly salary base
   isEarlyWithdrawalIke: boolean,
   isEarlyWithdrawalIkze: boolean,
-  reinvestRelief: boolean,
+  reinvestRelief: boolean = false,
   settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+  ikzeTaxpayerType: IkzeTaxpayerType = "standard",
+  retirementLimits?: RetirementLimits[],
 ): IkeIkzeComparisonResult {
+  const limits = getRetirementLimits(settings.regulatoryYear, ikzeTaxpayerType, retirementLimits);
   const monthlyRate = annualReturnPct / 100 / 12;
   const annualRate = annualReturnPct / 100;
   const months = years * 12;
 
-  // Limits
-  const ikeMonthlyLimit = IKE_LIMIT_ANNUAL / 12;
-  const ikzeMonthlyLimit = IKZE_LIMIT_ANNUAL / 12;
+  const ikeMonthlyLimit = limits.ikeAnnualLimit / 12;
+  const ikzeMonthlyLimit = limits.ikzeAnnualLimit / 12;
 
   // --- IKE ---
   // Cap contribution at IKE limit, ignore surplus per user request (no brokerage assumption)
@@ -574,14 +674,15 @@ export function compareIkeVsIkze(
   const ikeStartingFV = existingIke * Math.pow(1 + monthlyRate, months);
   let ikeContributionsFV = 0;
   if (monthlyRate > 0) {
-    ikeContributionsFV = ikeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+    ikeContributionsFV =
+      ikeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
   } else {
     ikeContributionsFV = ikeMonthlyInLimit * months;
   }
   const ikeFinalPot = ikeStartingFV + ikeContributionsFV;
-  const ikeTotalContributions = existingIke + (ikeMonthlyInLimit * months);
+  const ikeTotalContributions = existingIke + ikeMonthlyInLimit * months;
   const ikeProfit = Math.max(0, ikeFinalPot - ikeTotalContributions);
-  
+
   let ikeTaxPaid = 0;
   if (isEarlyWithdrawalIke) {
     ikeTaxPaid = ikeProfit * 0.19; // 19% Belka tax on profit
@@ -595,12 +696,13 @@ export function compareIkeVsIkze(
   const ikzeStartingFV = existingIkze * Math.pow(1 + monthlyRate, months);
   let ikzeContributionsFV = 0;
   if (monthlyRate > 0) {
-    ikzeContributionsFV = ikzeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+    ikzeContributionsFV =
+      ikzeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
   } else {
     ikzeContributionsFV = ikzeMonthlyInLimit * months;
   }
   const ikzeFinalPot = ikzeStartingFV + ikzeContributionsFV;
-  const ikzeTotalContributions = existingIkze + (ikzeMonthlyInLimit * months);
+  const ikzeTotalContributions = existingIkze + ikzeMonthlyInLimit * months;
 
   let ikzeTaxPaid = 0;
   if (isEarlyWithdrawalIkze) {
@@ -622,7 +724,7 @@ export function compareIkeVsIkze(
     const earlyWithdrawalPit = calculateAnnualPit(annualBase + ikzeFinalPot);
     ikzeTaxPaid = earlyWithdrawalPit - normalPit;
   } else {
-    ikzeTaxPaid = ikzeFinalPot * 0.10; // 10% flat
+    ikzeTaxPaid = ikzeFinalPot * 0.1; // 10% flat
   }
   const ikzeNetPayout = ikzeFinalPot - ikzeTaxPaid;
 
@@ -630,7 +732,7 @@ export function compareIkeVsIkze(
   // Note: annualTaxReturn is already capped at limit in calculateIkzeTaxReturn
   let reinvestedReliefPot = 0;
   let reinvestedReliefTotalTax = 0;
-  
+
   if (reinvestRelief) {
     let reliefFV = 0;
     for (let y = 0; y < years; y++) {
@@ -656,6 +758,9 @@ export function compareIkeVsIkze(
       totalContributions: Math.round(ikeTotalContributions * 100) / 100,
       taxPaid: Math.round(ikeTaxPaid * 100) / 100,
       netPayout: Math.round(ikeNetPayout * 100) / 100,
+      annualContributionCapped: Math.round(ikeMonthlyInLimit * 12 * 100) / 100,
+      annualLimit: limits.ikeAnnualLimit,
+      isCapped: monthlyContribution * 12 > limits.ikeAnnualLimit,
     },
     ikze: {
       finalPot: Math.round(ikzeFinalPot * 100) / 100,
@@ -665,6 +770,9 @@ export function compareIkeVsIkze(
       reinvestedReliefPot: Math.round(reinvestedReliefPot * 100) / 100,
       reinvestedReliefTotalTax: Math.round(reinvestedReliefTotalTax * 100) / 100,
       totalNet: Math.round(ikzeTotalNet * 100) / 100,
+      annualContributionCapped: Math.round(ikzeMonthlyInLimit * 12 * 100) / 100,
+      annualLimit: limits.ikzeAnnualLimit,
+      isCapped: monthlyContribution * 12 > limits.ikzeAnnualLimit,
     },
     winner,
     difference: Math.round(Math.abs(ikeNetPayout - ikzeTotalNet) * 100) / 100,
