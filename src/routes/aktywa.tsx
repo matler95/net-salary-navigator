@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { actions, useAppState, type SavingsAccount, type Rental, type Loan } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount } from "@/lib/salary";
+import { formatPLN, formatPLN2, parseLocaleAmount, formatLocaleAmount, calculateIkzeTaxReturn, compareIkeVsIkze } from "@/lib/salary";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   convertToPLN,
@@ -50,6 +50,8 @@ import {
   Building2,
   Landmark,
   PieChart as PieChartIcon,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -142,6 +144,7 @@ function AssetsPage() {
             <TabsTrigger value="inwestycje" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Inwestycje</TabsTrigger>
             <TabsTrigger value="kredyty" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Kredyty</TabsTrigger>
             <TabsTrigger value="wynajem" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Nieruchomości</TabsTrigger>
+            <TabsTrigger value="emerytura" className="rounded-xl px-5 py-2.5 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Emerytura (IKE/IKZE)</TabsTrigger>
           </TabsList>
         </header>
 
@@ -169,8 +172,546 @@ function AssetsPage() {
         <TabsContent value="wynajem" className="mt-0 focus-visible:outline-none animate-fade-up">
           <RentalsSection />
         </TabsContent>
+        <TabsContent value="emerytura" className="mt-0 focus-visible:outline-none animate-fade-up">
+          <RetirementSection />
+        </TabsContent>
       </Tabs>
     </main>
+  );
+}
+
+/* ─── EMERYTURA / IKE VS IKZE ─────────────────────────────────────────── */
+
+function RetirementSection() {
+  const spouses = useAppState((s) => s.spouses);
+  const globalSettings = useAppState((s) => s.globalSettings);
+  const navigate = useNavigate({ from: Route.fullPath });
+
+  const assignedSpouses = spouses.filter((s) => s.name || s.assignedUserId);
+  const unassignedSpouses = spouses.filter((s) => !s.name && !s.assignedUserId);
+
+  return (
+    <section className="space-y-8">
+      {assignedSpouses.map((spouse) => (
+        <IkeIkzeCard key={spouse.id} spouse={spouse} globalSettings={globalSettings} />
+      ))}
+
+      {unassignedSpouses.length > 0 && (
+        <div className="bg-muted/40 border border-border rounded-2xl p-6 text-center shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground mb-3">
+            Masz nieprzypisane osoby w sekcji Zarobki.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: "/wynagrodzenia" })}
+          >
+            Przejdź do Zarobków
+          </Button>
+        </div>
+      )}
+
+      {spouses.length === 0 && (
+        <EmptyState
+          icon={TrendingUp}
+          title="Brak danych o zarobkach"
+          description="Aby obliczyć zysk z IKZE, potrzebujemy informacji o Twoich zarobkach i progach podatkowych."
+          className="my-8"
+        />
+      )}
+    </section>
+  );
+}
+
+function PayoutBar({ label, segments, total }: { label: string; segments: { color: string; value: number; label: string }[]; total: number }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-[10px] uppercase tracking-wider font-bold">
+        <span>{label}</span>
+        <span className="font-mono">{formatPLN(total)}</span>
+      </div>
+      <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex shadow-inner">
+        {segments.map((s, i) => (
+          <div 
+            key={i} 
+            style={{ width: `${(Math.max(0, s.value) / Math.max(1, total)) * 100}%` }} 
+            className={cn("h-full transition-all duration-500", s.color)}
+            title={`${s.label}: ${formatPLN(s.value)}`}
+          />
+        ))}
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+        {segments.map((s, i) => (
+          <div key={i} className="flex items-center gap-1 shrink-0">
+            <div className={cn("w-1.5 h-1.5 rounded-full", s.color)} />
+            <span className="text-[9px] text-muted-foreground whitespace-nowrap">{s.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IkeIkzeCard({ spouse, globalSettings }: { spouse: any; globalSettings: any }) {
+  const [open, setOpen] = useState(true); // default open
+  const [monthlyContribution, setMonthlyContribution] = useState(500);
+  const [expectedReturn, setExpectedReturn] = useState(7);
+  const [reinvestRelief, setReinvestRelief] = useState(false);
+  
+  const [age, setAge] = useState(spouse.age || 30);
+  const [gender, setGender] = useState<"M" | "K">(spouse.gender || "M");
+  const [plannedCashoutAge, setPlannedCashoutAge] = useState(spouse.gender === "K" ? 60 : 65);
+  
+  const [existingIkeStr, setExistingIkeStr] = useState(spouse.existingIkeBalance ? String(spouse.existingIkeBalance) : "0");
+  const [existingIkzeStr, setExistingIkzeStr] = useState(spouse.existingIkzeBalance ? String(spouse.existingIkzeBalance) : "0");
+  
+  const existingIke = parseLocaleAmount(existingIkeStr);
+  const existingIkze = parseLocaleAmount(existingIkzeStr);
+
+  const years = Math.max(1, plannedCashoutAge - age);
+  const isEarlyWithdrawalIke = plannedCashoutAge < 60;
+  const isEarlyWithdrawalIkze = plannedCashoutAge < 65;
+
+  const annualContribution = monthlyContribution * 12;
+  const taxInfo = calculateIkzeTaxReturn(spouse.inputs, annualContribution, globalSettings);
+  
+  const comparison = compareIkeVsIkze(
+    monthlyContribution,
+    existingIke,
+    existingIkze,
+    years,
+    expectedReturn,
+    taxInfo.taxReturn,
+    taxInfo.annualBase,
+    isEarlyWithdrawalIke,
+    isEarlyWithdrawalIkze,
+    reinvestRelief,
+    globalSettings
+  );
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+      <CollapsibleTrigger className="w-full">
+        <div className="p-5 bg-warm-gradient border-b border-border flex items-center justify-between hover:bg-accent/5 transition-colors text-left w-full group">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-display text-lg font-bold italic text-accent-foreground shadow-sm">
+              {spouse.name ? spouse.name.charAt(0).toUpperCase() : "?"}
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">{spouse.name || "Nieznany"}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Wygrywa:</span>
+                <span className={cn(
+                  "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                  comparison.winner === "IKZE" ? "bg-accent/20 text-accent" : 
+                  comparison.winner === "IKE" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : 
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {comparison.winner}
+                </span>
+                {comparison.difference > 0 && (
+                  <span className="text-[10px] font-bold text-success">
+                    +{formatPLN(comparison.difference)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="text-muted-foreground group-hover:text-accent transition-colors">
+            {open ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </div>
+        </div>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent>
+        <div className="p-5 sm:p-6 space-y-8">
+          
+          {/* Inputs Section - 3 Column Layout */}
+          <div className="grid md:grid-cols-3 gap-8 items-start">
+            <div className="space-y-4">
+              <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
+                Osoba i Czas
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                    Wiek
+                  </label>
+                  <Input 
+                    type="number" 
+                    value={age} 
+                    onChange={(e) => setAge(parseInt(e.target.value) || 0)} 
+                    className="h-9 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                    Płeć
+                  </label>
+                  <Select value={gender} onValueChange={(v: "M" | "K") => {
+                    setGender(v);
+                    setPlannedCashoutAge(v === "K" ? 60 : 65);
+                  }}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M">Mężczyzna</SelectItem>
+                      <SelectItem value="K">Kobieta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                    Planowany wiek wypłaty
+                    {(isEarlyWithdrawalIke || isEarlyWithdrawalIkze) && (
+                      <span className="bg-destructive/10 text-destructive text-[9px] px-1.5 py-0.5 rounded uppercase">Wcześniejsza</span>
+                    )}
+                  </label>
+                  <span className="font-mono text-sm font-bold">{plannedCashoutAge} lat</span>
+                </div>
+                <Slider
+                  value={[plannedCashoutAge]}
+                  min={Math.max(18, age + 1)}
+                  max={80}
+                  step={1}
+                  onValueChange={([v]) => setPlannedCashoutAge(v)}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Czas inwestycji: <span className="font-semibold text-foreground">{years} lat</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
+                Wpłaty i Salda
+              </h4>
+              
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Miesięczna wpłata
+                  </label>
+                  <span className="font-mono text-sm font-bold">{formatPLN(monthlyContribution)}</span>
+                </div>
+                <Slider
+                  value={[monthlyContribution]}
+                  min={100}
+                  max={2000}
+                  step={50}
+                  onValueChange={([v]) => setMonthlyContribution(v)}
+                  className="[&>span:first-child]:bg-accent"
+                />
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Rocznie: {formatPLN(annualContribution)}. <br/>
+                  <span className={cn(monthlyContribution > 782 ? "text-amber-500 font-medium" : "")}>
+                    Limit IKZE: ~782 zł/m-c (9 388 zł rocznie).
+                  </span>
+                </p>
+                <div className="mt-1 h-1 w-full bg-muted rounded-full overflow-hidden flex">
+                  <div 
+                    style={{ width: `${Math.min(100, (annualContribution / 9388) * 100)}%` }} 
+                    className={cn("h-full transition-all duration-300", monthlyContribution > 782 ? "bg-amber-500" : "bg-accent")} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                    Saldo IKE
+                  </label>
+                  <Input 
+                    type="text" 
+                    inputMode="decimal"
+                    value={existingIkeStr} 
+                    onChange={(e) => setExistingIkeStr(e.target.value)} 
+                    className="h-9 font-mono tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">
+                    Saldo IKZE
+                  </label>
+                  <Input 
+                    type="text" 
+                    inputMode="decimal"
+                    value={existingIkzeStr} 
+                    onChange={(e) => setExistingIkzeStr(e.target.value)} 
+                    className="h-9 font-mono tabular-nums"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
+                  Rynki
+                </h4>
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Oczekiwana stopa zwrotu
+                    </label>
+                    <span className="font-mono text-sm font-bold">{expectedReturn}%</span>
+                  </div>
+                  <Slider
+                    value={[expectedReturn]}
+                    min={1}
+                    max={15}
+                    step={0.5}
+                    onValueChange={([v]) => setExpectedReturn(v)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold border-b border-border pb-2">
+                  Reinwestycja Ulgi (IKZE)
+                </h4>
+                <div className="grid grid-cols-2 items-center justify-between gap-4">
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Reinwestuj ulgę
+                  </label>
+                  <Select value={reinvestRelief ? "true" : "false"} onValueChange={(v) => setReinvestRelief(v === "true")}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Tak (Konto Makl.)</SelectItem>
+                      <SelectItem value="false">Nie (Wydaję)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  {reinvestRelief ? "Ulga inwestowana na osobnym koncie (podatek Belki)." : "Suma ulg nie jest reinwestowana."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border/50 pt-8">
+            <h4 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-6 text-center">
+              Wizualizacja Payoutu Netto
+            </h4>
+            
+            <div className="grid md:grid-cols-2 gap-10 mb-10">
+              <div className="space-y-6">
+                {/* IKE Bar */}
+                <PayoutBar 
+                  label="IKE (Na rękę)"
+                  total={comparison.ike.netPayout}
+                  segments={[
+                    { color: "bg-muted-foreground/30", value: comparison.ike.totalContributions, label: "Wpłaty (w limicie)" },
+                    { color: "bg-blue-500", value: Math.max(0, comparison.ike.netPayout - comparison.ike.totalContributions), label: "Zysk netto" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-6">
+                {/* IKZE Bar */}
+                <PayoutBar 
+                  label="IKZE (Na rękę + Ulga)"
+                  total={comparison.ikze.totalNet}
+                  segments={[
+                    { color: "bg-muted-foreground/30", value: comparison.ikze.totalContributions, label: "Wpłaty (w limicie)" },
+                    { color: "bg-accent", value: Math.max(0, comparison.ikze.netPayout - comparison.ikze.totalContributions), label: "Zysk netto" },
+                    { color: "bg-success", value: comparison.ikze.reinvestedReliefPot, label: "Zysk z ulgi PIT" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* Results Section */}
+          <div className="space-y-6">
+            
+            {/* Dynamic Feedback Text */}
+            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+              <div className="flex gap-3">
+                <Info className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                <div className="text-sm text-muted-foreground leading-relaxed">
+                  <p>
+                    {comparison.winner === "IKZE" ? (
+                      <>Dla Ciebie bardziej opłacalne jest <strong className="text-accent">IKZE</strong>, głównie dzięki corocznym zwrotom z PIT, które sumują się do pokaźnej kwoty.</>
+                    ) : comparison.winner === "IKE" ? (
+                      <>W Twojej sytuacji lepiej sprawdzi się <strong className="text-blue-500">IKE</strong>. Brak ulg podatkowych przy wpłacie rekompensuje całkowite zwolnienie z 19% podatku Belki na końcu lub znacznie łagodniejsze konsekwencje przy wcześniejszej wypłacie.</>
+                    ) : (
+                      <>Obydwa warianty (IKE i IKZE) dają w Twojej sytuacji identyczny rezultat finansowy.</>
+                    )}
+                  </p>
+                  {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
+                    <p className="mt-2 text-destructive font-medium text-xs bg-destructive/10 p-2 rounded border border-destructive/20 inline-block">
+                      Uwaga: Planujesz wypłatę przed osiągnięciem wieku emerytalnego. To oznacza utratę części przywilejów podatkowych!
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* IKZE Tax Return Info */}
+              <div className="bg-success/10 border border-success/20 rounded-xl p-4 flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="bg-success text-success-foreground p-1 rounded-md shrink-0">
+                    <Check className="w-3 h-3" />
+                  </div>
+                  <p className="text-[11px] uppercase tracking-wider text-success font-bold">
+                    Roczna Ulga (IKZE)
+                  </p>
+                </div>
+                <p className="font-mono text-xl font-bold text-success tabular-nums leading-none">
+                  +{formatPLN(taxInfo.taxReturn)} <span className="text-xs font-sans text-success/70">/ rok</span>
+                </p>
+                <div className="text-[10px] text-success/80 mt-2 space-y-0.5 border-t border-success/20 pt-2">
+                  <p>Obliczono z Twojej pensji:</p>
+                  {taxInfo.breakdown.amountAt32 > 0 && <p>• {formatPLN(taxInfo.breakdown.amountAt32)} rozliczane w 32%</p>}
+                  {taxInfo.breakdown.amountAt12 > 0 && <p>• {formatPLN(taxInfo.breakdown.amountAt12)} rozliczane w 12%</p>}
+                </div>
+              </div>
+              
+              {/* Early Withdrawal Warnings */}
+              {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex flex-col justify-center">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <p className="text-[11px] uppercase tracking-wider text-destructive font-bold">
+                      Wcześniejsza wypłata
+                    </p>
+                  </div>
+                  <div className="text-[10px] text-destructive/90 space-y-2 mt-1">
+                    {comparison.isEarlyWithdrawalIke && (
+                      <p><strong>IKE:</strong> Ponieważ wypłacasz przed {gender === "K" ? 60 : 60} r.ż., pobrane zostanie <span className="font-bold underline">19% Belki</span> od zysków.</p>
+                    )}
+                    {comparison.isEarlyWithdrawalIkze && (
+                      <p><strong>IKZE (Zwrot):</strong> Wypłacasz przed 65 r.ż. Cała kwota (kapitał+zyski) zostanie doliczona do PIT. Wpadniesz w <span className="font-bold underline">wyższy próg (np. 32%)</span>.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Side by side comparison */}
+            <div className="border border-border rounded-xl overflow-hidden bg-background shadow-sm">
+              <div className="grid grid-cols-3 bg-muted/30 border-b border-border">
+                <div className="p-3 font-semibold text-[11px] uppercase text-muted-foreground tracking-wider">Scenariusz Payoutu</div>
+                <div className={cn("p-3 font-bold text-center border-l border-border", comparison.winner === "IKE" && "bg-blue-500/10 text-blue-500 dark:text-blue-400")}>IKE</div>
+                <div className={cn("p-3 font-bold text-center border-l border-border", comparison.winner === "IKZE" && "bg-accent/10 text-accent")}>IKZE</div>
+              </div>
+              
+              <div className="grid grid-cols-3 border-b border-border hover:bg-muted/10 transition-colors">
+                <div className="p-3 text-xs text-muted-foreground">Suma Twoich wpłat</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border">{formatPLN(comparison.ike.totalContributions)}</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border">{formatPLN(comparison.ikze.totalContributions)}</div>
+              </div>
+
+              <div className="grid grid-cols-3 border-b border-border hover:bg-muted/10 transition-colors">
+                <div className="p-3 text-xs text-muted-foreground">Wartość konta brutto</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">{formatPLN(comparison.ike.finalPot)}</div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border font-medium">{formatPLN(comparison.ikze.finalPot)}</div>
+              </div>
+
+              <div className="grid grid-cols-3 border-b border-border bg-destructive/5 hover:bg-destructive/10 transition-colors">
+                <div className="p-3">
+                  <div className="text-xs font-semibold text-destructive/80">Podatek na wyjściu</div>
+                  <div className="text-[9px] text-destructive/60 mt-0.5 leading-tight">Ile oddasz państwu przy wypłacie</div>
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border text-destructive">
+                  -{formatPLN(comparison.ike.taxPaid)}
+                  {comparison.isEarlyWithdrawalIke && <div className="text-[9px] mt-0.5 font-bold">19% Belki od zysku</div>}
+                  {!comparison.isEarlyWithdrawalIke && comparison.ike.taxPaid === 0 && <div className="text-[9px] mt-0.5 text-success font-bold">0% (zwolnienie)</div>}
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border text-destructive">
+                  -{formatPLN(comparison.ikze.taxPaid)}
+                  {comparison.isEarlyWithdrawalIkze ? (
+                    <div className="text-[9px] mt-0.5 font-bold">Wpadasz w wyższy próg!</div>
+                  ) : (
+                    <div className="text-[9px] mt-0.5 font-bold">Tylko 10% ryczałtu</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 border-b border-border bg-success/5 hover:bg-success/10 transition-colors">
+                <div className="p-3">
+                  <div className="text-xs font-semibold text-success/80">Zysk z ulgi PIT</div>
+                  <div className="text-[9px] text-success/60 mt-0.5 leading-tight">
+                    {reinvestRelief ? "Reinwestowany zwrot z PIT (po odliczeniu Belki)" : "Suma corocznych zwrotów z urzędu skarbowego"}
+                  </div>
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border text-muted-foreground flex items-center justify-center">
+                  —
+                </div>
+                <div className="p-3 text-sm font-mono text-center border-l border-border text-success font-bold flex flex-col items-center justify-center">
+                  +{formatPLN(comparison.ikze.reinvestedReliefPot)}
+                  {reinvestRelief && (
+                    <div className="text-[9px] mt-0.5 font-normal opacity-70 leading-tight text-center">
+                      Po opłaceniu {formatPLN(comparison.ikze.reinvestedReliefTotalTax)} podatku Belki
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 bg-muted/20">
+                <div className="p-3 font-semibold text-sm flex items-center">Wypłata na rękę</div>
+                <div className={cn(
+                  "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
+                  comparison.winner === "IKE" && "text-blue-500 dark:text-blue-400 bg-blue-500/10"
+                )}>
+                  {formatPLN(comparison.ike.netPayout)}
+                </div>
+                <div className={cn(
+                  "p-3 text-lg font-mono text-center border-l border-border font-bold flex items-center justify-center",
+                  comparison.winner === "IKZE" && "text-accent bg-accent/10"
+                )}>
+                  {formatPLN(comparison.ikze.totalNet)}
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic Analysis Section */}
+            <div className="bg-muted/30 border border-border rounded-xl p-5 mt-6 shadow-sm">
+              <h4 className="text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3 border-b border-border pb-2">
+                Analiza Twojego Scenariusza
+              </h4>
+              <div className="space-y-2 text-sm text-foreground/90">
+                <p>• Planujesz oszczędzać do <strong>{plannedCashoutAge}. roku życia</strong> – czyli przez <strong>{years} lat</strong>.</p>
+                <p>
+                  • Odkładasz <strong>{formatPLN(annualContribution)} rocznie</strong>. 
+                  {annualContribution > 9388 ? " Uwaga: Limit IKZE wynosi 9 388 zł. Symulacja IKZE uwzględnia tylko wpłatę do tej wysokości." : ""}
+                  {annualContribution > 23472 ? " Uwaga: Limit IKE wynosi 23 472 zł. Symulacja IKE uwzględnia tylko wpłatę do tej wysokości." : ""}
+                </p>
+                <p>• Osiągasz roczną stopę zwrotu na poziomie <strong>{expectedReturn}%</strong>.</p>
+                <p>
+                  • Twoje obecne zarobki pozwalają odliczyć wpłatę na IKZE. Ulga w tym roku została obliczona z 
+                  {taxInfo.breakdown.amountAt32 > 0 ? " progu 32%" : ""}
+                  {taxInfo.breakdown.amountAt32 > 0 && taxInfo.breakdown.amountAt12 > 0 ? " oraz " : ""}
+                  {taxInfo.breakdown.amountAt12 > 0 ? " progu 12%" : ""}
+                  . Dzięki temu zyskujesz dodatkowe <strong>{formatPLN(taxInfo.taxReturn)}</strong> z urzędu skarbowego co roku.
+                </p>
+                <p>
+                  • Otrzymanej ulgi podatkowej z IKZE 
+                  {reinvestRelief 
+                    ? ` nie przejadasz, tylko inwestujesz poza IKZE (płacąc od zysków podatek Belki na wyjściu). Daje to łącznie ${formatPLN(comparison.ikze.reinvestedReliefPot)} czystego zysku netto z samej ulgi.`
+                    : ` nie reinwestujesz, co oznacza, że po prostu zasila ona Twój bieżący budżet. Sumarycznie przez ${years} lat otrzymasz z powrotem ${formatPLN(comparison.ikze.reinvestedReliefPot)}.`}
+                </p>
+                {(comparison.isEarlyWithdrawalIke || comparison.isEarlyWithdrawalIkze) && (
+                  <p className="text-destructive font-medium mt-3 bg-destructive/5 p-2 border-l-2 border-destructive rounded-r">
+                    • <strong>Uwaga: Wypłacasz pieniądze przed emeryturą!</strong> 
+                    {comparison.isEarlyWithdrawalIkze ? " W przypadku IKZE to fatalny pomysł – musisz doliczyć CAŁĄ wyciąganą kwotę do tegorocznego PIT, co prawie zawsze wpycha Cię głęboko w 32% próg podatkowy. Oddasz fiskusowi bardzo dużo." : ""}
+                    {comparison.isEarlyWithdrawalIke && !comparison.isEarlyWithdrawalIkze ? " W przypadku IKE po prostu tracisz przywilej podatkowy i płacisz normalny, 19% podatek Belki od wypracowanego zysku (kapitał jest bezpieczny)." : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

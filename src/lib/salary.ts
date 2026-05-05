@@ -127,6 +127,10 @@ export const DEFAULT_SALARY_INPUTS: SalaryInputs = {
   bonusOverrideGross: null,
 };
 
+export const IKE_LIMIT_ANNUAL = 23472; // 2024
+export const IKZE_LIMIT_ANNUAL = 9388; // 2024 standard
+export const IKZE_LIMIT_B2B_ANNUAL = 14083.20; // 2024 B2B
+
 export function calculateSalary(
   i: SalaryInputs,
   cumulativeZusBaseBefore: number = 0,
@@ -429,4 +433,242 @@ export function formatLocaleAmount(value: number, decimals: number = 2): string 
   const s = value.toFixed(decimals);
   if (s.indexOf(".") === -1) return s;
   return s.replace(/\.?0+$/, "").replace(".", ",");
+}
+
+export interface IkzeTaxReturn {
+  taxReturn: number;
+  marginalRate: number; // Base rate before deduction
+  annualBase: number;
+  breakdown: {
+    amountAt32: number;
+    amountAt12: number;
+    amountAt0: number;
+  };
+}
+
+export function calculateIkzeTaxReturn(
+  inputs: SalaryInputs,
+  annualContribution: number,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): IkzeTaxReturn {
+  const FIRST_RATE = settings.pitFirstRate / 100;
+  const SECOND_RATE = settings.pitSecondRate / 100;
+  const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+  const annualTaxFreeAmount = settings.taxFreeAmountAnnual * FIRST_RATE;
+
+  const breakdown = calculateAnnualBreakdown(inputs, settings);
+  const annualBase = breakdown.reduce((s, m) => s + m.taxBase, 0);
+
+  // Cap deduction at IKZE limit
+  const cappedContribution = Math.min(annualContribution, IKZE_LIMIT_ANNUAL);
+  const remainingContribution = annualContribution; // Original for display if needed, but we use capped for tax
+
+  const calculateAnnualPit = (base: number) => {
+    const taxable = Math.max(0, base);
+    if (taxable <= FIRST_THRESHOLD_ANNUAL) {
+      return Math.max(0, taxable * FIRST_RATE - annualTaxFreeAmount);
+    }
+    const first = FIRST_THRESHOLD_ANNUAL * FIRST_RATE;
+    const second = (taxable - FIRST_THRESHOLD_ANNUAL) * SECOND_RATE;
+    return Math.max(0, first + second - annualTaxFreeAmount);
+  };
+
+  const currentPit = calculateAnnualPit(annualBase);
+  const newPit = calculateAnnualPit(Math.max(0, annualBase - cappedContribution));
+  const taxReturn = currentPit - newPit;
+
+  let marginalRate = FIRST_RATE;
+  if (annualBase <= settings.taxFreeAmountAnnual) {
+    marginalRate = 0;
+  } else if (annualBase > FIRST_THRESHOLD_ANNUAL) {
+    marginalRate = SECOND_RATE;
+  }
+
+  // Calculate exactly how much of the contribution fell into each bracket
+  let amountAt32 = 0;
+  let amountAt12 = 0;
+  let amountAt0 = 0;
+
+  // We are deducting 'cappedContribution' from 'annualBase' top-down
+  let remainingDeduction = cappedContribution;
+
+  if (annualBase > FIRST_THRESHOLD_ANNUAL) {
+    const amountIn32 = annualBase - FIRST_THRESHOLD_ANNUAL;
+    const deductedHere = Math.min(amountIn32, remainingDeduction);
+    amountAt32 = deductedHere;
+    remainingDeduction -= deductedHere;
+  }
+
+  if (remainingDeduction > 0) {
+    const amountIn12 = Math.min(annualBase, FIRST_THRESHOLD_ANNUAL) - settings.taxFreeAmountAnnual;
+    if (amountIn12 > 0) {
+      const deductedHere = Math.min(amountIn12, remainingDeduction);
+      amountAt12 = deductedHere;
+      remainingDeduction -= deductedHere;
+    }
+  }
+
+  if (remainingDeduction > 0) {
+    amountAt0 = remainingDeduction;
+  }
+
+  return {
+    taxReturn: Math.round(taxReturn * 100) / 100,
+    marginalRate,
+    annualBase,
+    breakdown: {
+      amountAt32: Math.round(amountAt32 * 100) / 100,
+      amountAt12: Math.round(amountAt12 * 100) / 100,
+      amountAt0: Math.round(amountAt0 * 100) / 100,
+    },
+  };
+}
+
+export interface IkeIkzeComparisonResult {
+  ike: {
+    finalPot: number;
+    totalContributions: number;
+    taxPaid: number;
+    netPayout: number;
+  };
+  ikze: {
+    finalPot: number;
+    totalContributions: number;
+    taxPaid: number;
+    netPayout: number;
+    reinvestedReliefPot: number; // Value of reinvested tax returns after 19% tax
+    reinvestedReliefTotalTax: number; // Belka tax paid on the reinvestment
+    totalNet: number;
+  };
+  winner: "IKE" | "IKZE" | "REMIS";
+  difference: number;
+  isEarlyWithdrawalIke: boolean;
+  isEarlyWithdrawalIkze: boolean;
+}
+
+export function compareIkeVsIkze(
+  monthlyContribution: number,
+  existingIke: number,
+  existingIkze: number,
+  years: number,
+  annualReturnPct: number,
+  annualTaxReturn: number, // Tax relief from IKZE
+  annualBase: number, // Their current yearly salary base
+  isEarlyWithdrawalIke: boolean,
+  isEarlyWithdrawalIkze: boolean,
+  reinvestRelief: boolean,
+  settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS,
+): IkeIkzeComparisonResult {
+  const monthlyRate = annualReturnPct / 100 / 12;
+  const annualRate = annualReturnPct / 100;
+  const months = years * 12;
+
+  // Limits
+  const ikeMonthlyLimit = IKE_LIMIT_ANNUAL / 12;
+  const ikzeMonthlyLimit = IKZE_LIMIT_ANNUAL / 12;
+
+  // --- IKE ---
+  // Cap contribution at IKE limit, ignore surplus per user request (no brokerage assumption)
+  const ikeMonthlyInLimit = Math.min(monthlyContribution, ikeMonthlyLimit);
+
+  const ikeStartingFV = existingIke * Math.pow(1 + monthlyRate, months);
+  let ikeContributionsFV = 0;
+  if (monthlyRate > 0) {
+    ikeContributionsFV = ikeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+  } else {
+    ikeContributionsFV = ikeMonthlyInLimit * months;
+  }
+  const ikeFinalPot = ikeStartingFV + ikeContributionsFV;
+  const ikeTotalContributions = existingIke + (ikeMonthlyInLimit * months);
+  const ikeProfit = Math.max(0, ikeFinalPot - ikeTotalContributions);
+  
+  let ikeTaxPaid = 0;
+  if (isEarlyWithdrawalIke) {
+    ikeTaxPaid = ikeProfit * 0.19; // 19% Belka tax on profit
+  }
+  const ikeNetPayout = ikeFinalPot - ikeTaxPaid;
+
+  // --- IKZE ---
+  // Cap contribution at IKZE limit, ignore surplus per user request (no brokerage assumption)
+  const ikzeMonthlyInLimit = Math.min(monthlyContribution, ikzeMonthlyLimit);
+
+  const ikzeStartingFV = existingIkze * Math.pow(1 + monthlyRate, months);
+  let ikzeContributionsFV = 0;
+  if (monthlyRate > 0) {
+    ikzeContributionsFV = ikzeMonthlyInLimit * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+  } else {
+    ikzeContributionsFV = ikzeMonthlyInLimit * months;
+  }
+  const ikzeFinalPot = ikzeStartingFV + ikzeContributionsFV;
+  const ikzeTotalContributions = existingIkze + (ikzeMonthlyInLimit * months);
+
+  let ikzeTaxPaid = 0;
+  if (isEarlyWithdrawalIkze) {
+    const calculateAnnualPit = (base: number) => {
+      const FIRST_RATE = settings.pitFirstRate / 100;
+      const SECOND_RATE = settings.pitSecondRate / 100;
+      const FIRST_THRESHOLD_ANNUAL = settings.pitThresholdAnnual;
+      const annualTaxFreeAmount = settings.taxFreeAmountAnnual * FIRST_RATE;
+      const taxable = Math.max(0, base);
+      if (taxable <= FIRST_THRESHOLD_ANNUAL) {
+        return Math.max(0, taxable * FIRST_RATE - annualTaxFreeAmount);
+      }
+      const first = FIRST_THRESHOLD_ANNUAL * FIRST_RATE;
+      const second = (taxable - FIRST_THRESHOLD_ANNUAL) * SECOND_RATE;
+      return Math.max(0, first + second - annualTaxFreeAmount);
+    };
+
+    const normalPit = calculateAnnualPit(annualBase);
+    const earlyWithdrawalPit = calculateAnnualPit(annualBase + ikzeFinalPot);
+    ikzeTaxPaid = earlyWithdrawalPit - normalPit;
+  } else {
+    ikzeTaxPaid = ikzeFinalPot * 0.10; // 10% flat
+  }
+  const ikzeNetPayout = ikzeFinalPot - ikzeTaxPaid;
+
+  // --- Reinvested Tax Relief (IKZE) ---
+  // Note: annualTaxReturn is already capped at limit in calculateIkzeTaxReturn
+  let reinvestedReliefPot = 0;
+  let reinvestedReliefTotalTax = 0;
+  
+  if (reinvestRelief) {
+    let reliefFV = 0;
+    for (let y = 0; y < years; y++) {
+      reliefFV = (reliefFV + annualTaxReturn) * (1 + annualRate);
+    }
+    const reliefCap = annualTaxReturn * years;
+    reinvestedReliefTotalTax = Math.max(0, reliefFV - reliefCap) * 0.19;
+    reinvestedReliefPot = reliefFV - reinvestedReliefTotalTax;
+  } else {
+    reinvestedReliefPot = annualTaxReturn * years;
+    reinvestedReliefTotalTax = 0;
+  }
+
+  const ikzeTotalNet = ikzeNetPayout + reinvestedReliefPot;
+
+  let winner: "IKE" | "IKZE" | "REMIS" = "REMIS";
+  if (ikeNetPayout > ikzeTotalNet + 1) winner = "IKE";
+  else if (ikzeTotalNet > ikeNetPayout + 1) winner = "IKZE";
+
+  return {
+    ike: {
+      finalPot: Math.round(ikeFinalPot * 100) / 100,
+      totalContributions: Math.round(ikeTotalContributions * 100) / 100,
+      taxPaid: Math.round(ikeTaxPaid * 100) / 100,
+      netPayout: Math.round(ikeNetPayout * 100) / 100,
+    },
+    ikze: {
+      finalPot: Math.round(ikzeFinalPot * 100) / 100,
+      totalContributions: Math.round(ikzeTotalContributions * 100) / 100,
+      taxPaid: Math.round(ikzeTaxPaid * 100) / 100,
+      netPayout: Math.round(ikzeNetPayout * 100) / 100,
+      reinvestedReliefPot: Math.round(reinvestedReliefPot * 100) / 100,
+      reinvestedReliefTotalTax: Math.round(reinvestedReliefTotalTax * 100) / 100,
+      totalNet: Math.round(ikzeTotalNet * 100) / 100,
+    },
+    winner,
+    difference: Math.round(Math.abs(ikeNetPayout - ikzeTotalNet) * 100) / 100,
+    isEarlyWithdrawalIke,
+    isEarlyWithdrawalIkze,
+  };
 }

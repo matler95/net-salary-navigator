@@ -36,6 +36,10 @@ export type Spouse = {
   name: string;
   inputs: SalaryInputs;
   assignedUserId?: string;
+  age?: number;
+  gender?: "M" | "K";
+  existingIkeBalance?: number;
+  existingIkzeBalance?: number;
 };
 
 export type Expense = {
